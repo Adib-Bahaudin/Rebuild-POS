@@ -1,0 +1,3 @@
+# === Project Dependencies ===
+
+PySide6==6.12.0
