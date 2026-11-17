@@ -1,12 +1,10 @@
-import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
 from PySide6.QtCore import Qt, Signal, QSize
-from PySide6.QtGui import QIcon, QCursor
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
-    QApplication,
     QWidget,
     QVBoxLayout,
     QHBoxLayout,
@@ -17,9 +15,6 @@ from PySide6.QtWidgets import (
     QSpacerItem,
     QSizePolicy,
 )
-
-from customwindowtitlebar import FramelessMainWindow, TitleBarIconConfig, ICON_PATHS
-
 
 @dataclass(frozen=True)
 class VisibilityIconConfig:
