@@ -1,0 +1,52 @@
+# ==============================
+# 1. Lingkungan Virtual (Virtual Environment)
+# ==============================
+venv/
+.venv/
+env/
+.env_venv/
+
+# ==============================
+# 2. Python Cache & Bytecode
+# ==============================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ==============================
+# 3. Build, Distribusi & Packaging
+# (Penting saat nanti Anda mem-build ke .exe dengan PyInstaller/Nuitka)
+# ==============================
+build/
+dist/
+*.egg-info/
+*.egg
+*.spec
+
+# ==============================
+# 4. VS Code & Editor Settings
+# ==============================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+*.code-workspace
+
+# ==============================
+# 5. File Rahasia (Environment Variables)
+# ==============================
+.env
+
+# ==============================
+# 6. File Hasil Compile PySide6 (Opsional)
+# (Hapus tanda # di bawah ini jika Anda meng-generate file Python dari .ui atau .qrc dan tidak ingin memasukkannya ke Git)
+# ==============================
+ui_*.py
+rc_*.py
+
+# ==============================
+# 7. OS Specific (Windows & Mac)
+# ==============================
+Thumbs.db
+ehthumbs.db
+.DS_Store
