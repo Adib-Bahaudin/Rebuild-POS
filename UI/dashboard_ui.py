@@ -1,19 +1,14 @@
 import sys
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QFont, QCursor
-from PySide6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QLineEdit, QPushButton, QComboBox, QTableWidget,
-    QTableWidgetItem, QHeaderView, QTextEdit, QCheckBox, QStackedWidget,
-    QSizePolicy, QFrame
+from PySide6.QtGui import QCursor
+from PySide6.QtWidgets import ( QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
+    QLabel, QLineEdit, QPushButton, QComboBox, QTableWidget, QHeaderView, QTextEdit, QCheckBox, QStackedWidget, QFrame
 )
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List
 from PySide6.QtCore import Property, QPropertyAnimation, QEasingCurve, QRect
 from PySide6.QtGui import QPainter, QIcon, QEnterEvent, QPaintEvent
-
-from customwindowtitlebar import FramelessMainWindow, TitleBarIconConfig, ICON_PATHS
 
 @dataclass(frozen=True)
 class SidebarIconPaths:

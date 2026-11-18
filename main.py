@@ -14,6 +14,7 @@ from ui.customwindowtitlebar import (
     ICON_PATHS,
 )
 from ui.loginpage import LoginPage
+from ui.dashboard_ui import DashboardPOS
 from core.login_auth import LoginAuthService
 from util.helper.initdatabase import InitDatabase
 
@@ -62,6 +63,18 @@ def main() -> int:
 
         if result.is_success and result.user_data is not None:
             logger.info("Login berhasil untuk user: %s", result.user_data['name'])
+
+            dashboard_window = FramelessMainWindow(
+                icon_config=title_bar_config,
+                page_title="Dashboard Penjualan",
+            )
+            dashboard_window.setWindowIcon(app_icon)
+
+            dashboard_page = DashboardPOS()
+            dashboard_window.set_content_widget(dashboard_page)
+
+            dashboard_window.show()
+            window.close()
         else:
             logger.warning("Login gagal: %s", result.message)
 
