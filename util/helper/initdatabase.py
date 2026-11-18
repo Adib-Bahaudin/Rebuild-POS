@@ -11,7 +11,7 @@ import os
 import logging
 
 from init.inituserdatabase import DatabaseInitializer
-from init.initsuperuser import SuperUserInitializer
+from init.initsuperuser import run_superuser_in_cmd
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 
@@ -99,8 +99,7 @@ class InitDatabase:
 
         if not self._is_superuser_exists():
             logging.info("Super user belum ditemukan. Menjalankan inisialisasi super user...")
-            su_initializer = SuperUserInitializer(self.db_path)
-            su_initializer.create_superuser()
+            run_superuser_in_cmd(self.db_path)
             logging.info("Inisialisasi super user selesai.")
         else:
             logging.info("Super user sudah ada. Tahap ini dilewati.")

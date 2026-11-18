@@ -11,6 +11,7 @@ import hashlib
 import getpass
 import logging
 import sys
+import subprocess
 from typing import Tuple
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -115,3 +116,51 @@ class SuperUserInitializer:
         except Exception as e:
             logging.error(f"Kesalahan sistem tidak terduga: {e}")
             sys.exit(1)
+
+def run_superuser_in_cmd(db_path: str = "user_data.db") -> None:
+    """Membuka jendela CMD terpisah untuk inisialisasi Super User.
+    
+    Menjalankan alur pendaftaran dalam konsol terpisah agar input 'getpass'
+    berfungsi dengan baik. Jika jendela ditutup secara paksa (X) atau
+    proses gagal, aplikasi utama yang memanggil fungsi ini akan dihentikan.
+    
+    Args:
+        db_path (str): Path absolut atau relatif dari file database.
+    """
+    try:
+        script_path = os.path.abspath(__file__)
+        
+        result = subprocess.run(
+            [sys.executable, script_path, db_path],
+            creationflags=subprocess.CREATE_NEW_CONSOLE
+        )
+        
+        if result.returncode != 0:
+            logging.error("Pendaftaran Super User dibatalkan, gagal, atau ditutup paksa.")
+            sys.exit(1)
+            
+    except Exception as e:
+        logging.error(f"Gagal menjalankan jendela CMD: {e}")
+        sys.exit(1)
+
+if __name__ == "__main__":
+    target_db = sys.argv[1] if len(sys.argv) > 1 else "user_data.db"
+    
+    try:
+        su_initializer = SuperUserInitializer(target_db)
+        su_initializer.create_superuser()
+        
+        print("\nProses pendaftaran berhasil. Jendela akan menutup secara otomatis...")
+        import time
+        time.sleep(2)
+        
+    except SystemExit as e:
+        if e.code != 0:
+            print("\n[!] PROSES GAGAL ATAU DIBATALKAN.")
+            input("Tekan Enter untuk menutup jendela ini dan kembali ke aplikasi...")
+        sys.exit(e.code)
+        
+    except Exception as e:
+        print(f"\n[ERROR] Kesalahan sistem tidak terduga: {e}")
+        input("Tekan Enter untuk menutup jendela ini dan kembali ke aplikasi...")
+        sys.exit(1)
