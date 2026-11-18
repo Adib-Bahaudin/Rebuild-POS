@@ -9,6 +9,7 @@ from UI.customwindowtitlebar import (
 )
 from UI.loginpage import LoginPage
 from core.login_auth import LoginAuthService
+from init.inituserdatabase import DatabaseInitializer
 
 
 def main() -> int:
@@ -25,6 +26,9 @@ def main() -> int:
         icon_config=title_bar_config,
         page_title="Aktivasi Lisensi"
     )
+
+    db_init = DatabaseInitializer("barokah_database.db")
+    db_init.initialize()
 
     login_page = LoginPage()
 

@@ -138,8 +138,3 @@ class DatabaseInitializer:
             logging.error(f"Terjadi kesalahan pada database SQLite: {e}")
         except Exception as e:
             logging.error(f"Terjadi kesalahan sistem: {e}")
-
-
-if __name__ == "__main__":
-    db_init = DatabaseInitializer("app_database.db")
-    db_init.initialize()
