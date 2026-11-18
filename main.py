@@ -1,7 +1,10 @@
 import sys
 import logging
+import ctypes
+from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QIcon
 from pyqttoast import Toast, ToastPreset
 
 from core.logging_config import setup_logging
@@ -23,10 +26,24 @@ def main() -> int:
     Returns:
         Kode status keluar aplikasi kepada sistem operasi.
     """
+    try:
+        myappid = "barokahpos.posapp.rebuild.version.1.0"
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    except Exception:
+        pass
+
     setup_logging()
     logger.info("Aplikasi POS dimulai")
 
     app = QApplication(sys.argv)
+    
+    base_dir = Path(__file__).resolve().parent
+    icon_path = str(base_dir / "assets" / "icons" / "B_Logo.svg")
+    app_icon = QIcon(icon_path)
+    app.setWindowIcon(app_icon)
+
+    db_init = InitDatabase("barokah_database.db")
+    db_init.run()
 
     title_bar_config = TitleBarIconConfig.from_dict(ICON_PATHS)
 
@@ -34,9 +51,7 @@ def main() -> int:
         icon_config=title_bar_config,
         page_title="Aktivasi Lisensi"
     )
-
-    db_init = InitDatabase("barokah_database.db")
-    db_init.run()
+    window.setWindowIcon(app_icon)
 
     login_page = LoginPage()
 
