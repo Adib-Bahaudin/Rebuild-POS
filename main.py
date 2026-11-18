@@ -2,12 +2,12 @@ import sys
 
 from PySide6.QtWidgets import QApplication
 
-from UI.customwindowtitlebar import (
+from ui.customwindowtitlebar import (
     FramelessMainWindow,
     TitleBarIconConfig,
     ICON_PATHS,
 )
-from UI.loginpage import LoginPage
+from ui.loginpage import LoginPage
 from core.login_auth import LoginAuthService
 from util.helper.initdatabase import InitDatabase
 
