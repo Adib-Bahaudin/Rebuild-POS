@@ -70,7 +70,10 @@ def main() -> int:
             )
             dashboard_window.setWindowIcon(app_icon)
 
-            dashboard_page = DashboardPOS()
+            dashboard_page = DashboardPOS(
+                user_name=result.user_data['name'],
+                user_role=result.user_data['role'],
+            )
             dashboard_window.set_content_widget(dashboard_page)
 
             dashboard_window.show()

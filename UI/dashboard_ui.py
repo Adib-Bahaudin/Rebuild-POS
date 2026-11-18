@@ -166,7 +166,7 @@ class Sidebar(QFrame):
             QPushButton[active="true"] {
                 background-color: rgba(46, 204, 113, 0.15);
                 border-left: 3px solid #2ECC71;
-                border-radius: 0px;
+                border-radius: 8px;
             }
             """
         )
@@ -195,8 +195,13 @@ class TransactionHeader(QWidget):
     Menampilkan judul halaman, identitas kasir, dan role akses pengguna.
     """
     
-    def __init__(self, parent=None):
-        """Menginisialisasi elemen header transaksi."""
+    def __init__(self, user_name: str = "KASIR", user_role: str = "USER", parent=None):
+        """Menginisialisasi elemen header transaksi.
+        
+        Args:
+            user_name: Nama kasir yang sedang login.
+            user_role: Role / level akses pengguna yang sedang login.
+        """
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 16)
@@ -204,7 +209,7 @@ class TransactionHeader(QWidget):
         title_label = QLabel("TRANSAKSI PENJUALAN")
         title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #CDD6F4;")
         
-        cashier_badge = QLabel("NAMA KASIR : ADIB")
+        cashier_badge = QLabel(f"NAMA KASIR : {user_name.upper()}")
         cashier_badge.setStyleSheet(
             """
             QLabel {
@@ -218,7 +223,7 @@ class TransactionHeader(QWidget):
             """
         )
         
-        role_badge = QLabel("SUPER USER")
+        role_badge = QLabel(user_role.upper())
         role_badge.setStyleSheet(
             """
             QLabel {
@@ -569,8 +574,13 @@ class DashboardPOS(QWidget):
     samping kanan menggunakan layout dinamis.
     """
     
-    def __init__(self, parent=None):
-        """Menginisialisasi dan merakit seluruh sub-komponen dashboard."""
+    def __init__(self, user_name: str = "KASIR", user_role: str = "USER", parent=None):
+        """Menginisialisasi dan merakit seluruh sub-komponen dashboard.
+        
+        Args:
+            user_name: Nama kasir yang sedang login, diteruskan ke TransactionHeader.
+            user_role: Role pengguna yang sedang login, diteruskan ke TransactionHeader.
+        """
         super().__init__(parent)
         self.setStyleSheet("background-color: #11111B;")
         
@@ -585,7 +595,7 @@ class DashboardPOS(QWidget):
         center_layout.setContentsMargins(24, 24, 12, 24)
         center_layout.setSpacing(16)
         
-        self.header = TransactionHeader()
+        self.header = TransactionHeader(user_name=user_name, user_role=user_role)
         self.search_panel = ProductSearchPanel()
         self.cart_panel = CartPanel()
         
