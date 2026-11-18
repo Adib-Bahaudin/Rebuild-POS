@@ -9,9 +9,9 @@ import time
 import hashlib
 import logging
 from dataclasses import dataclass
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -99,6 +99,9 @@ class LoginAuthService:
         
         if locked_until > current_time:
             remaining_time = locked_until - current_time
+            logger.warning(
+                "Sistem terkunci. Sisa waktu: %d detik", remaining_time
+            )
             return AuthResponse(
                 is_success=False,
                 message=f"Sistem terkunci sementara. Coba lagi dalam {remaining_time} detik.",
@@ -197,15 +200,21 @@ class LoginAuthService:
         
         if locked_until > 0:
             remaining_time = locked_until - current_time
+            logger.warning(
+                "Sistem terkunci selama %d detik setelah percobaan gagal berturut-turut",
+                remaining_time,
+            )
             return AuthResponse(
                 is_success=False,
                 message=f"Kunci salah berturut-turut. Sistem terkunci selama {remaining_time} detik.",
                 locked_until=locked_until
             )
             
+        remaining_attempts = settings['max_failed_attempts'] - failed_attempts
+        logger.debug("Sisa percobaan login: %d", remaining_attempts)
         return AuthResponse(
             is_success=False,
-            message=f"Kunci tidak valid. Sisa percobaan: {settings['max_failed_attempts'] - failed_attempts}"
+            message=f"Kunci tidak valid. Sisa percobaan: {remaining_attempts}"
         )
 
     def authenticate(self, key: str) -> AuthResponse:
@@ -248,7 +257,10 @@ class LoginAuthService:
                     authenticated_user.pop("key_hash", None)
                     authenticated_user.pop("key_salt", None)
                     
-                    logging.info(f"Otorisasi berhasil untuk User ID: {authenticated_user['id']}")
+                    logger.info(
+                        "Otorisasi berhasil untuk User ID: %d",
+                        authenticated_user['id'],
+                    )
                     return AuthResponse(
                         is_success=True,
                         message="Login berhasil.",
@@ -256,12 +268,12 @@ class LoginAuthService:
                     )
                 else:
                     self._log_attempt(conn, None, "FAILED")
-                    logging.warning("Upaya otorisasi ditolak. Kunci tidak valid.")
+                    logger.warning("Upaya otorisasi ditolak. Kunci tidak valid.")
                     return self._process_failed_attempt(conn)
                     
-        except sqlite3.Error as db_error:
-            logging.error(f"Kesalahan internal database: {db_error}")
+        except sqlite3.Error:
+            logger.exception("Kesalahan internal database")
             return AuthResponse(is_success=False, message="Terjadi kesalahan pada basis data sistem.")
-        except Exception as e:
-            logging.error(f"Kesalahan sistem tidak terduga: {e}")
+        except Exception:
+            logger.exception("Kesalahan sistem tidak terduga")
             return AuthResponse(is_success=False, message="Terjadi kegagalan proses internal.")

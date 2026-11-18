@@ -14,7 +14,7 @@ import sys
 import subprocess
 from typing import Tuple
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class SuperUserInitializer:
@@ -71,31 +71,36 @@ class SuperUserInitializer:
         kosong, dan meminta input kunci secara aman tersembunyi.
         """
         if not os.path.exists(self.db_path):
-            logging.error(f"Database {self.db_path} tidak ditemukan. Jalankan inituserdatabase.py terlebih dahulu.")
+            logger.error(
+                "Database %s tidak ditemukan. Jalankan inituserdatabase.py terlebih dahulu.",
+                self.db_path,
+            )
             sys.exit(1)
 
         try:
             with sqlite3.connect(self.db_path) as conn:
                 if not self._is_database_empty(conn):
-                    logging.warning("Tindakan ditolak. Basis data sudah memiliki pengguna (Tidak kosong).")
+                    logger.warning("Tindakan ditolak. Basis data sudah memiliki pengguna (Tidak kosong).")
                     sys.exit(1)
 
+                # Output CLI interaktif — menggunakan print() karena ini adalah
+                # antarmuka pengguna konsol, bukan log diagnostik.
                 print("\n=== INISIALISASI SUPER USER (MASTER AKUN) ===")
                 print("Peringatan: Input kunci menggunakan mode rahasia (teks tidak akan muncul di layar saat diketik).\n")
                 
                 name = input("Masukkan Nama Super User: ").strip()
                 if not name:
-                    logging.error("Nama tidak boleh kosong.")
+                    logger.error("Nama tidak boleh kosong.")
                     sys.exit(1)
 
                 key = getpass.getpass("Masukkan Kunci Akses Baru: ").strip()
                 if len(key) < 6:
-                    logging.error("Kunci akses terlalu pendek (Minimal 6 karakter).")
+                    logger.error("Kunci akses terlalu pendek (Minimal 6 karakter).")
                     sys.exit(1)
 
                 key_confirm = getpass.getpass("Konfirmasi Kunci Akses: ").strip()
                 if key != key_confirm:
-                    logging.error("Konfirmasi kunci gagal. Kunci tidak cocok.")
+                    logger.error("Konfirmasi kunci gagal. Kunci tidak cocok.")
                     sys.exit(1)
 
                 key_hash, key_salt = self._generate_crypto_materials(key)
@@ -107,14 +112,14 @@ class SuperUserInitializer:
                 """, (name, 'SUPERUSER', key_hash, key_salt, 1))
                 
                 conn.commit()
-                logging.info(f"Super User '{name}' berhasil dibuat dan disimpan dengan aman.")
+                logger.info("Super User '%s' berhasil dibuat dan disimpan dengan aman.", name)
                 print("=============================================\n")
 
-        except sqlite3.Error as e:
-            logging.error(f"Kesalahan pada basis data: {e}")
+        except sqlite3.Error:
+            logger.exception("Kesalahan pada basis data")
             sys.exit(1)
-        except Exception as e:
-            logging.error(f"Kesalahan sistem tidak terduga: {e}")
+        except Exception:
+            logger.exception("Kesalahan sistem tidak terduga")
             sys.exit(1)
 
 def run_superuser_in_cmd(db_path: str = "user_data.db") -> None:
@@ -129,6 +134,7 @@ def run_superuser_in_cmd(db_path: str = "user_data.db") -> None:
     """
     try:
         script_path = os.path.abspath(__file__)
+        logger.info("Membuka jendela CMD untuk inisialisasi Super User")
         
         result = subprocess.run(
             [sys.executable, script_path, db_path],
@@ -136,20 +142,35 @@ def run_superuser_in_cmd(db_path: str = "user_data.db") -> None:
         )
         
         if result.returncode != 0:
-            logging.error("Pendaftaran Super User dibatalkan, gagal, atau ditutup paksa.")
+            logger.error(
+                "Pendaftaran Super User gagal dengan kode keluar: %d",
+                result.returncode,
+            )
             sys.exit(1)
+
+        logger.info("Proses inisialisasi Super User di CMD selesai")
             
-    except Exception as e:
-        logging.error(f"Gagal menjalankan jendela CMD: {e}")
+    except Exception:
+        logger.exception("Gagal menjalankan jendela CMD untuk Super User")
         sys.exit(1)
 
 if __name__ == "__main__":
+    # Ketika dijalankan sebagai skrip mandiri (di jendela CMD terpisah),
+    # setup logging secara minimal karena core.logging_config mungkin
+    # tidak tersedia sebagai package import.
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
     target_db = sys.argv[1] if len(sys.argv) > 1 else "user_data.db"
     
     try:
         su_initializer = SuperUserInitializer(target_db)
         su_initializer.create_superuser()
         
+        # Output CLI interaktif — print() dipertahankan
         print("\nProses pendaftaran berhasil. Jendela akan menutup secara otomatis...")
         import time
         time.sleep(2)
@@ -160,7 +181,8 @@ if __name__ == "__main__":
             input("Tekan Enter untuk menutup jendela ini dan kembali ke aplikasi...")
         sys.exit(e.code)
         
-    except Exception as e:
-        print(f"\n[ERROR] Kesalahan sistem tidak terduga: {e}")
+    except Exception:
+        logger.exception("Kesalahan sistem tidak terduga saat inisialisasi Super User")
+        print("\n[ERROR] Terjadi kesalahan sistem yang tidak terduga.")
         input("Tekan Enter untuk menutup jendela ini dan kembali ke aplikasi...")
         sys.exit(1)

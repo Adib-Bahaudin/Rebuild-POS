@@ -9,7 +9,7 @@ import os
 import logging
 from typing import Optional
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class DatabaseInitializer:
@@ -35,9 +35,9 @@ class DatabaseInitializer:
         """
         exists = os.path.exists(self.db_path)
         if exists:
-            logging.info(f"Database ditemukan di: {self.db_path}")
+            logger.debug("Database ditemukan di: %s", self.db_path)
         else:
-            logging.info(f"Database belum ada. Akan membuat baru di: {self.db_path}")
+            logger.info("Database belum ada. Akan membuat baru di: %s", self.db_path)
         return exists
 
     def _create_tables(self, conn: sqlite3.Connection) -> None:
@@ -89,7 +89,7 @@ class DatabaseInitializer:
         """)
 
         conn.commit()
-        logging.info("Verifikasi dan pembuatan tabel selesai.")
+        logger.info("Verifikasi dan pembuatan tabel selesai")
 
     def _initialize_default_data(self, conn: sqlite3.Connection) -> None:
         """Mengisi data default (seeder) yang diperlukan oleh sistem.
@@ -116,7 +116,7 @@ class DatabaseInitializer:
         """, default_settings)
 
         conn.commit()
-        logging.info("Inisialisasi data default selesai.")
+        logger.info("Inisialisasi data default selesai")
 
     def _tables_exist(self, conn: sqlite3.Connection) -> bool:
         """Memeriksa apakah semua tabel yang diperlukan sudah ada di database.
@@ -136,10 +136,10 @@ class DatabaseInitializer:
         missing = required_tables - existing_tables
 
         if missing:
-            logging.info(f"Tabel belum lengkap. Tabel yang belum ada: {missing}")
+            logger.info("Tabel belum lengkap. Tabel yang belum ada: %s", missing)
             return False
 
-        logging.info("Semua tabel sudah ada di database.")
+        logger.debug("Semua tabel sudah ada di database")
         return True
 
     def _default_data_exists(self, conn: sqlite3.Connection) -> bool:
@@ -157,7 +157,7 @@ class DatabaseInitializer:
             "SELECT COUNT(*) FROM system_lockout WHERE id = 1"
         )
         if cursor.fetchone()[0] == 0:
-            logging.info("Data default system_lockout belum ada.")
+            logger.debug("Data default system_lockout belum ada")
             return False
 
         required_keys = {"max_failed_attempts", "base_lockout_seconds"}
@@ -166,10 +166,10 @@ class DatabaseInitializer:
         missing_keys = required_keys - existing_keys
 
         if missing_keys:
-            logging.info(f"Data default settings belum lengkap. Key belum ada: {missing_keys}")
+            logger.debug("Data default settings belum lengkap. Key belum ada: %s", missing_keys)
             return False
 
-        logging.info("Semua data default sudah ada di database.")
+        logger.debug("Semua data default sudah ada di database")
         return True
 
     def initialize(self) -> None:
@@ -188,16 +188,16 @@ class DatabaseInitializer:
                 if not self._tables_exist(conn):
                     self._create_tables(conn)
                 else:
-                    logging.info("Pembuatan tabel dilewati — semua tabel sudah ada.")
+                    logger.debug("Pembuatan tabel dilewati — semua tabel sudah ada")
 
                 if not self._default_data_exists(conn):
                     self._initialize_default_data(conn)
                 else:
-                    logging.info("Pengisian data default dilewati — semua data sudah ada.")
+                    logger.debug("Pengisian data default dilewati — semua data sudah ada")
                 
-            logging.info("Proses inisialisasi database berhasil secara keseluruhan.")
+            logger.info("Proses inisialisasi database berhasil secara keseluruhan")
             
-        except sqlite3.Error as e:
-            logging.error(f"Terjadi kesalahan pada database SQLite: {e}")
-        except Exception as e:
-            logging.error(f"Terjadi kesalahan sistem: {e}")
+        except sqlite3.Error:
+            logger.exception("Terjadi kesalahan pada database SQLite")
+        except Exception:
+            logger.exception("Terjadi kesalahan sistem")

@@ -13,7 +13,7 @@ import logging
 from init.inituserdatabase import DatabaseInitializer
 from init.initsuperuser import run_superuser_in_cmd
 
-logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+logger = logging.getLogger(__name__)
 
 
 class InitDatabase:
@@ -87,21 +87,21 @@ class InitDatabase:
                - Jika belum → jalankan SuperUserInitializer.create_superuser()
             3. Jika semua sudah siap → lewati, lanjut ke aplikasi.
         """
-        logging.info("=== Memulai Pemeriksaan Inisialisasi Database ===")
+        logger.info("Memulai pemeriksaan inisialisasi database")
 
         if not self._is_database_exists() or not self._is_tables_ready():
-            logging.info("Database atau tabel belum lengkap. Menjalankan inisialisasi struktur database...")
+            logger.info("Database atau tabel belum lengkap. Menjalankan inisialisasi struktur...")
             db_initializer = DatabaseInitializer(self.db_path)
             db_initializer.initialize()
-            logging.info("Inisialisasi struktur database selesai.")
+            logger.info("Inisialisasi struktur database selesai")
         else:
-            logging.info("Struktur database sudah lengkap. Tahap ini dilewati.")
+            logger.debug("Struktur database sudah lengkap. Tahap ini dilewati")
 
         if not self._is_superuser_exists():
-            logging.info("Super user belum ditemukan. Menjalankan inisialisasi super user...")
+            logger.info("Super user belum ditemukan. Menjalankan inisialisasi super user...")
             run_superuser_in_cmd(self.db_path)
-            logging.info("Inisialisasi super user selesai.")
+            logger.info("Inisialisasi super user selesai")
         else:
-            logging.info("Super user sudah ada. Tahap ini dilewati.")
+            logger.debug("Super user sudah ada. Tahap ini dilewati")
 
-        logging.info("=== Pemeriksaan Inisialisasi Database Selesai ===")
+        logger.info("Pemeriksaan inisialisasi database selesai")

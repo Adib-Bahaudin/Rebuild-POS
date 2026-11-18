@@ -1,7 +1,9 @@
 import sys
+import logging
 
 from PySide6.QtWidgets import QApplication
 
+from core.logging_config import setup_logging
 from ui.customwindowtitlebar import (
     FramelessMainWindow,
     TitleBarIconConfig,
@@ -11,6 +13,8 @@ from ui.loginpage import LoginPage
 from core.login_auth import LoginAuthService
 from util.helper.initdatabase import InitDatabase
 
+logger = logging.getLogger(__name__)
+
 
 def main() -> int:
     """Titik masuk utama untuk menjalankan aplikasi POS.
@@ -18,6 +22,9 @@ def main() -> int:
     Returns:
         Kode status keluar aplikasi kepada sistem operasi.
     """
+    setup_logging()
+    logger.info("Aplikasi POS dimulai")
+
     app = QApplication(sys.argv)
 
     title_bar_config = TitleBarIconConfig.from_dict(ICON_PATHS)
@@ -38,13 +45,13 @@ def main() -> int:
         result = auth_service.authenticate(key)
 
         if result.is_success and result.user_data is not None:
-            print(f"Login Sukses! Selamat datang {result.user_data['name']}")
+            logger.info("Login berhasil untuk user: %s", result.user_data['name'])
         else:
-            print(f"Login Gagal: {result.message}")
+            logger.warning("Login gagal: %s", result.message)
 
     def on_create_key_attempt() -> None:
         """Menerima sinyal permintaan pembuatan key baru dari UI (Placeholder)."""
-        print("[UI SIGNAL] Permintaan pembuatan Access Key baru")
+        logger.info("Permintaan pembuatan Access Key baru diterima dari UI")
 
     login_page.login_requested.connect(on_login_attempt)
     login_page.create_key_requested.connect(on_create_key_attempt)
@@ -52,7 +59,11 @@ def main() -> int:
     window.set_content_widget(login_page)
     window.show()
 
-    return app.exec()
+    logger.info("Jendela utama ditampilkan, event loop dimulai")
+    exit_code = app.exec()
+    logger.info("Aplikasi POS dihentikan dengan kode: %d", exit_code)
+
+    return exit_code
 
 
 if __name__ == "__main__":
