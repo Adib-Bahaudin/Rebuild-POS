@@ -118,10 +118,66 @@ class DatabaseInitializer:
         conn.commit()
         logging.info("Inisialisasi data default selesai.")
 
+    def _tables_exist(self, conn: sqlite3.Connection) -> bool:
+        """Memeriksa apakah semua tabel yang diperlukan sudah ada di database.
+
+        Args:
+            conn (sqlite3.Connection): Objek koneksi ke database SQLite.
+
+        Returns:
+            bool: True jika semua tabel sudah ada, False jika ada yang belum.
+        """
+        required_tables = {"users", "system_lockout", "login_logs", "settings"}
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        )
+        existing_tables = {row[0] for row in cursor.fetchall()}
+        missing = required_tables - existing_tables
+
+        if missing:
+            logging.info(f"Tabel belum lengkap. Tabel yang belum ada: {missing}")
+            return False
+
+        logging.info("Semua tabel sudah ada di database.")
+        return True
+
+    def _default_data_exists(self, conn: sqlite3.Connection) -> bool:
+        """Memeriksa apakah data default (seeder) sudah ada di database.
+
+        Args:
+            conn (sqlite3.Connection): Objek koneksi ke database SQLite.
+
+        Returns:
+            bool: True jika semua data default sudah ada, False jika belum.
+        """
+        cursor = conn.cursor()
+
+        cursor.execute(
+            "SELECT COUNT(*) FROM system_lockout WHERE id = 1"
+        )
+        if cursor.fetchone()[0] == 0:
+            logging.info("Data default system_lockout belum ada.")
+            return False
+
+        required_keys = {"max_failed_attempts", "base_lockout_seconds"}
+        cursor.execute("SELECT key FROM settings")
+        existing_keys = {row[0] for row in cursor.fetchall()}
+        missing_keys = required_keys - existing_keys
+
+        if missing_keys:
+            logging.info(f"Data default settings belum lengkap. Key belum ada: {missing_keys}")
+            return False
+
+        logging.info("Semua data default sudah ada di database.")
+        return True
+
     def initialize(self) -> None:
         """Mengeksekusi seluruh proses inisialisasi database.
         
         Meliputi verifikasi file, pembuatan tabel, dan pengisian data default.
+        Jika tabel sudah ada, pembuatan tabel dilewati.
+        Jika data default sudah ada, pengisian data default dilewati.
         """
         self._check_db_exists()
         
@@ -129,8 +185,15 @@ class DatabaseInitializer:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute("PRAGMA foreign_keys = ON")
                 
-                self._create_tables(conn)
-                self._initialize_default_data(conn)
+                if not self._tables_exist(conn):
+                    self._create_tables(conn)
+                else:
+                    logging.info("Pembuatan tabel dilewati — semua tabel sudah ada.")
+
+                if not self._default_data_exists(conn):
+                    self._initialize_default_data(conn)
+                else:
+                    logging.info("Pengisian data default dilewati — semua data sudah ada.")
                 
             logging.info("Proses inisialisasi database berhasil secara keseluruhan.")
             
