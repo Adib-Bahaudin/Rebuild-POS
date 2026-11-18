@@ -106,7 +106,7 @@ class DatabaseInitializer:
         """)
 
         default_settings = [
-            ("max_failed_attempts", "5"),
+            ("max_failed_attempts", "3"),
             ("base_lockout_seconds", "60")
         ]
 
