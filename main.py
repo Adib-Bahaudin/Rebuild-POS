@@ -34,7 +34,7 @@ def main() -> int:
 
     def on_login_attempt(key: str) -> None:
         """Menerima dan memproses sinyal login dari UI (Placeholder)."""
-        auth_service = LoginAuthService("user_data.db")
+        auth_service = LoginAuthService("barokah_database.db")
         result = auth_service.authenticate(key)
 
         if result.is_success and result.user_data is not None:
