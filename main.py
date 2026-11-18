@@ -8,6 +8,7 @@ from UI.customwindowtitlebar import (
     ICON_PATHS,
 )
 from UI.loginpage import LoginPage
+from core.login_auth import LoginAuthService
 
 
 def main() -> int:
@@ -29,7 +30,13 @@ def main() -> int:
 
     def on_login_attempt(key: str) -> None:
         """Menerima dan memproses sinyal login dari UI (Placeholder)."""
-        print(f"[UI SIGNAL] Permintaan login menggunakan key: {key}")
+        auth_service = LoginAuthService("user_data.db")
+        result = auth_service.authenticate(key)
+
+        if result.is_success and result.user_data is not None:
+            print(f"Login Sukses! Selamat datang {result.user_data['name']}")
+        else:
+            print(f"Login Gagal: {result.message}")
 
     def on_create_key_attempt() -> None:
         """Menerima sinyal permintaan pembuatan key baru dari UI (Placeholder)."""
