@@ -1,4 +1,6 @@
 from dataclasses import dataclass
+import ctypes
+import ctypes.wintypes
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -676,8 +678,7 @@ class FramelessMainWindow(QMainWindow):
             | Qt.WindowType.WindowSystemMenuHint
             | Qt.WindowType.WindowMinMaxButtonsHint
         )
-        self.setMinimumSize(640, 420)
-        self.resize(960, 600)
+        self.setMinimumSize(1200, 640)
         self.setMouseTracking(True)
 
         self._root_container = QWidget(self)
@@ -716,6 +717,54 @@ class FramelessMainWindow(QMainWindow):
         app = QApplication.instance()
         if app is not None:
             app.installEventFilter(self)
+        self._show_initial_window_state()
+
+    def _is_taskbar_visible(self) -> bool:
+        """Mendeteksi apakah taskbar Windows saat ini terlihat (tidak disembunyikan).
+
+        Menggunakan Windows Shell API (SHAppBarMessage + ABM_GETTASKBARPOS)
+        untuk mendapatkan posisi dan ukuran taskbar. Jika lebar atau tinggi
+        taskbar adalah nol, dianggap taskbar sedang dalam kondisi auto-hide
+        atau tidak terdeteksi.
+
+        Returns:
+            True jika taskbar terdeteksi dan memiliki ukuran > 0, False jika tidak.
+        """
+        try:
+            class APPBARDATA(ctypes.Structure):
+                _fields_ = [
+                    ("cbSize", ctypes.wintypes.DWORD),
+                    ("hWnd", ctypes.wintypes.HWND),
+                    ("uCallbackMessage", ctypes.wintypes.UINT),
+                    ("uEdge", ctypes.wintypes.UINT),
+                    ("rc", ctypes.wintypes.RECT),
+                    ("lParam", ctypes.wintypes.LPARAM),
+                ]
+
+            ABM_GETTASKBARPOS = 0x00000005
+            abd = APPBARDATA()
+            abd.cbSize = ctypes.sizeof(abd)
+            result = ctypes.windll.shell32.SHAppBarMessage(ABM_GETTASKBARPOS, ctypes.byref(abd))
+            if not result:
+                return False
+            width = abd.rc.right - abd.rc.left
+            height = abd.rc.bottom - abd.rc.top
+            return width > 0 and height > 0
+        except Exception:
+            return False
+
+    def _show_initial_window_state(self) -> None:
+        """Menampilkan jendela dalam kondisi awal.
+
+        Jika taskbar Windows terdeteksi dan terlihat, jendela ditampilkan
+        dalam mode maximized agar tidak menutupi taskbar. Jika taskbar tidak
+        terdeteksi (mis. dalam kondisi auto-hide atau tersembunyi), jendela
+        ditampilkan dalam mode fullscreen.
+        """
+        if self._is_taskbar_visible():
+            self.showMaximized()
+        else:
+            self.showFullScreen()
 
     def set_content_widget(self, widget: QWidget) -> None:
         """Menetapkan widget konten aplikasi di bawah area Custom Title Bar.
