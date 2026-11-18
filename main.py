@@ -2,6 +2,7 @@ import sys
 import logging
 
 from PySide6.QtWidgets import QApplication
+from pyqttoast import Toast, ToastPreset
 
 from core.logging_config import setup_logging
 from ui.customwindowtitlebar import (
@@ -48,6 +49,14 @@ def main() -> int:
             logger.info("Login berhasil untuk user: %s", result.user_data['name'])
         else:
             logger.warning("Login gagal: %s", result.message)
+
+            toast = Toast(window)
+            toast.setDuration(4000)
+            toast.setBorderRadius(5)
+            toast.setTitle("Login Gagal")
+            toast.setText(result.message)
+            toast.applyPreset(ToastPreset.ERROR)
+            toast.show()
 
     def on_create_key_attempt() -> None:
         """Menerima sinyal permintaan pembuatan key baru dari UI (Placeholder)."""
