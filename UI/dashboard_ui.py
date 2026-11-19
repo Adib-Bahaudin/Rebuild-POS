@@ -1,5 +1,6 @@
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QCursor
+from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import ( QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QLineEdit, QPushButton, QComboBox, QTableWidget, QHeaderView, QTextEdit, QCheckBox, QStackedWidget, QFrame
 )
@@ -204,7 +205,13 @@ class TransactionHeader(QWidget):
         super().__init__(parent)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
+        kasir_icon = QSvgWidget("assets/icons/kasir_100.svg")
+        kasir_icon.setFixedSize(QSize(60, 60))
+        layout.addWidget(kasir_icon)
+
+        layout.addSpacing(10)
+
         title_label = QLabel("TRANSAKSI PENJUALAN")
         title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #CDD6F4;")
         
@@ -525,7 +532,6 @@ class PaymentPanel(CardWidget):
         note_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background-color: transparent;")
         note_input = QTextEdit()
         note_input.setPlaceholderText("tulis informasi disini")
-        #note_input.setFixedHeight(60)
         note_input.setStyleSheet(common_input_style)
         change_lbl = QLabel("Kembalian: Rp 0")
         change_lbl.setStyleSheet("color: #CDD6F4; font-size: 14px; font-weight: bold; background-color: transparent;")
@@ -540,8 +546,6 @@ class PaymentPanel(CardWidget):
         layout.addLayout(amount_layout)
         layout.addLayout(cust_layout)
         layout.addLayout(note_layout)
-        #layout.addWidget(change_lbl)
-        #layout.addWidget(print_check)
 
 
 class TransactionActionPanel(CardWidget):
@@ -566,22 +570,22 @@ class TransactionActionPanel(CardWidget):
                 font-weight: bold;
                 font-size: 13px;
             }
-            QPushButton:hover {
-                opacity: 0.8;
+            QPushButton::hover {
+                background-color: %s;
             }
         """
         
         btn_diskon = QPushButton("Diskon")
-        btn_diskon.setStyleSheet(btn_style_template % ("#F39C12", "#11111B"))
+        btn_diskon.setStyleSheet(btn_style_template % ("#F39C12", "#11111B", "#B7770D"))
         
         btn_pembulatan = QPushButton("Pembulatan")
-        btn_pembulatan.setStyleSheet(btn_style_template % ("#3498DB", "#FFFFFF"))
+        btn_pembulatan.setStyleSheet(btn_style_template % ("#3498DB", "#FFFFFF", "#1E6FA5"))
         
         btn_tip = QPushButton("Tip / Bonus")
-        btn_tip.setStyleSheet(btn_style_template % ("#1ABC9C", "#FFFFFF"))
+        btn_tip.setStyleSheet(btn_style_template % ("#1ABC9C", "#FFFFFF", "#128F76"))
         
         btn_bayar = QPushButton("Bayar")
-        btn_bayar.setStyleSheet(btn_style_template % ("#2ECC71", "#11111B"))
+        btn_bayar.setStyleSheet(btn_style_template % ("#2ECC71", "#11111B", "#1E9950"))
         
         cursors = [btn_diskon, btn_pembulatan, btn_tip, btn_bayar]
         for btn in cursors:
