@@ -14,6 +14,7 @@ from PySide6.QtCore import (
     QRect,
     QSize,
     Qt,
+    QAbstractAnimation,
 )
 from PySide6.QtGui import (
     QEnterEvent,
@@ -672,6 +673,7 @@ class FramelessMainWindow(QMainWindow):
         """
         super().__init__(parent)
         self.setWindowTitle(page_title)
+        self._transition_anim: Optional[QAbstractAnimation] = None
         self.setWindowFlags(
             Qt.WindowType.Window
             | Qt.WindowType.FramelessWindowHint

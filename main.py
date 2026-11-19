@@ -13,6 +13,11 @@ from ui.customwindowtitlebar import (
     TitleBarIconConfig,
     ICON_PATHS,
 )
+from PySide6.QtCore import (
+    QEasingCurve,
+    QParallelAnimationGroup,
+    QPropertyAnimation,
+)
 from ui.loginpage import LoginPage
 from ui.dashboard_ui import DashboardPOS
 from core.login_auth import LoginAuthService
@@ -62,7 +67,9 @@ def main() -> int:
         result = auth_service.authenticate(key)
 
         if result.is_success and result.user_data is not None:
-            logger.info("Login berhasil untuk user: %s", result.user_data['name'])
+            logger.info(
+                "Login berhasil untuk user: %s", result.user_data["name"]
+            )
 
             dashboard_window = FramelessMainWindow(
                 icon_config=title_bar_config,
@@ -71,13 +78,42 @@ def main() -> int:
             dashboard_window.setWindowIcon(app_icon)
 
             dashboard_page = DashboardPOS(
-                user_name=result.user_data['name'],
-                user_role=result.user_data['role'],
+                user_name=result.user_data["name"],
+                user_role=result.user_data["role"],
             )
             dashboard_window.set_content_widget(dashboard_page)
 
+            # 1. Set opasitas awal ke 0 sebelum jendela ditampilkan agar tidak berkedip
+            dashboard_window.setWindowOpacity(0.0)
             dashboard_window.show()
-            window.close()
+
+            # 2. Animasi fade-in untuk dashboard_window
+            fade_in = QPropertyAnimation(
+                dashboard_window, b"windowOpacity", dashboard_window
+            )
+            fade_in.setDuration(250)
+            fade_in.setStartValue(0.0)
+            fade_in.setEndValue(1.0)
+            fade_in.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+            # 3. Animasi fade-out untuk window lama secara bersamaan
+            fade_out = QPropertyAnimation(
+                window, b"windowOpacity", dashboard_window
+            )
+            fade_out.setDuration(200)
+            fade_out.setStartValue(1.0)
+            fade_out.setEndValue(0.0)
+            fade_out.setEasingCurve(QEasingCurve.Type.InCubic)
+
+            # 4. Jalankan bersamaan dan tutup window lama HANYA setelah animasi selesai
+            anim_group = QParallelAnimationGroup(dashboard_window)
+            anim_group.addAnimation(fade_in)
+            anim_group.addAnimation(fade_out)
+            anim_group.finished.connect(window.close)
+
+            # Simpan referensi agar tidak dihapus garbage collector Python
+            dashboard_window._transition_anim = anim_group
+            anim_group.start()
         else:
             logger.warning("Login gagal: %s", result.message)
 
