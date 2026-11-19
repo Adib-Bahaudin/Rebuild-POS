@@ -1,4 +1,3 @@
-import sys
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import ( QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -204,7 +203,7 @@ class TransactionHeader(QWidget):
         """
         super().__init__(parent)
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(0, 0, 0, 16)
+        layout.setContentsMargins(0, 0, 0, 0)
         
         title_label = QLabel("TRANSAKSI PENJUALAN")
         title_label.setStyleSheet("font-size: 20px; font-weight: bold; color: #CDD6F4;")
@@ -282,7 +281,7 @@ class ProductSearchPanel(CardWidget):
         )
         
         category_combo = QComboBox()
-        category_combo.addItem("Semua Produk")
+        category_combo.addItems(["Semua Produk", "Produk Satuan", "Produk Paket", "Jasa"])
         category_combo.setFixedWidth(200)
         category_combo.setStyleSheet(
             """
@@ -292,6 +291,23 @@ class ProductSearchPanel(CardWidget):
                 border-radius: 6px;
                 padding: 10px;
                 color: #CDD6F4;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 24px;
+                border-left: 1px solid #313244;
+            }
+            QComboBox::down-arrow {
+                image: url(assets/icons/icon_down.svg);
+                width: 12px;
+                height: 12px;
+            }
+            QComboBox QAbstractItemView {
+                background-color: #11111B;
+                color: white;
+                border: 1px solid #313244;
+                selection-background-color: #0078D7;
             }
             """
         )
@@ -318,7 +334,7 @@ class ProductSearchPanel(CardWidget):
         input_layout.addWidget(add_btn)
         
         helper_label = QLabel("Cari produk berdasarkan SKU atau nama produk.")
-        helper_label.setStyleSheet("color: #7F849C; font-size: 11px;")
+        helper_label.setStyleSheet("color: #7F849C; font-size: 11px; background-color: transparent;")
         
         layout.addLayout(input_layout)
         layout.addWidget(helper_label)
@@ -405,8 +421,8 @@ class TransactionSummaryPanel(CardWidget):
         """Menginisialisasi layout ringkasan angka transaksi."""
         super().__init__(parent)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(8)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(3)
         
         items = [
             ("Subtotal", "Rp 0"),
@@ -418,9 +434,9 @@ class TransactionSummaryPanel(CardWidget):
         for label_text, value_text in items:
             row_layout = QHBoxLayout()
             lbl = QLabel(label_text)
-            lbl.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+            lbl.setStyleSheet("color: #A6ADC8; font-size: 13px; background-color: transparent;")
             val = QLabel(value_text)
-            val.setStyleSheet("color: #CDD6F4; font-size: 12px; font-weight: bold;")
+            val.setStyleSheet("color: #CDD6F4; font-size: 13px; font-weight: bold; background-color: transparent;")
             val.setAlignment(Qt.AlignmentFlag.AlignRight)
             row_layout.addWidget(lbl)
             row_layout.addWidget(val)
@@ -429,10 +445,10 @@ class TransactionSummaryPanel(CardWidget):
         layout.addSpacing(8)
         
         total_lbl = QLabel("Total Tagihan")
-        total_lbl.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+        total_lbl.setStyleSheet("color: #A6ADC8; font-size: 12px; background-color: transparent;")
         
         total_val = QLabel("Rp 0")
-        total_val.setStyleSheet("color: #2ECC71; font-size: 24px; font-weight: bold;")
+        total_val.setStyleSheet("color: #2ECC71; font-size: 24px; font-weight: bold; padding-left: 3; padding-bottom: 3")
         total_val.setAlignment(Qt.AlignmentFlag.AlignLeft)
         
         layout.addWidget(total_lbl)
@@ -451,24 +467,35 @@ class PaymentPanel(CardWidget):
         super().__init__(parent)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(12)
         
         common_input_style = """
             QWidget {
                 background-color: #11111B;
                 border: 1px solid #313244;
                 border-radius: 6px;
-                padding: 8px;
+                padding: 3px;
                 color: #CDD6F4;
+                font-size: 12px;
+            }
+            QComboBox::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
+                width: 24px;
+                border-left: 1px solid #313244;
+            }
+            QComboBox::down-arrow {
+                image: url(assets/icons/icon_down.svg);
+                width: 10px;
+                height: 10px;
             }
         """
         
         method_layout = QHBoxLayout()
         method_lbl = QLabel("Metode Bayar")
         method_lbl.setFixedWidth(100)
-        method_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px;")
+        method_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background-color: transparent;")
         method_combo = QComboBox()
-        method_combo.addItem("Tunai")
+        method_combo.addItems(["Tunai", "QRIS", "Transfer"])
         method_combo.setStyleSheet(common_input_style)
         method_layout.addWidget(method_lbl)
         method_layout.addWidget(method_combo)
@@ -476,7 +503,7 @@ class PaymentPanel(CardWidget):
         amount_layout = QHBoxLayout()
         amount_lbl = QLabel("Nominal Bayar")
         amount_lbl.setFixedWidth(100)
-        amount_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px;")
+        amount_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background-color: transparent;")
         amount_input = QLineEdit()
         amount_input.setPlaceholderText("Rp. ")
         amount_input.setStyleSheet(common_input_style)
@@ -486,7 +513,7 @@ class PaymentPanel(CardWidget):
         cust_layout = QHBoxLayout()
         cust_lbl = QLabel("Nama Customer")
         cust_lbl.setFixedWidth(100)
-        cust_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px;")
+        cust_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background-color: transparent;")
         cust_input = QLineEdit()
         cust_input.setPlaceholderText("Opsional, misal: Pelanggan ...")
         cust_input.setStyleSheet(common_input_style)
@@ -495,27 +522,26 @@ class PaymentPanel(CardWidget):
         
         note_layout = QVBoxLayout()
         note_lbl = QLabel("Catatan Kasir")
-        note_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px;")
+        note_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background-color: transparent;")
         note_input = QTextEdit()
         note_input.setPlaceholderText("tulis informasi disini")
-        note_input.setFixedHeight(60)
+        #note_input.setFixedHeight(60)
         note_input.setStyleSheet(common_input_style)
+        change_lbl = QLabel("Kembalian: Rp 0")
+        change_lbl.setStyleSheet("color: #CDD6F4; font-size: 14px; font-weight: bold; background-color: transparent;")
+        print_check = QCheckBox("Cetak Nota Transaksi")
+        print_check.setStyleSheet("color: #A6ADC8; font-size: 12px; background-color: transparent;")
         note_layout.addWidget(note_lbl)
         note_layout.addWidget(note_input)
-        
-        change_lbl = QLabel("Kembalian: Rp 0")
-        change_lbl.setStyleSheet("color: #CDD6F4; font-size: 14px; font-weight: bold;")
-        
-        print_check = QCheckBox("Cetak Nota Transaksi")
-        print_check.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+        note_layout.addWidget(change_lbl)
+        note_layout.addWidget(print_check)
         
         layout.addLayout(method_layout)
         layout.addLayout(amount_layout)
         layout.addLayout(cust_layout)
         layout.addLayout(note_layout)
-        layout.addSpacing(8)
-        layout.addWidget(change_lbl)
-        layout.addWidget(print_check)
+        #layout.addWidget(change_lbl)
+        #layout.addWidget(print_check)
 
 
 class TransactionActionPanel(CardWidget):
@@ -536,7 +562,7 @@ class TransactionActionPanel(CardWidget):
                 background-color: %s;
                 color: %s;
                 border-radius: 8px;
-                padding: 16px;
+                padding: 8px;
                 font-weight: bold;
                 font-size: 13px;
             }
@@ -592,7 +618,7 @@ class DashboardPOS(QWidget):
         
         center_widget = QWidget()
         center_layout = QVBoxLayout(center_widget)
-        center_layout.setContentsMargins(24, 24, 12, 24)
+        center_layout.setContentsMargins(24, 10, 12, 24)
         center_layout.setSpacing(16)
         
         self.header = TransactionHeader(user_name=user_name, user_role=user_role)
