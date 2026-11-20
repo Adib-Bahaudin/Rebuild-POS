@@ -19,9 +19,9 @@ from PySide6.QtCore import (
     QPropertyAnimation,
 )
 from ui.loginpage import LoginPage
-from ui.dashboard_ui import DashboardPOS
 from core.login_auth import LoginAuthService
 from util.helper.initdatabase import InitDatabase
+from util.helper.dashboard_transaksi_helper import create_connected_dashboard
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +77,10 @@ def main() -> int:
             )
             dashboard_window.setWindowIcon(app_icon)
 
-            dashboard_page = DashboardPOS(
+            dashboard_page = create_connected_dashboard(
                 user_name=result.user_data["name"],
                 user_role=result.user_data["role"],
+                db_path="barokah_database.db",
             )
             dashboard_window.set_content_widget(dashboard_page)
 

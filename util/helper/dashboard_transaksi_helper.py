@@ -304,7 +304,7 @@ def create_connected_dashboard(
     db_path: str | Path = "data/transaksi.db",
     parent: Optional[QWidget] = None,
     enable_notifications: bool = True,
-) -> tuple[DashboardPOS, DashboardTransaksiHelper]:
+) -> DashboardPOS:
     """Membuat instance DashboardPOS baru sekaligus mengikatnya dengan backend transaksi.
 
     Args:
@@ -324,4 +324,4 @@ def create_connected_dashboard(
         cashier_name=user_name,
         enable_notifications=enable_notifications,
     )
-    return dashboard, helper
+    return dashboard
