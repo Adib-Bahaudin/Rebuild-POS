@@ -1,11 +1,11 @@
 from PySide6.QtCore import Qt, QSize, Signal, Property, QPropertyAnimation, QEasingCurve, QRect
-from PySide6.QtGui import QCursor, QPainter, QIcon, QEnterEvent, QPaintEvent
+from PySide6.QtGui import QCursor, QPainter, QIcon, QEnterEvent, QPaintEvent, QIntValidator
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QLineEdit, QPushButton, QComboBox, QTableWidget,
     QHeaderView, QTextEdit, QCheckBox, QStackedWidget, QFrame,
-    QTableWidgetItem
+    QTableWidgetItem, QSpinBox
 )
 from dataclasses import dataclass
 from pathlib import Path
@@ -443,6 +443,132 @@ class ProductSearchPanel(CardWidget):
         self.helper_label.setStyleSheet(f"color: {color}; font-size: 11px; background-color: transparent;")
 
 
+class QuantityControlWidget(QWidget):
+    """Widget pengontrol kuantitas item keranjang dengan tombol kurang, tambah, dan spinbox angka."""
+
+    quantity_changed = Signal(int)
+
+    def __init__(self, initial_qty: int = 1, parent: Optional[QWidget] = None) -> None:
+        """Menginisialisasi komponen pengatur kuantitas beserta interaksinya.
+
+        Args:
+            initial_qty: Nilai kuantitas awal yang ditampilkan.
+            parent: Objek widget induk opsional.
+        """
+        super().__init__(parent)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(4)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.btn_minus = QPushButton("-")
+        self.btn_minus.setFixedSize(24, 24)
+        self.btn_minus.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_minus.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #11111B;
+                color: #CDD6F4;
+                border: 1px solid #313244;
+                border-radius: 4px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #313244;
+                color: #FFFFFF;
+            }
+            QPushButton:pressed {
+                background-color: #181825;
+            }
+            """
+        )
+
+        self.qty_spin = QSpinBox()
+        self.qty_spin.setRange(0, 99999)
+        self.qty_spin.setValue(int(initial_qty))
+        self.qty_spin.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.qty_spin.setFixedSize(50, 24)
+        self.qty_spin.setButtonSymbols(QSpinBox.ButtonSymbols.NoButtons)
+        self.qty_spin.setStyleSheet(
+            """
+            QSpinBox {
+                background-color: #11111B;
+                color: #CDD6F4;
+                border: 1px solid #313244;
+                border-radius: 4px;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 0px;
+            }
+            QSpinBox:focus {
+                border: 1px solid #2ECC71;
+            }
+            """
+        )
+
+        self.btn_plus = QPushButton("+")
+        self.btn_plus.setFixedSize(24, 24)
+        self.btn_plus.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+        self.btn_plus.setStyleSheet(
+            """
+            QPushButton {
+                background-color: #11111B;
+                color: #CDD6F4;
+                border: 1px solid #313244;
+                border-radius: 4px;
+                font-size: 13px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #313244;
+                color: #FFFFFF;
+            }
+            QPushButton:pressed {
+                background-color: #181825;
+            }
+            """
+        )
+
+        self.btn_minus.clicked.connect(self._on_minus_clicked)
+        self.btn_plus.clicked.connect(self._on_plus_clicked)
+        self.qty_spin.editingFinished.connect(self._on_editing_finished)
+
+        layout.addWidget(self.btn_minus)
+        layout.addWidget(self.qty_spin)
+        layout.addWidget(self.btn_plus)
+
+    def _on_minus_clicked(self) -> None:
+        """Menurunkan nilai kuantitas sebanyak satu unit dan memancarkan sinyal."""
+        new_val = self.qty_spin.value() - 1
+        self.quantity_changed.emit(new_val)
+
+    def _on_plus_clicked(self) -> None:
+        """Menaikkan nilai kuantitas sebanyak satu unit dan memancarkan sinyal."""
+        new_val = self.qty_spin.value() + 1
+        self.quantity_changed.emit(new_val)
+
+    def _on_editing_finished(self) -> None:
+        """Memancarkan sinyal kuantitas baru setelah kasir selesai mengetikkan angka."""
+        self.quantity_changed.emit(self.qty_spin.value())
+
+    def get_value(self) -> int:
+        """Mengambil nilai kuantitas saat ini dari spinbox.
+
+        Returns:
+            Nilai integer kuantitas produk.
+        """
+        return self.qty_spin.value()
+
+    def set_value(self, value: int) -> None:
+        """Mengatur nilai kuantitas pada spinbox.
+
+        Args:
+            value: Nilai integer kuantitas baru.
+        """
+        self.qty_spin.setValue(int(value))
+
+
 class CartPanel(CardWidget):
     """Panel keranjang belanja yang menampilkan tabel transaksi.
     
@@ -465,6 +591,8 @@ class CartPanel(CardWidget):
             ["SKU", "Produk", "Tipe", "Harga", "Qty", "Subtotal", "Aksi"]
         )
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        self.table.setColumnWidth(4, 120)
+        self.table.setColumnWidth(6, 80)
         self.table.setStyleSheet(
             """
             QTableWidget {
@@ -533,6 +661,8 @@ class CartPanel(CardWidget):
 
         self.table.setRowCount(len(items))
         for row_idx, item in enumerate(items):
+            item_id = item.get("id", row_idx)
+
             sku_item = QTableWidgetItem(str(item.get("sku", "")))
             sku_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             sku_item.setFlags(sku_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -550,10 +680,11 @@ class CartPanel(CardWidget):
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             price_item.setFlags(price_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
-            qty_val = item.get("qty", 1)
-            qty_item = QTableWidgetItem(str(qty_val))
-            qty_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            qty_item.setFlags(qty_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            qty_val = int(item.get("qty", 1))
+            qty_control = QuantityControlWidget(initial_qty=qty_val)
+            qty_control.quantity_changed.connect(
+                lambda val, idx=item_id: self.item_quantity_changed.emit(idx, val)
+            )
 
             subtotal_val = item.get("subtotal", price_val * qty_val)
             subtotal_text = f"Rp {int(subtotal_val):,}".replace(",", ".")
@@ -565,7 +696,7 @@ class CartPanel(CardWidget):
             self.table.setItem(row_idx, 1, name_item)
             self.table.setItem(row_idx, 2, type_item)
             self.table.setItem(row_idx, 3, price_item)
-            self.table.setItem(row_idx, 4, qty_item)
+            self.table.setCellWidget(row_idx, 4, qty_control)
             self.table.setItem(row_idx, 5, subtotal_item)
 
             action_widget = QWidget()
@@ -591,7 +722,6 @@ class CartPanel(CardWidget):
                 }
                 """
             )
-            item_id = item.get("id", row_idx)
             del_btn.clicked.connect(lambda checked=False, idx=item_id: self.item_removed.emit(idx))
             action_layout.addWidget(del_btn)
             self.table.setCellWidget(row_idx, 6, action_widget)
@@ -748,6 +878,7 @@ class PaymentPanel(CardWidget):
         amount_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background-color: transparent;")
         self.amount_input = QLineEdit()
         self.amount_input.setPlaceholderText("Rp. ")
+        self.amount_input.setValidator(QIntValidator())
         self.amount_input.setStyleSheet(common_input_style)
         self.amount_input.textChanged.connect(self.amount_changed.emit)
         amount_layout.addWidget(amount_lbl)
