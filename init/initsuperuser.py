@@ -83,8 +83,6 @@ class SuperUserInitializer:
                     logger.warning("Tindakan ditolak. Basis data sudah memiliki pengguna (Tidak kosong).")
                     sys.exit(1)
 
-                # Output CLI interaktif — menggunakan print() karena ini adalah
-                # antarmuka pengguna konsol, bukan log diagnostik.
                 print("\n=== INISIALISASI SUPER USER (MASTER AKUN) ===")
                 print("Peringatan: Input kunci menggunakan mode rahasia (teks tidak akan muncul di layar saat diketik).\n")
                 
@@ -155,9 +153,6 @@ def run_superuser_in_cmd(db_path: str = "user_data.db") -> None:
         sys.exit(1)
 
 if __name__ == "__main__":
-    # Ketika dijalankan sebagai skrip mandiri (di jendela CMD terpisah),
-    # setup logging secara minimal karena core.logging_config mungkin
-    # tidak tersedia sebagai package import.
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
@@ -170,7 +165,6 @@ if __name__ == "__main__":
         su_initializer = SuperUserInitializer(target_db)
         su_initializer.create_superuser()
         
-        # Output CLI interaktif — print() dipertahankan
         print("\nProses pendaftaran berhasil. Jendela akan menutup secara otomatis...")
         import time
         time.sleep(2)

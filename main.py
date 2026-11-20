@@ -83,11 +83,9 @@ def main() -> int:
             )
             dashboard_window.set_content_widget(dashboard_page)
 
-            # 1. Set opasitas awal ke 0 sebelum jendela ditampilkan agar tidak berkedip
             dashboard_window.setWindowOpacity(0.0)
             dashboard_window.show()
 
-            # 2. Animasi fade-in untuk dashboard_window
             fade_in = QPropertyAnimation(
                 dashboard_window, b"windowOpacity", dashboard_window
             )
@@ -96,7 +94,6 @@ def main() -> int:
             fade_in.setEndValue(1.0)
             fade_in.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-            # 3. Animasi fade-out untuk window lama secara bersamaan
             fade_out = QPropertyAnimation(
                 window, b"windowOpacity", dashboard_window
             )
@@ -105,13 +102,11 @@ def main() -> int:
             fade_out.setEndValue(0.0)
             fade_out.setEasingCurve(QEasingCurve.Type.InCubic)
 
-            # 4. Jalankan bersamaan dan tutup window lama HANYA setelah animasi selesai
             anim_group = QParallelAnimationGroup(dashboard_window)
             anim_group.addAnimation(fade_in)
             anim_group.addAnimation(fade_out)
             anim_group.finished.connect(window.close)
 
-            # Simpan referensi agar tidak dihapus garbage collector Python
             dashboard_window._transition_anim = anim_group
             anim_group.start()
         else:
