@@ -165,7 +165,13 @@ class TransaksiDatabaseInitializer:
                 sale_date TEXT NOT NULL,
                 subtotal INTEGER NOT NULL DEFAULT 0 CHECK (subtotal >= 0),
                 discount INTEGER NOT NULL DEFAULT 0 CHECK (discount >= 0),
+                rounding INTEGER NOT NULL DEFAULT 0,
+                tip INTEGER NOT NULL DEFAULT 0 CHECK (tip >= 0),
                 total INTEGER NOT NULL DEFAULT 0 CHECK (total >= 0),
+                payment_method TEXT NOT NULL DEFAULT 'Tunai',
+                amount_paid INTEGER NOT NULL DEFAULT 0 CHECK (amount_paid >= 0),
+                change_amount INTEGER NOT NULL DEFAULT 0 CHECK (change_amount >= 0),
+                cashier_name TEXT NOT NULL DEFAULT 'KASIR',
                 status TEXT NOT NULL DEFAULT 'COMPLETED',
                 notes TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -375,6 +381,30 @@ class TransaksiDatabaseInitializer:
 
         return {"existing": existing, "missing": missing}
 
+    def _migrate_sales_columns(self, conn: sqlite3.Connection) -> None:
+        """Memastikan kolom-kolom transaksi pada tabel sales telah lengkap jika tabel lama sudah ada.
+
+        Args:
+            conn: Koneksi aktif ke database SQLite.
+        """
+        cursor = conn.execute("PRAGMA table_info(sales);")
+        existing_cols = {row[1] for row in cursor.fetchall()}
+        if not existing_cols:
+            return
+
+        column_defs = [
+            ("rounding", "INTEGER NOT NULL DEFAULT 0"),
+            ("tip", "INTEGER NOT NULL DEFAULT 0 CHECK (tip >= 0)"),
+            ("payment_method", "TEXT NOT NULL DEFAULT 'Tunai'"),
+            ("amount_paid", "INTEGER NOT NULL DEFAULT 0 CHECK (amount_paid >= 0)"),
+            ("change_amount", "INTEGER NOT NULL DEFAULT 0 CHECK (change_amount >= 0)"),
+            ("cashier_name", "TEXT NOT NULL DEFAULT 'KASIR'"),
+        ]
+        for col_name, col_type in column_defs:
+            if col_name not in existing_cols:
+                conn.execute(f"ALTER TABLE sales ADD COLUMN {col_name} {col_type};")
+                logger.info("Kolom '%s' berhasil ditambahkan ke tabel sales", col_name)
+
     def initialize(self) -> dict[str, Any]:
         """Menjalankan verifikasi awal dan membuat database/tabel yang belum ada.
 
@@ -422,6 +452,8 @@ class TransaksiDatabaseInitializer:
 
                 for index_sql in self.INDEX_STATEMENTS:
                     conn.execute(index_sql)
+
+                self._migrate_sales_columns(conn)
 
                 conn.commit()
 

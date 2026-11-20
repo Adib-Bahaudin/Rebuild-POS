@@ -515,43 +515,33 @@ class TransactionRepository:
     def _build_sale_notes(
         self,
         user_note: str,
-        cashier_name: str,
-        payment_method: str,
-        amount_paid: int,
-        change_amount: int,
-        rounding: int,
-        tip: int,
-    ) -> str:
-        """Menyusun catatan transaksi termasuk metadata pembayaran untuk kolom sales.notes.
+        cashier_name: str = "",
+        payment_method: str = "",
+        amount_paid: int = 0,
+        change_amount: int = 0,
+        rounding: int = 0,
+        tip: int = 0,
+    ) -> Optional[str]:
+        """Menyusun catatan transaksi murni untuk disimpan pada kolom sales.notes.
+
+        Dengan tersedianya kolom dedicated pada tabel sales (payment_method, amount_paid,
+        change_amount, rounding, tip, dan cashier_name), kolom notes kini berfungsi
+        secara murni untuk menyimpan catatan atau memo transaksi dari kasir/pelanggan.
 
         Args:
             user_note: Catatan bebas yang ditulis kasir pada form pembayaran.
-            cashier_name: Nama kasir yang memproses transaksi.
-            payment_method: Metode pembayaran yang dipilih.
-            amount_paid: Nominal pembayaran yang diterima.
-            change_amount: Nominal kembalian pelanggan.
-            rounding: Nominal penyesuaian pembulatan.
-            tip: Nominal tip atau bonus.
+            cashier_name: Nama kasir (opsional untuk kompatibilitas antarmuka).
+            payment_method: Metode pembayaran (opsional untuk kompatibilitas antarmuka).
+            amount_paid: Nominal pembayaran (opsional untuk kompatibilitas antarmuka).
+            change_amount: Nominal kembalian (opsional untuk kompatibilitas antarmuka).
+            rounding: Nominal penyesuaian pembulatan (opsional untuk kompatibilitas antarmuka).
+            tip: Nominal tip atau bonus (opsional untuk kompatibilitas antarmuka).
 
         Returns:
-            String catatan gabungan yang siap disimpan pada kolom notes tabel sales.
+            String catatan transaksi yang bersih, atau None jika tidak ada catatan.
         """
-        metadata_parts = [
-            f"Kasir: {cashier_name}",
-            f"Metode: {payment_method}",
-            f"Bayar: Rp {amount_paid:,}".replace(",", "."),
-            f"Kembalian: Rp {change_amount:,}".replace(",", "."),
-        ]
-        if rounding != 0:
-            metadata_parts.append(f"Pembulatan: Rp {rounding:,}".replace(",", "."))
-        if tip != 0:
-            metadata_parts.append(f"Tip: Rp {tip:,}".replace(",", "."))
-
-        metadata_line = " | ".join(metadata_parts)
         cleaned_note = user_note.strip()
-        if cleaned_note:
-            return f"{cleaned_note}\n[{metadata_line}]"
-        return f"[{metadata_line}]"
+        return cleaned_note if cleaned_note else None
 
     def _allocate_fifo_stock(
         self,
@@ -736,7 +726,7 @@ class TransactionRepository:
         with self._connect() as conn:
             invoice_number = self._generate_invoice_number(conn, sale_dt)
             customer_id = self._resolve_or_create_customer(conn, customer_name)
-            combined_notes = self._build_sale_notes(
+            sale_notes = self._build_sale_notes(
                 user_note=note,
                 cashier_name=cashier_name,
                 payment_method=payment_method,
@@ -754,11 +744,17 @@ class TransactionRepository:
                     sale_date,
                     subtotal,
                     discount,
+                    rounding,
+                    tip,
                     total,
+                    payment_method,
+                    amount_paid,
+                    change_amount,
+                    cashier_name,
                     status,
                     notes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, 'COMPLETED', ?);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED', ?);
                 """,
                 (
                     invoice_number,
@@ -766,8 +762,14 @@ class TransactionRepository:
                     sale_date_str,
                     subtotal,
                     safe_discount,
+                    int(rounding),
+                    int(tip),
                     total,
-                    combined_notes,
+                    payment_method,
+                    amount_paid,
+                    change_amount,
+                    cashier_name,
+                    sale_notes,
                 ),
             )
             sale_id = self._require_lastrowid(sale_cursor, "sales")
