@@ -466,7 +466,6 @@ def init_transaksi_database(db_path: str | Path = "data/transaksi.db") -> dict[s
 if __name__ == "__main__":
     import sys
 
-    # Memastikan root proyek berada di sys.path saat dieksekusi langsung
     project_root = Path(__file__).resolve().parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))

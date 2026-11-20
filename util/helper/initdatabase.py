@@ -1,10 +1,13 @@
 """Modul orkestrator untuk inisialisasi database secara menyeluruh.
 
 Modul ini bertugas memeriksa dan menjalankan seluruh tugas inisialisasi
-yang berhubungan dengan database, termasuk pembuatan tabel (inituserdatabase)
-dan pembuatan super user pertama (initsuperuser), dengan melakukan
-pengecekan kondisi database terlebih dahulu sebelum menjalankan setiap langkah.
+yang berhubungan dengan database, termasuk pembuatan tabel (inituserdatabase),
+pembuatan super user pertama (initsuperuser), serta inisialisasi database
+transaksi FIFO (inittransaksidatabase), dengan melakukan pengecekan kondisi
+database terlebih dahulu sebelum menjalankan setiap langkah.
 """
+
+from __future__ import annotations
 
 import sqlite3
 import os
@@ -12,6 +15,7 @@ import logging
 
 from init.inituserdatabase import DatabaseInitializer
 from init.initsuperuser import run_superuser_in_cmd
+from init.inittransaksidatabase import init_transaksi_database
 
 logger = logging.getLogger(__name__)
 
@@ -19,20 +23,23 @@ logger = logging.getLogger(__name__)
 class InitDatabase:
     """Orkestrator utama untuk seluruh proses inisialisasi database.
 
-    Kelas ini mengkoordinasikan jalannya DatabaseInitializer dan
-    SuperUserInitializer secara berurutan, dengan pengecekan kondisi
-    database di setiap tahap untuk menentukan apakah suatu langkah
-    perlu dijalankan atau bisa dilewati.
+    Kelas ini mengkoordinasikan jalannya DatabaseInitializer,
+    SuperUserInitializer, dan TransaksiDatabaseInitializer secara berurutan,
+    dengan pengecekan kondisi database di setiap tahap untuk menentukan apakah
+    suatu langkah perlu dijalankan atau bisa dilewati.
 
     Attributes:
-        db_path (str): Lokasi path file database SQLite.
+        db_path (str): Lokasi path file database SQLite user.
     """
 
-    def __init__(self, db_path: str = "user_data.db"):
+    def __init__(
+        self,
+        db_path: str = "user_data.db",
+    ) -> None:
         """Inisialisasi instance InitDatabase.
 
         Args:
-            db_path (str): Path file database. Default ke 'user_data.db'.
+            db_path (str): Path file database user. Default ke 'user_data.db'.
         """
         self.db_path = db_path
 
@@ -81,11 +88,12 @@ class InitDatabase:
         """Menjalankan seluruh proses inisialisasi database secara berurutan.
 
         Alur eksekusi:
-            1. Periksa apakah database dan tabel sudah ada.
+            1. Periksa apakah database dan tabel user sudah ada.
                - Jika belum → jalankan DatabaseInitializer.initialize()
             2. Periksa apakah super user sudah ada.
                - Jika belum → jalankan SuperUserInitializer.create_superuser()
-            3. Jika semua sudah siap → lewati, lanjut ke aplikasi.
+            3. Jalankan inisialisasi database transaksi (inittransaksidatabase).
+            4. Jika semua sudah siap → lanjut ke aplikasi.
         """
         logger.info("Memulai pemeriksaan inisialisasi database")
 
@@ -103,5 +111,9 @@ class InitDatabase:
             logger.info("Inisialisasi super user selesai")
         else:
             logger.debug("Super user sudah ada. Tahap ini dilewati")
+
+        logger.info("Menjalankan inisialisasi database transaksi...")
+        init_transaksi_database(self.db_path)
+        logger.info("Inisialisasi database transaksi selesai")
 
         logger.info("Pemeriksaan inisialisasi database selesai")
