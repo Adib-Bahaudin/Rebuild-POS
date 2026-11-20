@@ -320,7 +320,12 @@ class TransaksiDatabaseInitializer:
         Returns:
             True jika file database sudah ada dan berupa file valid, False jika belum.
         """
-        return self.db_path.exists() and self.db_path.is_file()
+        exists = self.db_path.exists() and self.db_path.is_file()
+        if exists:
+            logger.debug("Database ditemukan di: %s", self.db_path)
+        else:
+            logger.info("Database belum ada. Akan membuat baru di: %s", self.db_path)
+        return exists
 
     def _connect(self) -> sqlite3.Connection:
         """Membuka koneksi ke database SQLite dengan pengaturan integritas aktif.
@@ -386,58 +391,63 @@ class TransaksiDatabaseInitializer:
         Raises:
             sqlite3.Error: Jika terjadi kegagalan saat eksekusi DDL SQLite.
         """
-        db_existed = self.check_database_exists()
+        try:
+            db_existed = self.check_database_exists()
+            if not db_existed:
+                self.db_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if db_existed:
-            logger.info("Verifikasi DB: Database ditemukan di '%s'.", self.db_path)
-        else:
-            logger.info(
-                "Verifikasi DB: Database belum ada. Membuat baru di '%s'.",
-                self.db_path,
-            )
-            self.db_path.parent.mkdir(parents=True, exist_ok=True)
+            created_tables: list[str] = []
 
-        created_tables: list[str] = []
+            with self._connect() as conn:
+                table_check_before = self.verify_tables(conn)
+                existing_before = table_check_before["existing"]
+                missing_before = table_check_before["missing"]
 
-        with self._connect() as conn:
-            table_check_before = self.verify_tables(conn)
-            existing_before = table_check_before["existing"]
-            missing_before = table_check_before["missing"]
+                if not missing_before:
+                    logger.debug(
+                        "Semua %d tabel sudah ada di database",
+                        len(existing_before),
+                    )
+                else:
+                    logger.info(
+                        "Tabel belum lengkap. %d tabel sudah ada, %d tabel belum ada: %s",
+                        len(existing_before),
+                        len(missing_before),
+                        ", ".join(missing_before),
+                    )
+                    for table_name in missing_before:
+                        conn.execute(self.TABLE_SCHEMAS[table_name])
+                        created_tables.append(table_name)
+                        logger.info("Tabel '%s' berhasil dibuat", table_name)
 
-            if not missing_before:
-                logger.info(
-                    "Verifikasi Tabel: Seluruh %d tabel sudah tersedia.",
-                    len(existing_before),
-                )
-            else:
-                logger.info(
-                    "Verifikasi Tabel: %d tabel sudah ada, %d tabel belum ada (%s).",
-                    len(existing_before),
-                    len(missing_before),
-                    ", ".join(missing_before),
-                )
-                for table_name in missing_before:
-                    conn.execute(self.TABLE_SCHEMAS[table_name])
-                    created_tables.append(table_name)
-                    logger.info("Tabel '%s' berhasil dibuat.", table_name)
+                for index_sql in self.INDEX_STATEMENTS:
+                    conn.execute(index_sql)
 
-            for index_sql in self.INDEX_STATEMENTS:
-                conn.execute(index_sql)
+                conn.commit()
 
-            conn.commit()
+                if created_tables:
+                    logger.info("Verifikasi dan pembuatan tabel selesai")
 
-            table_check_after = self.verify_tables(conn)
-            is_ready = len(table_check_after["missing"]) == 0
+                table_check_after = self.verify_tables(conn)
+                is_ready = len(table_check_after["missing"]) == 0
 
-        return {
-            "db_path": str(self.db_path.resolve()),
-            "db_existed": db_existed,
-            "existing_tables_before": existing_before,
-            "created_tables": created_tables,
-            "missing_tables_after": table_check_after["missing"],
-            "total_tables": len(table_check_after["existing"]),
-            "is_ready": is_ready,
-        }
+            logger.info("Proses inisialisasi database transaksi berhasil secara keseluruhan")
+
+            return {
+                "db_path": str(self.db_path.resolve()),
+                "db_existed": db_existed,
+                "existing_tables_before": existing_before,
+                "created_tables": created_tables,
+                "missing_tables_after": table_check_after["missing"],
+                "total_tables": len(table_check_after["existing"]),
+                "is_ready": is_ready,
+            }
+        except sqlite3.Error:
+            logger.exception("Terjadi kesalahan pada database SQLite")
+            raise
+        except Exception:
+            logger.exception("Terjadi kesalahan sistem")
+            raise
 
 
 def init_transaksi_database(db_path: str | Path = "data/transaksi.db") -> dict[str, Any]:
@@ -451,4 +461,19 @@ def init_transaksi_database(db_path: str | Path = "data/transaksi.db") -> dict[s
     """
     initializer = TransaksiDatabaseInitializer(db_path=db_path)
     return initializer.initialize()
+
+
+if __name__ == "__main__":
+    import sys
+
+    # Memastikan root proyek berada di sys.path saat dieksekusi langsung
+    project_root = Path(__file__).resolve().parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+
+    from core.logging_config import setup_logging
+
+    setup_logging()
+    target_db = sys.argv[1] if len(sys.argv) > 1 else "data/transaksi.db"
+    init_transaksi_database(db_path=target_db)
 
