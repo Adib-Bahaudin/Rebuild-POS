@@ -17,6 +17,7 @@ from PySide6.QtCore import (
     QAbstractAnimation,
 )
 from PySide6.QtGui import (
+    QCloseEvent,
     QEnterEvent,
     QIcon,
     QMouseEvent,
@@ -530,15 +531,19 @@ class CustomTitleBar(QWidget):
         """Menutup jendela induk dengan memicu siklus penutupan standar Qt."""
         self._parent_window.close()
 
-    def sync_window_state(self, force_update: bool = False) -> None:
+    def sync_window_state(self, force_update: bool = True) -> None:
         """Menyinkronkan ikon tombol maximize/restore dengan status jendela terkini.
 
         Args:
             force_update: Jika True, memaksa pembaruan ikon meskipun status maximize
                 tidak berubah.
         """
+        parent_window = getattr(self, "_parent_window", None)
+        if parent_window is None:
+            return
+
         currently_maximized = bool(
-            self._parent_window.windowState() & Qt.WindowState.WindowMaximized
+            parent_window.windowState() & Qt.WindowState.WindowMaximized
         )
         if not force_update and currently_maximized == self._is_maximized_state:
             return
@@ -571,7 +576,12 @@ class CustomTitleBar(QWidget):
         Returns:
             Boolean hasil pemrosesan eventFilter kelas induk.
         """
-        if watched is self._parent_window and event.type() == QEvent.Type.WindowStateChange:
+        parent_window = getattr(self, "_parent_window", None)
+        if (
+            parent_window is not None
+            and watched is parent_window
+            and event.type() == QEvent.Type.WindowStateChange
+        ):
             self.sync_window_state()
         return super().eventFilter(watched, event)
 
@@ -797,7 +807,19 @@ class FramelessMainWindow(QMainWindow):
             self.title_bar.sync_window_state()
         super().changeEvent(event)
 
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Menghapus event filter dari QApplication saat jendela ditutup."""
+        app = QApplication.instance()
+        if app is not None:
+            try:
+                app.removeEventFilter(self)
+            except Exception:
+                pass
+        super().closeEvent(event)
+
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if not self.isVisible():
+            return super().eventFilter(watched, event)
         if (
             isinstance(event, QMouseEvent)
             and event.type() == QEvent.Type.MouseMove

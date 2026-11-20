@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from PySide6.QtCore import QObject, Signal
-from PySide6.QtWidgets import QInputDialog, QMessageBox
+from PySide6.QtWidgets import QInputDialog, QMessageBox, QWidget
 
 if TYPE_CHECKING:
     from ui.dashboard_ui import DashboardPOS
@@ -1207,19 +1207,26 @@ class TransactionController(QObject):
         self.dashboard.clear_transaction()
         self._refresh_ui_state()
 
+    def _get_dialog_parent(self) -> QWidget:
+        """Mengembalikan widget induk yang aman untuk modal dialog."""
+        try:
+            return self.dashboard.window() or self.dashboard
+        except Exception:
+            return self.dashboard
+
     def _handle_discount_clicked(self) -> None:
         """Membuka dialog input nominal diskon dan menerapkannya pada ringkasan transaksi."""
         subtotal = self._calculate_subtotal()
         if subtotal <= 0:
             QMessageBox.information(
-                self.dashboard,
+                self._get_dialog_parent(),
                 "Diskon",
                 "Tambahkan produk ke keranjang terlebih dahulu.",
             )
             return
 
         value, accepted = QInputDialog.getInt(
-            self.dashboard,
+            self._get_dialog_parent(),
             "Input Diskon",
             "Masukkan nominal diskon (Rp):",
             self._discount,
@@ -1234,7 +1241,7 @@ class TransactionController(QObject):
     def _handle_rounding_clicked(self) -> None:
         """Membuka dialog input nominal pembulatan positif atau negatif."""
         value, accepted = QInputDialog.getInt(
-            self.dashboard,
+            self._get_dialog_parent(),
             "Input Pembulatan",
             "Masukkan nominal pembulatan (boleh negatif/positif, Rp):",
             self._rounding,
@@ -1249,7 +1256,7 @@ class TransactionController(QObject):
     def _handle_tip_clicked(self) -> None:
         """Membuka dialog input nominal tip atau bonus kasir."""
         value, accepted = QInputDialog.getInt(
-            self.dashboard,
+            self._get_dialog_parent(),
             "Input Tip / Bonus",
             "Masukkan nominal tip atau bonus (Rp):",
             self._tip,
@@ -1288,26 +1295,15 @@ class TransactionController(QObject):
             )
         except TransactionError as exc:
             logger.warning("Validasi transaksi ditolak: %s", exc)
-            QMessageBox.warning(self.dashboard, "Transaksi Gagal", str(exc))
+            QMessageBox.warning(self._get_dialog_parent(), "Transaksi Gagal", str(exc))
             self.transaction_failed.emit(str(exc))
             return
         except Exception as exc:
             logger.exception("Terjadi kesalahan saat menyimpan transaksi")
             error_msg = f"Terjadi kesalahan sistem saat menyimpan transaksi:\n{exc}"
-            QMessageBox.critical(self.dashboard, "Kesalahan Database", error_msg)
+            QMessageBox.critical(self._get_dialog_parent(), "Kesalahan Database", error_msg)
             self.transaction_failed.emit(error_msg)
             return
-
-        QMessageBox.information(
-            self.dashboard,
-            "Transaksi Berhasil",
-            (
-                f"No. Nota: {result.invoice_number}\n"
-                f"Total Tagihan: Rp {result.total:,}\n"
-                f"Dibayar ({result.payment_method}): Rp {result.amount_paid:,}\n"
-                f"Kembalian: Rp {result.change_amount:,}"
-            ).replace(",", "."),
-        )
 
         self._handle_clear_cart()
         self.transaction_completed.emit(result)

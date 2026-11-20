@@ -1,3 +1,4 @@
+from typing import Optional
 import sys
 import logging
 import ctypes
@@ -60,9 +61,11 @@ def main() -> int:
     window.setWindowIcon(app_icon)
 
     login_page = LoginPage()
+    dashboard_window: Optional[FramelessMainWindow] = None
 
     def on_login_attempt(key: str) -> None:
         """Menerima dan memproses sinyal login dari UI (Placeholder)."""
+        nonlocal dashboard_window
         auth_service = LoginAuthService("barokah_database.db")
         result = auth_service.authenticate(key)
 
@@ -76,6 +79,7 @@ def main() -> int:
                 page_title="Dashboard Penjualan",
             )
             dashboard_window.setWindowIcon(app_icon)
+            setattr(app, "active_dashboard_window", dashboard_window)
 
             dashboard_page = create_connected_dashboard(
                 user_name=result.user_data["name"],

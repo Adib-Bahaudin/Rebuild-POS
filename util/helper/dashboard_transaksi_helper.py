@@ -14,7 +14,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import Callable, Optional
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QWidget
@@ -318,7 +318,7 @@ def create_connected_dashboard(
         Tuple berisi (dashboard_instance, helper_instance).
     """
     dashboard = DashboardPOS(user_name=user_name, user_role=user_role, parent=parent)
-    helper = bind_dashboard_to_backend(
+    bind_dashboard_to_backend(
         dashboard=dashboard,
         db_path=db_path,
         cashier_name=user_name,
