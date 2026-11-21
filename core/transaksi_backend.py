@@ -515,12 +515,6 @@ class TransactionRepository:
     def _build_sale_notes(
         self,
         user_note: str,
-        cashier_name: str = "",
-        payment_method: str = "",
-        amount_paid: int = 0,
-        change_amount: int = 0,
-        rounding: int = 0,
-        tip: int = 0,
     ) -> Optional[str]:
         """Menyusun catatan transaksi murni untuk disimpan pada kolom sales.notes.
 
@@ -530,12 +524,6 @@ class TransactionRepository:
 
         Args:
             user_note: Catatan bebas yang ditulis kasir pada form pembayaran.
-            cashier_name: Nama kasir (opsional untuk kompatibilitas antarmuka).
-            payment_method: Metode pembayaran (opsional untuk kompatibilitas antarmuka).
-            amount_paid: Nominal pembayaran (opsional untuk kompatibilitas antarmuka).
-            change_amount: Nominal kembalian (opsional untuk kompatibilitas antarmuka).
-            rounding: Nominal penyesuaian pembulatan (opsional untuk kompatibilitas antarmuka).
-            tip: Nominal tip atau bonus (opsional untuk kompatibilitas antarmuka).
 
         Returns:
             String catatan transaksi yang bersih, atau None jika tidak ada catatan.
@@ -728,12 +716,6 @@ class TransactionRepository:
             customer_id = self._resolve_or_create_customer(conn, customer_name)
             sale_notes = self._build_sale_notes(
                 user_note=note,
-                cashier_name=cashier_name,
-                payment_method=payment_method,
-                amount_paid=amount_paid,
-                change_amount=change_amount,
-                rounding=rounding,
-                tip=tip,
             )
 
             sale_cursor = conn.execute(

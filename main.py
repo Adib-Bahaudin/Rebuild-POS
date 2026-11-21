@@ -22,7 +22,7 @@ from PySide6.QtCore import (
 from ui.loginpage import LoginPage
 from core.login_auth import LoginAuthService
 from util.helper.initdatabase import InitDatabase
-from util.helper.dashboard_transaksi_helper import create_connected_dashboard
+from util.core.dashboard_transaksi_helper import create_connected_dashboard
 from util.ui.MainShell import MainShell, create_placeholder_page
 
 logger = logging.getLogger(__name__)
