@@ -1133,7 +1133,7 @@ class TransactionController(QObject):
         ]
 
         chosen_text, accepted = QInputDialog.getItem(
-            self.dashboard,
+            self._get_dialog_parent(),
             "Pilih Produk / Jasa",
             "Ditemukan beberapa hasil yang cocok:",
             options,
