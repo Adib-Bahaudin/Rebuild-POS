@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
 from PySide6.QtCore import QObject, Signal, QTimer
-from PySide6.QtWidgets import QInputDialog, QMessageBox, QWidget
+from PySide6.QtWidgets import QMessageBox, QWidget
+from util.custominputdialog import CustomInputDialog
 from util.core.product_completer import ProductSearchCompleter
 
 if TYPE_CHECKING:
@@ -1132,7 +1133,7 @@ class TransactionController(QObject):
             for prod in matches
         ]
 
-        chosen_text, accepted = QInputDialog.getItem(
+        chosen_text, accepted = CustomInputDialog.getItem(
             self._get_dialog_parent(),
             "Pilih Produk / Jasa",
             "Ditemukan beberapa hasil yang cocok:",
@@ -1233,7 +1234,7 @@ class TransactionController(QObject):
             )
             return
 
-        value, accepted = QInputDialog.getInt(
+        value, accepted = CustomInputDialog.getInt(
             self._get_dialog_parent(),
             "Input Diskon",
             "Masukkan nominal diskon (Rp):",
@@ -1248,7 +1249,7 @@ class TransactionController(QObject):
 
     def _handle_rounding_clicked(self) -> None:
         """Membuka dialog input nominal pembulatan positif atau negatif."""
-        value, accepted = QInputDialog.getInt(
+        value, accepted = CustomInputDialog.getInt(
             self._get_dialog_parent(),
             "Input Pembulatan",
             "Masukkan nominal pembulatan (boleh negatif/positif, Rp):",
@@ -1263,7 +1264,7 @@ class TransactionController(QObject):
 
     def _handle_tip_clicked(self) -> None:
         """Membuka dialog input nominal tip atau bonus kasir."""
-        value, accepted = QInputDialog.getInt(
+        value, accepted = CustomInputDialog.getInt(
             self._get_dialog_parent(),
             "Input Tip / Bonus",
             "Masukkan nominal tip atau bonus (Rp):",
