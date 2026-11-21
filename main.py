@@ -23,6 +23,7 @@ from ui.loginpage import LoginPage
 from core.login_auth import LoginAuthService
 from util.helper.initdatabase import InitDatabase
 from util.helper.dashboard_transaksi_helper import create_connected_dashboard
+from util.ui.MainShell import MainShell, create_placeholder_page
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +62,7 @@ def main() -> int:
     window.setWindowIcon(app_icon)
 
     login_page = LoginPage()
-    dashboard_window: Optional[FramelessMainWindow] = None
+    dashboard_window: Optional[MainShell] = None
 
     def on_login_attempt(key: str) -> None:
         """Menerima dan memproses sinyal login dari UI (Placeholder)."""
@@ -74,19 +75,52 @@ def main() -> int:
                 "Login berhasil untuk user: %s", result.user_data["name"]
             )
 
-            dashboard_window = FramelessMainWindow(
+            dashboard_window = MainShell(
                 icon_config=title_bar_config,
                 page_title="Dashboard Penjualan",
             )
             dashboard_window.setWindowIcon(app_icon)
             setattr(app, "active_dashboard_window", dashboard_window)
 
-            dashboard_page = create_connected_dashboard(
-                user_name=result.user_data["name"],
-                user_role=result.user_data["role"],
-                db_path="barokah_database.db",
+            user_name = result.user_data["name"]
+            user_role = result.user_data["role"]
+
+            dashboard_window.register_page(
+                "dashboard",
+                lambda: create_connected_dashboard(
+                    user_name=user_name,
+                    user_role=user_role,
+                    db_path="barokah_database.db",
+                ),
+                title="Dashboard Penjualan",
             )
-            dashboard_window.set_content_widget(dashboard_page)
+            dashboard_window.register_page(
+                "history",
+                lambda: create_placeholder_page("Riwayat Transaksi"),
+                title="Riwayat Transaksi",
+            )
+            dashboard_window.register_page(
+                "product",
+                lambda: create_placeholder_page("Manajemen Produk"),
+                title="Manajemen Produk",
+            )
+            dashboard_window.register_page(
+                "report",
+                lambda: create_placeholder_page("Laporan Penjualan"),
+                title="Laporan Penjualan",
+            )
+            dashboard_window.register_page(
+                "people",
+                lambda: create_placeholder_page("Manajemen Pelanggan"),
+                title="Manajemen Pelanggan",
+            )
+            dashboard_window.register_page(
+                "settings",
+                lambda: create_placeholder_page("Pengaturan Sistem"),
+                title="Pengaturan Sistem",
+            )
+
+            dashboard_window.navigate_to("dashboard")
 
             dashboard_window.setWindowOpacity(0.0)
             dashboard_window.show()
