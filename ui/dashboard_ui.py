@@ -19,10 +19,10 @@ class SidebarIconPaths:
 
 SIDEBAR_ICONS_CONFIG: Dict[str, Dict[str, str]] = {
     "dashboard": {"normal": "assets/icons/Dash_Normal.png", "hover": "assets/icons/Dash_Hover.png"},
-    "transaction": {"normal": "assets/icons/trx_normal.png", "hover": "assets/icons/trx_hover.png"},
-    "product": {"normal": "assets/icons/prod_normal.png", "hover": "assets/icons/prod_hover.png"},
     "history": {"normal": "assets/icons/hist_normal.png", "hover": "assets/icons/hist_hover.png"},
-    "customer": {"normal": "assets/icons/cust_normal.png", "hover": "assets/icons/cust_hover.png"},
+    "product": {"normal": "assets/icons/prod_normal.png", "hover": "assets/icons/prod_hover.png"},
+    "report": {"normal": "assets/icons/trx_normal.png", "hover": "assets/icons/trx_hover.png"},
+    "people": {"normal": "assets/icons/cust_normal.png", "hover": "assets/icons/cust_hover.png"},
     "settings": {"normal": "assets/icons/set_normal.png", "hover": "assets/icons/set_hover.png"},
 }
 
