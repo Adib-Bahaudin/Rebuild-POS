@@ -679,6 +679,12 @@ class PaymentPanel(CardWidget):
                 width: 10px;
                 height: 10px;
             }}
+            QComboBox QAbstractItemView {{
+                background-color: #11111B;
+                color: white;
+                border: 1px solid #313244;
+                selection-background-color: #0078D7;
+            }}
         """
         
         method_layout = QHBoxLayout()
