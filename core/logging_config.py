@@ -1,31 +1,38 @@
 """Konfigurasi logging terpusat untuk seluruh aplikasi POS.
 
-Modul ini menyediakan fungsi setup_logging() yang harus dipanggil
-sekali saja pada saat startup aplikasi (di main.py) sebelum modul
-lain melakukan logging.  Seluruh modul lain cukup menggunakan:
+Modul ini menyediakan fungsi setup_logging() yang diinisialisasi
+pada saat startup aplikasi di main.py sebelum modul lain melakukan logging.
+Seluruh modul lain cukup menggunakan:
 
     import logging
     logger = logging.getLogger(__name__)
 
-Konfigurasi mendukung:
-    - LOG_LEVEL : level logging via environment variable (default: INFO)
-    - LOG_FORMAT: 'text' (default) atau 'json'
-    - LOG_FILE  : path file log opsional (e.g. 'logs/app.log')
+Konfigurasi mendukung mode Development dan Production, penulisan log berputar
+(RotatingFileHandler), filter informasi sensitif, serta format teks atau JSON.
 """
 
+from __future__ import annotations
+
+import json
 import logging
 import logging.handlers
-import json
 import os
 import sys
 from datetime import datetime, timezone
-from typing import Optional
+from pathlib import Path
+from typing import Final, Optional
 
+from config import IS_DEV, LOGS_DIR
 
-_SENSITIVE_PATTERNS = frozenset({
+_SENSITIVE_PATTERNS: Final[frozenset[str]] = frozenset({
     "password", "passwd", "secret", "token", "api_key", "apikey",
     "access_key", "key_hash", "key_salt", "authorization", "credential",
 })
+
+_TEXT_FORMAT: Final[str] = (
+    "%(asctime)s | %(levelname)-8s | %(name)s.%(funcName)s:%(lineno)d | %(message)s"
+)
+_DATE_FORMAT: Final[str] = "%Y-%m-%d %H:%M:%S"
 
 
 class _SensitiveDataFilter(logging.Filter):
@@ -42,7 +49,7 @@ class _SensitiveDataFilter(logging.Filter):
             record: Objek LogRecord yang akan diperiksa.
 
         Returns:
-            Selalu True agar record tetap diteruskan setelah redaksi.
+            bool: Selalu True agar record tetap diteruskan setelah redaksi.
         """
         msg = str(record.msg)
         msg_lower = msg.lower()
@@ -64,7 +71,7 @@ class _JSONFormatter(logging.Formatter):
             record: Objek LogRecord yang akan diformat.
 
         Returns:
-            String JSON satu baris yang merepresentasikan record log.
+            str: String JSON satu baris yang merepresentasikan record log.
         """
         log_entry = {
             "timestamp": datetime.fromtimestamp(
@@ -82,31 +89,25 @@ class _JSONFormatter(logging.Formatter):
         return json.dumps(log_entry, ensure_ascii=False)
 
 
-_TEXT_FORMAT = (
-    "%(asctime)s | %(levelname)-8s | %(name)s.%(funcName)s:%(lineno)d | %(message)s"
-)
-_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-
-
-def setup_logging() -> None:
+def setup_logging(
+    log_level_override: Optional[str] = None,
+    log_file_path: Optional[str | Path] = None,
+) -> None:
     """Menginisialisasi sistem logging terpusat untuk seluruh aplikasi.
 
-    Fungsi ini hanya boleh dipanggil **sekali** pada saat startup.
-    Konfigurasi dikendalikan melalui environment variable:
+    Fungsi ini dipanggil pada startup aplikasi dan mengatur konfigurasi
+    berdasarkan lingkungan eksekusi (Development vs Production).
 
-        LOG_LEVEL  : DEBUG, INFO, WARNING, ERROR, CRITICAL (default: INFO)
-        LOG_FORMAT : 'text' atau 'json' (default: text)
-        LOG_FILE   : path file log, e.g. 'logs/app.log' (default: None)
-
-    Handler yang terpasang:
-        - Console handler (stderr) — selalu aktif.
-        - File handler (RotatingFileHandler) — aktif jika LOG_FILE diset.
+    Args:
+        log_level_override: Level log eksplisit (DEBUG, INFO, ERROR).
+        log_file_path: Path file tujuan penyimpanan log.
     """
-    log_level_name = os.environ.get("LOG_LEVEL", "INFO").upper()
+    default_level = "DEBUG" if IS_DEV else "INFO"
+    env_level = os.environ.get("LOG_LEVEL", default_level).upper()
+    active_level_name = log_level_override.upper() if log_level_override else env_level
     log_format = os.environ.get("LOG_FORMAT", "text").lower()
-    log_file: Optional[str] = os.environ.get("LOG_FILE")
 
-    log_level = getattr(logging, log_level_name, logging.INFO)
+    log_level = getattr(logging, active_level_name, logging.INFO)
 
     root_logger = logging.getLogger()
 
@@ -116,26 +117,32 @@ def setup_logging() -> None:
     root_logger.setLevel(log_level)
 
     if log_format == "json":
-        formatter = _JSONFormatter()
+        formatter: logging.Formatter = _JSONFormatter()
     else:
         formatter = logging.Formatter(_TEXT_FORMAT, datefmt=_DATE_FORMAT)
 
     sensitive_filter = _SensitiveDataFilter()
 
-    console_handler = logging.StreamHandler(sys.stderr)
-    console_handler.setLevel(log_level)
-    console_handler.setFormatter(formatter)
-    console_handler.addFilter(sensitive_filter)
-    root_logger.addHandler(console_handler)
+    if IS_DEV:
+        console_handler = logging.StreamHandler(sys.stderr)
+        console_handler.setLevel(log_level)
+        console_handler.setFormatter(formatter)
+        console_handler.addFilter(sensitive_filter)
+        root_logger.addHandler(console_handler)
 
-    if log_file:
-        log_dir = os.path.dirname(log_file)
-        if log_dir:
-            os.makedirs(log_dir, exist_ok=True)
+    target_log_file: Optional[Path] = None
+    if log_file_path:
+        target_log_file = Path(log_file_path)
+    elif not IS_DEV:
+        target_log_file = LOGS_DIR / "app.log"
+    elif os.environ.get("LOG_FILE"):
+        target_log_file = Path(os.environ["LOG_FILE"])
 
+    if target_log_file:
+        target_log_file.parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.handlers.RotatingFileHandler(
-            log_file,
-            maxBytes=5 * 1024 * 1024,  # 5 MB
+            str(target_log_file),
+            maxBytes=5 * 1024 * 1024,
             backupCount=3,
             encoding="utf-8",
         )

@@ -6,13 +6,16 @@ jika sudah terdapat pengguna di dalam basis data.
 """
 
 import sqlite3
-import os
 import hashlib
 import getpass
 import logging
+import os
 import sys
 import subprocess
-from typing import Tuple
+from pathlib import Path
+from typing import Optional, Tuple
+
+from config import DEFAULT_DB_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -21,16 +24,16 @@ class SuperUserInitializer:
     """Kelas untuk menangani pembuatan akun super user secara aman.
 
     Attributes:
-        db_path (str): Lokasi path file database SQLite.
+        db_path (Path): Lokasi path file database SQLite.
     """
 
-    def __init__(self, db_path: str = "user_data.db"):
+    def __init__(self, db_path: Optional[str | Path] = None):
         """Inisialisasi instance SuperUserInitializer.
 
         Args:
-            db_path (str): Path file database. Default ke 'user_data.db'.
+            db_path: Path file database. Default menggunakan DEFAULT_DB_PATH.
         """
-        self.db_path = db_path
+        self.db_path: Path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
 
     def _generate_crypto_materials(self, raw_key: str) -> Tuple[bytes, bytes]:
         """Menghasilkan salt acak dan hash aman dari kunci yang diberikan.
@@ -70,7 +73,7 @@ class SuperUserInitializer:
         Memvalidasi eksistensi database, mengecek apakah tabel pengguna
         kosong, dan meminta input kunci secara aman tersembunyi.
         """
-        if not os.path.exists(self.db_path):
+        if not self.db_path.exists():
             logger.error(
                 "Database %s tidak ditemukan. Jalankan inituserdatabase.py terlebih dahulu.",
                 self.db_path,
@@ -120,7 +123,7 @@ class SuperUserInitializer:
             logger.exception("Kesalahan sistem tidak terduga")
             sys.exit(1)
 
-def run_superuser_in_cmd(db_path: str = "user_data.db") -> None:
+def run_superuser_in_cmd(db_path: Optional[str | Path] = None) -> None:
     """Membuka jendela CMD terpisah untuk inisialisasi Super User.
     
     Menjalankan alur pendaftaran dalam konsol terpisah agar input 'getpass'
@@ -128,14 +131,15 @@ def run_superuser_in_cmd(db_path: str = "user_data.db") -> None:
     proses gagal, aplikasi utama yang memanggil fungsi ini akan dihentikan.
     
     Args:
-        db_path (str): Path absolut atau relatif dari file database.
+        db_path: Path absolut atau relatif dari file database. Default DEFAULT_DB_PATH.
     """
+    resolved_db_path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
     try:
-        script_path = os.path.abspath(__file__)
+        script_path = Path(__file__).resolve()
         logger.info("Membuka jendela CMD untuk inisialisasi Super User")
         
         result = subprocess.run(
-            [sys.executable, script_path, db_path],
+            [sys.executable, str(script_path), str(resolved_db_path)],
             creationflags=subprocess.CREATE_NEW_CONSOLE
         )
         
@@ -159,7 +163,7 @@ if __name__ == "__main__":
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
-    target_db = sys.argv[1] if len(sys.argv) > 1 else "user_data.db"
+    target_db = sys.argv[1] if len(sys.argv) > 1 else str(DEFAULT_DB_PATH)
     
     try:
         su_initializer = SuperUserInitializer(target_db)

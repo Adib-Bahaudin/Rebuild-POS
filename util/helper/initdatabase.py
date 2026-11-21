@@ -10,9 +10,11 @@ database terlebih dahulu sebelum menjalankan setiap langkah.
 from __future__ import annotations
 
 import sqlite3
-import os
 import logging
+from pathlib import Path
+from typing import Optional
 
+from config import DEFAULT_DB_PATH
 from init.inituserdatabase import DatabaseInitializer
 from init.initsuperuser import run_superuser_in_cmd
 from init.inittransaksidatabase import init_transaksi_database
@@ -29,19 +31,19 @@ class InitDatabase:
     suatu langkah perlu dijalankan atau bisa dilewati.
 
     Attributes:
-        db_path (str): Lokasi path file database SQLite user.
+        db_path (Path): Lokasi path file database SQLite user.
     """
 
     def __init__(
         self,
-        db_path: str = "user_data.db",
+        db_path: Optional[str | Path] = None,
     ) -> None:
         """Inisialisasi instance InitDatabase.
 
         Args:
-            db_path (str): Path file database user. Default ke 'user_data.db'.
+            db_path: Path file database. Default menggunakan DEFAULT_DB_PATH.
         """
-        self.db_path = db_path
+        self.db_path: Path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
 
     def _is_database_exists(self) -> bool:
         """Memeriksa apakah file database sudah ada di sistem file.
@@ -49,7 +51,7 @@ class InitDatabase:
         Returns:
             bool: True jika file database ada, False jika belum.
         """
-        return os.path.exists(self.db_path)
+        return self.db_path.exists()
 
     def _is_tables_ready(self) -> bool:
         """Memeriksa apakah semua tabel yang diperlukan sudah ada.

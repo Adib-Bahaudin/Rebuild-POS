@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     from ui.dashboard_ui import DashboardPOS
 
 
+from config import DEFAULT_DB_PATH
+
 logger = logging.getLogger(__name__)
 
 
@@ -196,13 +198,13 @@ class TransactionRepository:
         db_path: Path menuju file database SQLite transaksi.
     """
 
-    def __init__(self, db_path: str | Path = "data/transaksi.db") -> None:
+    def __init__(self, db_path: Optional[str | Path] = None) -> None:
         """Menginisialisasi repository dengan lokasi database target.
 
         Args:
-            db_path: Lokasi file database SQLite. Default 'data/transaksi.db'.
+            db_path: Lokasi file database SQLite. Default menggunakan konfigurasi default.
         """
-        self.db_path: Path = Path(db_path)
+        self.db_path: Path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
 
     def _connect(self) -> sqlite3.Connection:
         """Membuka koneksi SQLite dengan integritas foreign key dan row factory aktif.
@@ -927,7 +929,7 @@ class TransactionController(QObject):
     def __init__(
         self,
         dashboard: DashboardPOS,
-        db_path: str | Path = "data/transaksi.db",
+        db_path: Optional[str | Path] = None,
         cashier_name: str = "KASIR",
         parent: Optional[QObject] = None,
     ) -> None:
@@ -935,7 +937,7 @@ class TransactionController(QObject):
 
         Args:
             dashboard: Instance DashboardPOS yang akan dikendalikan.
-            db_path: Lokasi file database SQLite transaksi.
+            db_path: Lokasi file database SQLite transaksi. Default konfigurasi sistem.
             cashier_name: Nama kasir aktif untuk pencatatan transaksi.
             parent: Objek QObject induk opsional.
         """

@@ -11,8 +11,9 @@ from __future__ import annotations
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
+from config import DEFAULT_DB_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -312,13 +313,13 @@ class TransaksiDatabaseInitializer:
         """,
     ]
 
-    def __init__(self, db_path: str | Path = "data/transaksi.db") -> None:
+    def __init__(self, db_path: Optional[str | Path] = None) -> None:
         """Menginisialisasi instance dengan lokasi file database.
 
         Args:
-            db_path: Path menuju file database SQLite. Default 'data/transaksi.db'.
+            db_path: Path menuju file database SQLite. Default menggunakan DEFAULT_DB_PATH.
         """
-        self.db_path: Path = Path(db_path)
+        self.db_path: Path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
 
     def check_database_exists(self) -> bool:
         """Memverifikasi apakah file database sudah ada di penyimpanan.
@@ -482,11 +483,13 @@ class TransaksiDatabaseInitializer:
             raise
 
 
-def init_transaksi_database(db_path: str | Path = "data/transaksi.db") -> dict[str, Any]:
+def init_transaksi_database(
+    db_path: Optional[str | Path] = None,
+) -> dict[str, Any]:
     """Fungsi helper untuk menjalankan inisialisasi database transaksi.
 
     Args:
-        db_path: Path menuju file database SQLite. Default 'data/transaksi.db'.
+        db_path: Path menuju file database SQLite. Default menggunakan DEFAULT_DB_PATH.
 
     Returns:
         Ringkasan hasil verifikasi dan inisialisasi database.
@@ -505,6 +508,6 @@ if __name__ == "__main__":
     from core.logging_config import setup_logging
 
     setup_logging()
-    target_db = sys.argv[1] if len(sys.argv) > 1 else "data/transaksi.db"
+    target_db = sys.argv[1] if len(sys.argv) > 1 else str(DEFAULT_DB_PATH)
     init_transaksi_database(db_path=target_db)
 

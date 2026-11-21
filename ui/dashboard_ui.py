@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (
 )
 from typing import Dict, List, Any, Optional, Union
 
+from config import get_asset_path
 from ui.customsidebar import (
     Sidebar,
 )
@@ -53,7 +54,8 @@ class TransactionHeader(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        kasir_icon = QSvgWidget("assets/icons/kasir_100.svg")
+        kasir_icon_path = str(get_asset_path("icons/kasir_100.svg"))
+        kasir_icon = QSvgWidget(kasir_icon_path)
         kasir_icon.setFixedSize(QSize(60, 60))
         layout.addWidget(kasir_icon)
 
@@ -150,32 +152,33 @@ class ProductSearchPanel(CardWidget):
         self.category_combo = QComboBox()
         self.category_combo.addItems(["Semua Produk", "Produk Satuan", "Produk Paket", "Jasa"])
         self.category_combo.setFixedWidth(200)
+        icon_down_path = get_asset_path("icons/icon_down.svg").as_posix()
         self.category_combo.setStyleSheet(
-            """
-            QComboBox {
+            f"""
+            QComboBox {{
                 background-color: #11111B;
                 border: 1px solid #313244;
                 border-radius: 6px;
                 padding: 10px;
                 color: #CDD6F4;
-            }
-            QComboBox::drop-down {
+            }}
+            QComboBox::drop-down {{
                 subcontrol-origin: padding;
                 subcontrol-position: top right;
                 width: 24px;
                 border-left: 1px solid #313244;
-            }
-            QComboBox::down-arrow {
-                image: url(assets/icons/icon_down.svg);
+            }}
+            QComboBox::down-arrow {{
+                image: url({icon_down_path});
                 width: 12px;
                 height: 12px;
-            }
-            QComboBox QAbstractItemView {
+            }}
+            QComboBox QAbstractItemView {{
                 background-color: #11111B;
                 color: white;
                 border: 1px solid #313244;
                 selection-background-color: #0078D7;
-            }
+            }}
             """
         )
         
@@ -655,26 +658,27 @@ class PaymentPanel(CardWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         
-        common_input_style = """
-            QWidget {
+        icon_down_path = get_asset_path("icons/icon_down.svg").as_posix()
+        common_input_style = f"""
+            QWidget {{
                 background-color: #11111B;
                 border: 1px solid #313244;
                 border-radius: 6px;
                 padding: 3px;
                 color: #CDD6F4;
                 font-size: 12px;
-            }
-            QComboBox::drop-down {
+            }}
+            QComboBox::drop-down {{
                 subcontrol-origin: padding;
                 subcontrol-position: top right;
                 width: 24px;
                 border-left: 1px solid #313244;
-            }
-            QComboBox::down-arrow {
-                image: url(assets/icons/icon_down.svg);
+            }}
+            QComboBox::down-arrow {{
+                image: url({icon_down_path});
                 width: 10px;
                 height: 10px;
-            }
+            }}
         """
         
         method_layout = QHBoxLayout()

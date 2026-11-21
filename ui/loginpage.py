@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+from config import get_asset_path
+
 from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
@@ -324,8 +326,8 @@ class LoginPage(QWidget):
         )
 
         icon_config = VisibilityIconConfig(
-            normal=Path("assets/icons/eye_normal.svg"),
-            pressed=Path("assets/icons/eye_pressed.svg"),
+            normal=get_asset_path("icons/eye_normal.svg"),
+            pressed=get_asset_path("icons/eye_pressed.svg"),
         )
 
         self._main_layout = QVBoxLayout(self)

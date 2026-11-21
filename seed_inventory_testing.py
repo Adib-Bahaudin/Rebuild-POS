@@ -11,8 +11,9 @@ from __future__ import annotations
 import sqlite3
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
+from config import DEFAULT_DB_PATH
 from init.inittransaksidatabase import TransaksiDatabaseInitializer
 
 
@@ -833,13 +834,13 @@ class InventoryTestingSeeder:
         db_path (Path): Lokasi file database SQLite target.
     """
 
-    def __init__(self, db_path: str | Path = "data/transaksi.db") -> None:
+    def __init__(self, db_path: Optional[str | Path] = None) -> None:
         """Menginisialisasi seeder dengan path database target.
 
         Args:
-            db_path: Path menuju file database SQLite. Default 'data/transaksi.db'.
+            db_path: Path menuju file database SQLite. Default menggunakan DEFAULT_DB_PATH.
         """
-        self.db_path: Path = Path(db_path)
+        self.db_path: Path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
 
     def _connect(self) -> sqlite3.Connection:
         """Membuka koneksi SQLite dengan dukungan foreign keys aktif.
@@ -1072,7 +1073,7 @@ class InventoryTestingSeeder:
 
 
 if __name__ == "__main__":
-    target_db = sys.argv[1] if len(sys.argv) > 1 else "barokah_database.db"
+    target_db = sys.argv[1] if len(sys.argv) > 1 else str(DEFAULT_DB_PATH)
     seeder = InventoryTestingSeeder(db_path=target_db)
     result = seeder.run()
 

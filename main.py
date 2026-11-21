@@ -1,63 +1,120 @@
-from typing import Optional
-import sys
-import logging
+"""Titik masuk utama eksekusi aplikasi POS Barokah.
+
+Modul ini mengorkestrasi siklus hidup aplikasi, inisialisasi konfigurasi terpusat,
+penanganan eksepsi global, autentikasi pengguna, serta transisi tampilan antarmuka.
+"""
+
+from __future__ import annotations
+
 import ctypes
-from pathlib import Path
+import logging
+import sys
+import traceback
+from types import TracebackType
+from typing import Optional, Type
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import (
+    QCoreApplication,
+    QEasingCurve,
+    QParallelAnimationGroup,
+    QPropertyAnimation,
+)
 from PySide6.QtGui import QIcon
-from pyqttoast import Toast, ToastPreset
+from PySide6.QtWidgets import QApplication
 
+from config import (
+    APP_NAME,
+    DEFAULT_DB_PATH,
+    IS_DEV,
+    IS_PRODUCTION,
+    ORGANIZATION_NAME,
+    get_asset_path,
+)
 from core.logging_config import setup_logging
+from core.login_auth import LoginAuthService
 from ui.customwindowtitlebar import (
     FramelessMainWindow,
     TitleBarIconConfig,
     ICON_PATHS,
 )
-from PySide6.QtCore import (
-    QEasingCurve,
-    QParallelAnimationGroup,
-    QPropertyAnimation,
-)
 from ui.loginpage import LoginPage
-from core.login_auth import LoginAuthService
-from util.helper.initdatabase import InitDatabase
 from util.core.dashboard_transaksi_helper import create_connected_dashboard
+from util.helper.initdatabase import InitDatabase
 from util.ui.MainShell import MainShell, create_placeholder_page
 
+try:
+    from pyqttoast import Toast, ToastPreset
+
+    _HAS_TOAST = True
+except ImportError:
+    Toast = None
+    ToastPreset = None
+    _HAS_TOAST = False
+
 logger = logging.getLogger(__name__)
+
+
+def handle_unhandled_exception(
+    exc_type: Type[BaseException],
+    exc_value: BaseException,
+    exc_traceback: Optional[TracebackType],
+) -> None:
+    """Menangani eksepsi yang tidak tertangkap secara global.
+
+    Args:
+        exc_type: Tipe eksepsi yang terjadi.
+        exc_value: Nilai atau objek eksepsi.
+        exc_traceback: Objek penelusuran balik (traceback).
+    """
+    if issubclass(exc_type, KeyboardInterrupt):
+        sys.__excepthook__(exc_type, exc_value, exc_traceback)
+        return
+
+    logger.critical(
+        "Unhandled Exception terdeteksi:\n%s",
+        "".join(traceback.format_exception(exc_type, exc_value, exc_traceback)),
+    )
 
 
 def main() -> int:
     """Titik masuk utama untuk menjalankan aplikasi POS.
 
     Returns:
-        Kode status keluar aplikasi kepada sistem operasi.
+        int: Kode status keluar aplikasi kepada sistem operasi.
     """
     try:
-        myappid = "barokahpos.posapp.rebuild.version.1.0"
-        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-    except Exception:
+        app_user_model_id = f"{ORGANIZATION_NAME.lower()}.{APP_NAME.lower()}.v2"
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_user_model_id)
+    except (AttributeError, OSError):
         pass
 
     setup_logging()
-    logger.info("Aplikasi POS dimulai")
+
+    if IS_PRODUCTION:
+        sys.excepthook = handle_unhandled_exception
+
+    logger.info(
+        "Aplikasi POS dimulai [Mode: %s]",
+        "Production" if IS_PRODUCTION else "Development",
+    )
+
+    QCoreApplication.setOrganizationName(ORGANIZATION_NAME)
+    QCoreApplication.setApplicationName(APP_NAME)
 
     app = QApplication(sys.argv)
-    
-    base_dir = Path(__file__).resolve().parent
-    icon_path = str(base_dir / "assets" / "icons" / "B_Logo.svg")
-    app_icon = QIcon(icon_path)
+
+    icon_path = get_asset_path("icons/B_Logo.svg")
+    app_icon = QIcon(str(icon_path))
     app.setWindowIcon(app_icon)
 
-    db_init = InitDatabase("barokah_database.db")
+    db_init = InitDatabase(DEFAULT_DB_PATH)
     db_init.run()
 
     title_bar_config = TitleBarIconConfig.from_dict(ICON_PATHS)
 
     window = FramelessMainWindow(
         icon_config=title_bar_config,
-        page_title="Aktivasi Lisensi"
+        page_title="Aktivasi Lisensi",
     )
     window.setWindowIcon(app_icon)
 
@@ -65,9 +122,13 @@ def main() -> int:
     dashboard_window: Optional[MainShell] = None
 
     def on_login_attempt(key: str) -> None:
-        """Menerima dan memproses sinyal login dari UI (Placeholder)."""
+        """Menerima dan memproses sinyal login dari UI.
+
+        Args:
+            key: Kunci akses yang dimasukkan oleh pengguna.
+        """
         nonlocal dashboard_window
-        auth_service = LoginAuthService("barokah_database.db")
+        auth_service = LoginAuthService(DEFAULT_DB_PATH)
         result = auth_service.authenticate(key)
 
         if result.is_success and result.user_data is not None:
@@ -90,7 +151,7 @@ def main() -> int:
                 lambda: create_connected_dashboard(
                     user_name=user_name,
                     user_role=user_role,
-                    db_path="barokah_database.db",
+                    db_path=DEFAULT_DB_PATH,
                 ),
                 title="Dashboard Penjualan",
             )
@@ -151,16 +212,17 @@ def main() -> int:
         else:
             logger.warning("Login gagal: %s", result.message)
 
-            toast = Toast(window)
-            toast.setDuration(4000)
-            toast.setBorderRadius(5)
-            toast.setTitle("Login Gagal")
-            toast.setText(result.message)
-            toast.applyPreset(ToastPreset.ERROR)
-            toast.show()
+            if _HAS_TOAST and Toast is not None and ToastPreset is not None:
+                toast = Toast(window)
+                toast.setDuration(4000)
+                toast.setBorderRadius(5)
+                toast.setTitle("Login Gagal")
+                toast.setText(result.message)
+                toast.applyPreset(ToastPreset.ERROR)
+                toast.show()
 
     def on_create_key_attempt() -> None:
-        """Menerima sinyal permintaan pembuatan key baru dari UI (Placeholder)."""
+        """Menerima sinyal permintaan pembuatan key baru dari UI."""
         logger.info("Permintaan pembuatan Access Key baru diterima dari UI")
 
     login_page.login_requested.connect(on_login_attempt)

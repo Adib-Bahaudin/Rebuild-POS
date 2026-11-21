@@ -19,6 +19,7 @@ from typing import Callable, Optional
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QWidget
 
+from config import DEFAULT_DB_PATH
 from core.transaksi_backend import (
     TransactionController,
     TransactionRepository,
@@ -53,7 +54,7 @@ class DashboardTransaksiHelper(QObject):
     def __init__(
         self,
         dashboard: DashboardPOS,
-        db_path: str | Path = "data/transaksi.db",
+        db_path: Optional[str | Path] = None,
         cashier_name: Optional[str] = None,
         enable_notifications: bool = True,
         parent: Optional[QObject] = None,
@@ -62,14 +63,14 @@ class DashboardTransaksiHelper(QObject):
 
         Args:
             dashboard: Instance antarmuka DashboardPOS yang akan dihubungkan.
-            db_path: Path file database SQLite transaksi.
+            db_path: Path file database SQLite transaksi. Default menggunakan DEFAULT_DB_PATH.
             cashier_name: Nama kasir aktif (default mengambil dari header dashboard jika None).
             enable_notifications: Aktifkan notifikasi popup/toast otomatis.
             parent: Objek QObject induk opsional.
         """
         super().__init__(parent or dashboard)
         self.dashboard: DashboardPOS = dashboard
-        self.db_path: Path = Path(db_path)
+        self.db_path: Path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
         self.enable_notifications: bool = enable_notifications
 
         effective_cashier = cashier_name or self._extract_cashier_name_from_ui()
@@ -275,7 +276,7 @@ class DashboardTransaksiHelper(QObject):
 
 def bind_dashboard_to_backend(
     dashboard: DashboardPOS,
-    db_path: str | Path = "data/transaksi.db",
+    db_path: Optional[str | Path] = None,
     cashier_name: Optional[str] = None,
     enable_notifications: bool = True,
 ) -> DashboardTransaksiHelper:
@@ -283,7 +284,7 @@ def bind_dashboard_to_backend(
 
     Args:
         dashboard: Objek DashboardPOS yang sudah diinstansiasi.
-        db_path: Lokasi file database transaksi SQLite.
+        db_path: Lokasi file database transaksi SQLite. Default DEFAULT_DB_PATH.
         cashier_name: Nama kasir aktif (opsional).
         enable_notifications: Status aktifkan popup notifikasi toast.
 
@@ -301,7 +302,7 @@ def bind_dashboard_to_backend(
 def create_connected_dashboard(
     user_name: str = "KASIR",
     user_role: str = "USER",
-    db_path: str | Path = "data/transaksi.db",
+    db_path: Optional[str | Path] = None,
     parent: Optional[QWidget] = None,
     enable_notifications: bool = True,
 ) -> DashboardPOS:
@@ -310,12 +311,12 @@ def create_connected_dashboard(
     Args:
         user_name: Nama kasir aktif.
         user_role: Role akses kasir (USER / ADMIN / SUPER USER).
-        db_path: Lokasi file database transaksi SQLite.
+        db_path: Lokasi file database transaksi SQLite. Default DEFAULT_DB_PATH.
         parent: Widget induk opsional.
         enable_notifications: Status aktifkan popup notifikasi toast.
 
     Returns:
-        Tuple berisi (dashboard_instance, helper_instance).
+        DashboardPOS: Instance dashboard yang telah terhubung.
     """
     dashboard = DashboardPOS(user_name=user_name, user_role=user_role, parent=parent)
     bind_dashboard_to_backend(

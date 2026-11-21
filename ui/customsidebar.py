@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from config import get_asset_path
+
 from PySide6.QtCore import (
     Property,
     QEasingCurve,
@@ -64,8 +66,8 @@ def validate_sidebar_icons(config: Dict[str, Dict[str, str]]) -> List[SidebarIco
     """
     validated_paths: List[SidebarIconPaths] = []
     for key, paths in config.items():
-        normal_path = Path(paths["normal"]).resolve()
-        hover_path = Path(paths["hover"]).resolve()
+        normal_path = get_asset_path(paths["normal"])
+        hover_path = get_asset_path(paths["hover"])
 
         if not normal_path.exists() or not normal_path.is_file():
             raise FileNotFoundError(

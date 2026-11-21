@@ -9,7 +9,10 @@ import time
 import hashlib
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Optional, Dict, Any
+
+from config import DEFAULT_DB_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -34,16 +37,16 @@ class LoginAuthService:
     """Layanan bisnis untuk menangani autentikasi berbasis kunci.
 
     Attributes:
-        db_path (str): Lokasi path file database SQLite.
+        db_path (Path): Lokasi path file database SQLite.
     """
 
-    def __init__(self, db_path: str = "user_data.db"):
+    def __init__(self, db_path: Optional[str | Path] = None):
         """Inisialisasi instance LoginAuthService.
 
         Args:
-            db_path (str): Path file database target.
+            db_path: Path file database target. Jika None, menggunakan konfigurasi default.
         """
-        self.db_path = db_path
+        self.db_path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
 
     def _get_connection(self) -> sqlite3.Connection:
         """Membuat dan mengembalikan koneksi ke database SQLite.

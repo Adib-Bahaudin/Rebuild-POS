@@ -4,6 +4,8 @@ import ctypes.wintypes
 from pathlib import Path
 from typing import Dict, Optional
 
+from config import get_asset_path
+
 from PySide6.QtCore import (
     Property,
     QEasingCurve,
@@ -82,20 +84,20 @@ class TitleBarIconConfig:
         """
         return cls(
             minimize=ButtonIconPaths(
-                normal=Path(config_dict["minimize"]["normal"]),
-                hover=Path(config_dict["minimize"]["hover"]),
+                normal=get_asset_path(config_dict["minimize"]["normal"]),
+                hover=get_asset_path(config_dict["minimize"]["hover"]),
             ),
             maximize=ButtonIconPaths(
-                normal=Path(config_dict["maximize"]["normal"]),
-                hover=Path(config_dict["maximize"]["hover"]),
+                normal=get_asset_path(config_dict["maximize"]["normal"]),
+                hover=get_asset_path(config_dict["maximize"]["hover"]),
             ),
             restore=ButtonIconPaths(
-                normal=Path(config_dict["restore"]["normal"]),
-                hover=Path(config_dict["restore"]["hover"]),
+                normal=get_asset_path(config_dict["restore"]["normal"]),
+                hover=get_asset_path(config_dict["restore"]["hover"]),
             ),
             close=ButtonIconPaths(
-                normal=Path(config_dict["close"]["normal"]),
-                hover=Path(config_dict["close"]["hover"]),
+                normal=get_asset_path(config_dict["close"]["normal"]),
+                hover=get_asset_path(config_dict["close"]["hover"]),
             ),
         )
 
@@ -358,7 +360,7 @@ class CustomTitleBar(QWidget):
 
     TITLE_PREFIX: str = "POS - Barokah Copy & Printing"
     DEFAULT_PAGE_TITLE: str = "TITLEBAR"
-    LOGO_PATH: str = "assets/icons/B_Logo.svg"
+    LOGO_PATH: str = "icons/B_Logo.svg"
 
     def __init__(
         self,
@@ -406,7 +408,6 @@ class CustomTitleBar(QWidget):
             """
         )
 
-        # --- Logo di pojok kiri ---
         logo_size = bar_height - 8
         self.logo_label = QLabel(self)
         self.logo_label.setObjectName("TitleBarLogo")
@@ -416,7 +417,7 @@ class CustomTitleBar(QWidget):
             Qt.WidgetAttribute.WA_TransparentForMouseEvents, True
         )
 
-        logo_pixmap = QPixmap(self.LOGO_PATH)
+        logo_pixmap = QPixmap(str(get_asset_path(self.LOGO_PATH)))
         if not logo_pixmap.isNull():
             scaled_pixmap = logo_pixmap.scaled(
                 QSize(logo_size, logo_size),
@@ -425,7 +426,6 @@ class CustomTitleBar(QWidget):
             )
             self.logo_label.setPixmap(scaled_pixmap)
 
-        # --- Title di tengah ---
         self.title_label = QLabel(self._build_full_title(), self)
         self.title_label.setObjectName("TitleBarLabel")
         self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)

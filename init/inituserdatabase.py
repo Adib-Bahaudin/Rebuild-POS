@@ -5,9 +5,11 @@ database serta tabel-tabel yang diperlukan untuk sistem autentikasi.
 """
 
 import sqlite3
-import os
 import logging
+from pathlib import Path
 from typing import Optional
+
+from config import DEFAULT_DB_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -16,16 +18,16 @@ class DatabaseInitializer:
     """Kelas untuk mengelola inisialisasi database pengguna.
 
     Attributes:
-        db_path (str): Lokasi path file database SQLite.
+        db_path (Path): Lokasi path file database SQLite.
     """
 
-    def __init__(self, db_path: str = "user_data.db"):
+    def __init__(self, db_path: Optional[str | Path] = None):
         """Inisialisasi instance DatabaseInitializer.
 
         Args:
-            db_path (str): Path file database. Default ke 'user_data.db'.
+            db_path: Path file database. Default menggunakan DEFAULT_DB_PATH.
         """
-        self.db_path = db_path
+        self.db_path: Path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
 
     def _check_db_exists(self) -> bool:
         """Memeriksa apakah file database sudah ada di sistem file.
@@ -33,7 +35,7 @@ class DatabaseInitializer:
         Returns:
             bool: True jika database sudah ada, False jika belum.
         """
-        exists = os.path.exists(self.db_path)
+        exists = self.db_path.exists()
         if exists:
             logger.debug("Database ditemukan di: %s", self.db_path)
         else:
