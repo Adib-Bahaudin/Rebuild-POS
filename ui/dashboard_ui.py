@@ -1,5 +1,5 @@
-from PySide6.QtCore import Qt, QSize, Signal, Property, QPropertyAnimation, QEasingCurve, QRect
-from PySide6.QtGui import QCursor, QPainter, QIcon, QEnterEvent, QPaintEvent, QIntValidator
+from PySide6.QtCore import Qt, QSize, Signal
+from PySide6.QtGui import QCursor, QIntValidator
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -7,15 +7,9 @@ from PySide6.QtWidgets import (
     QHeaderView, QTextEdit, QCheckBox, QStackedWidget, QFrame,
     QTableWidgetItem, QSpinBox
 )
-from dataclasses import dataclass
-from pathlib import Path
 from typing import Dict, List, Any, Optional, Union
 
 from ui.customsidebar import (
-    SidebarIconPaths,
-    SIDEBAR_ICONS_CONFIG,
-    validate_sidebar_icons,
-    SidebarButton,
     Sidebar,
 )
 
