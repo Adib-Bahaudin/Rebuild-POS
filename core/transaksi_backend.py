@@ -14,8 +14,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, QTimer
 from PySide6.QtWidgets import QInputDialog, QMessageBox, QWidget
+from util.core.product_completer import ProductSearchCompleter
 
 if TYPE_CHECKING:
     from ui.dashboard_ui import DashboardPOS
@@ -953,6 +954,16 @@ class TransactionController(QObject):
         self._tip: int = 0
 
         self._connect_dashboard_signals()
+        self._search_completer = ProductSearchCompleter(
+            search_input=self.dashboard.search_panel.search_input,
+            category_combo=self.dashboard.search_panel.category_combo,
+            repository=self.repository,
+            max_items=10,
+            parent=self,
+        )
+        self._search_completer.product_selected.connect(
+            self._handle_autocomplete_selected
+        )
         self._refresh_ui_state()
 
     def set_cashier_name(self, cashier_name: str) -> None:
@@ -975,6 +986,19 @@ class TransactionController(QObject):
         self.dashboard.tip_requested.connect(self._handle_tip_clicked)
         self.dashboard.payment_amount_changed.connect(self._handle_payment_amount_changed)
         self.dashboard.checkout_requested.connect(self._handle_checkout)
+
+    def _handle_autocomplete_selected(self, product: CatalogProduct) -> None:
+        """Menambahkan produk terpilih dari dropdown autocomplete langsung ke keranjang."""
+        self._add_product_to_cart(product)
+        QTimer.singleShot(0, self.dashboard.search_panel.clear_search)
+        QTimer.singleShot(
+            0,
+            lambda: self.dashboard.search_panel.set_helper_text(
+                f"Ditambahkan: {product.display_name} "
+                f"(Rp {product.selling_price:,})".replace(",", "."),
+                is_error=False,
+            ),
+        )
 
     def _calculate_subtotal(self) -> int:
         """Menghitung total harga kotor seluruh item di dalam keranjang.
