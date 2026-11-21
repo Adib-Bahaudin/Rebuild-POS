@@ -660,7 +660,7 @@ class PaymentPanel(CardWidget):
         
         icon_down_path = get_asset_path("icons/icon_down.svg").as_posix()
         common_input_style = f"""
-            QWidget {{
+            QComboBox, QLineEdit, QTextEdit {{
                 background-color: #11111B;
                 border: 1px solid #313244;
                 border-radius: 6px;

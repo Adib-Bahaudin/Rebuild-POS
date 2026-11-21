@@ -41,6 +41,7 @@ from ui.loginpage import LoginPage
 from util.core.dashboard_transaksi_helper import create_connected_dashboard
 from util.helper.initdatabase import InitDatabase
 from util.ui.MainShell import MainShell, create_placeholder_page
+from util.ui.scrollbar_manager import GlobalScrollBarManager
 
 try:
     from pyqttoast import Toast, ToastPreset
@@ -106,6 +107,8 @@ def main() -> int:
     icon_path = get_asset_path("icons/B_Logo.svg")
     app_icon = QIcon(str(icon_path))
     app.setWindowIcon(app_icon)
+
+    GlobalScrollBarManager(app)
 
     db_init = InitDatabase(DEFAULT_DB_PATH)
     db_init.run()
