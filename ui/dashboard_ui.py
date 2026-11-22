@@ -827,6 +827,7 @@ class PaymentPanel(CardWidget):
         note_lbl = QLabel("Catatan Kasir")
         note_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background-color: transparent;")
         self.note_input = QTextEdit()
+        self.note_input.setFocusPolicy(Qt.FocusPolicy.ClickFocus)
         self.note_input.setPlaceholderText("tulis informasi disini")
         self.note_input.setStyleSheet(common_input_style)
         self.change_lbl = QLabel("Kembalian: Rp 0")
