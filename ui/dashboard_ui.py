@@ -275,6 +275,7 @@ class QuantityControlWidget(QWidget):
             parent: Objek widget induk opsional.
         """
         super().__init__(parent)
+        self._last_qty: int = int(initial_qty)
         layout = QHBoxLayout(self)
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setSpacing(4)
@@ -349,6 +350,9 @@ class QuantityControlWidget(QWidget):
             """
         )
 
+        self.btn_minus.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.btn_plus.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+
         self.btn_minus.clicked.connect(self._on_minus_clicked)
         self.btn_plus.clicked.connect(self._on_plus_clicked)
         self.qty_spin.editingFinished.connect(self._on_editing_finished)
@@ -359,17 +363,22 @@ class QuantityControlWidget(QWidget):
 
     def _on_minus_clicked(self) -> None:
         """Menurunkan nilai kuantitas sebanyak satu unit dan memancarkan sinyal."""
+        self.qty_spin.setFocus()
         new_val = self.qty_spin.value() - 1
         self.quantity_changed.emit(new_val)
 
     def _on_plus_clicked(self) -> None:
         """Menaikkan nilai kuantitas sebanyak satu unit dan memancarkan sinyal."""
+        self.qty_spin.setFocus()
         new_val = self.qty_spin.value() + 1
         self.quantity_changed.emit(new_val)
 
     def _on_editing_finished(self) -> None:
         """Memancarkan sinyal kuantitas baru setelah kasir selesai mengetikkan angka."""
-        self.quantity_changed.emit(self.qty_spin.value())
+        current_val = self.qty_spin.value()
+        if current_val != self._last_qty:
+            self._last_qty = current_val
+            self.quantity_changed.emit(current_val)
 
     def get_value(self) -> int:
         """Mengambil nilai kuantitas saat ini dari spinbox.
@@ -385,6 +394,7 @@ class QuantityControlWidget(QWidget):
         Args:
             value: Nilai integer kuantitas baru.
         """
+        self._last_qty = int(value)
         self.qty_spin.setValue(int(value))
 
 
@@ -402,11 +412,13 @@ class CartPanel(CardWidget):
         """Menginisialisasi tabel keranjang belanja dan status antarmuka kosong."""
         super().__init__(parent)
         self._cart_items: List[Dict[str, Any]] = []
+        self._qty_inputs: List[QSpinBox] = []
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         
         self.table = QTableWidget(0, 8)
         self.table.verticalHeader().setVisible(False)
+        self.table.setTabKeyNavigation(False)
         self.table.setHorizontalHeaderLabels(
             ["No", "SKU", "Produk", "Tipe", "Harga", "Qty", "Subtotal", "Aksi"]
         )
@@ -516,6 +528,14 @@ class CartPanel(CardWidget):
             self.clear_cart()
             return
 
+        focused_row: Optional[int] = None
+        for idx, spin in enumerate(self._qty_inputs):
+            if spin.hasFocus():
+                focused_row = idx
+                break
+        
+        self._qty_inputs.clear()
+
         self.table.setRowCount(len(items))
         for row_idx, item in enumerate(items):
             item_id = item.get("id", row_idx)
@@ -549,6 +569,7 @@ class CartPanel(CardWidget):
             qty_control.quantity_changed.connect(
                 lambda val, idx=item_id: self.item_quantity_changed.emit(idx, val)
             )
+            self._qty_inputs.append(qty_control.qty_spin)
 
             subtotal_val = item.get("subtotal", price_val * qty_val)
             subtotal_text = f"Rp {int(subtotal_val):,}".replace(",", ".")
@@ -587,15 +608,23 @@ class CartPanel(CardWidget):
                 }
                 """
             )
+            del_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
             del_btn.clicked.connect(lambda checked=False, idx=item_id: self.item_removed.emit(idx))
             action_layout.addWidget(del_btn)
             self.table.setCellWidget(row_idx, 7, action_widget)
 
         self.stacked_widget.setCurrentIndex(1)
 
+        if focused_row is not None and self._qty_inputs:
+            target_idx = min(focused_row, len(self._qty_inputs) - 1)
+            target_spin = self._qty_inputs[target_idx]
+            target_spin.setFocus()
+            target_spin.selectAll()
+
     def clear_cart(self) -> None:
         """Mengosongkan isi tabel keranjang belanja dan menampilkan label status kosong."""
         self._cart_items = []
+        self._qty_inputs.clear()
         self.table.setRowCount(0)
         self.stacked_widget.setCurrentIndex(0)
 
@@ -606,6 +635,14 @@ class CartPanel(CardWidget):
             Daftar dictionary item transaksi.
         """
         return list(self._cart_items)
+
+    def get_qty_inputs(self) -> List[QSpinBox]:
+        """Mengembalikan daftar widget QSpinBox kuantitas sesuai urutan baris tabel.
+
+        Returns:
+            Daftar QSpinBox untuk pengaturan urutan fokus Tab.
+        """
+        return list(self._qty_inputs)
 
 
 class TransactionSummaryPanel(CardWidget):
@@ -990,6 +1027,18 @@ class DashboardPOS(QWidget):
         """
         self.header.set_user_info(user_name, user_role)
 
+    def _update_cart_tab_order(self) -> None:
+        """Mengatur urutan fokus Tab dari tombol Tambah, ke semua input Qty, lalu ke tombol Kosongkan."""
+        qty_inputs = self.cart_panel.get_qty_inputs()
+        if not qty_inputs:
+            QWidget.setTabOrder(self.search_panel.add_btn, self.cart_panel.clear_btn)
+            return
+
+        QWidget.setTabOrder(self.search_panel.add_btn, qty_inputs[0])
+        for idx in range(len(qty_inputs) - 1):
+            QWidget.setTabOrder(qty_inputs[idx], qty_inputs[idx + 1])
+        QWidget.setTabOrder(qty_inputs[-1], self.cart_panel.clear_btn)
+    
     def set_cart_items(self, items: List[Dict[str, Any]]) -> None:
         """Memperbarui daftar item transaksi yang ditampilkan di keranjang belanja.
 
@@ -997,6 +1046,7 @@ class DashboardPOS(QWidget):
             items: Daftar dictionary data item transaksi.
         """
         self.cart_panel.set_items(items)
+        self._update_cart_tab_order()
 
     def get_cart_items(self) -> List[Dict[str, Any]]:
         """Mengambil data item yang sedang berada di dalam keranjang belanja.
@@ -1053,3 +1103,4 @@ class DashboardPOS(QWidget):
         self.summary_panel.reset_summary()
         self.payment_panel.clear_form()
         self.search_panel.clear_search()
+        self._update_cart_tab_order()
