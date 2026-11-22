@@ -475,6 +475,35 @@ class CartPanel(CardWidget):
         layout.addWidget(self.stacked_widget)
         layout.addLayout(bottom_layout)
 
+    def _create_selectable_label(
+        self,
+        text: str,
+        alignment: Qt.AlignmentFlag = Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+    ) -> QLabel:
+        """Membuat QLabel transparan yang teksnya dapat diblok dan disalin.
+
+        Args:
+            text: Teks yang akan ditampilkan di dalam sel.
+            alignment: Perataan teks di dalam sel.
+
+        Returns:
+            Widget QLabel dengan interaksi seleksi teks aktif.
+        """
+        label = QLabel(text)
+        label.setAlignment(alignment)
+        label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        label.setCursor(QCursor(Qt.CursorShape.IBeamCursor))
+        label.setStyleSheet(
+            """
+            QLabel {
+                background-color: transparent;
+                color: #CDD6F4;
+                padding: 0px 6px;
+            }
+            """
+        )
+        return label
+
     def set_items(self, items: List[Dict[str, Any]]) -> None:
         """Memuat daftar item transaksi ke dalam tabel keranjang belanja.
 
@@ -495,12 +524,15 @@ class CartPanel(CardWidget):
             no_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             no_item.setFlags(no_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
-            sku_item = QTableWidgetItem(str(item.get("sku", "")))
-            sku_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            sku_item.setFlags(sku_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            sku_label = self._create_selectable_label(
+                str(item.get("sku", "")),
+                Qt.AlignmentFlag.AlignCenter,
+            )
 
-            name_item = QTableWidgetItem(str(item.get("name", "")))
-            name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+            name_label = self._create_selectable_label(
+                str(item.get("name", "")),
+                Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter,
+            )
 
             type_item = QTableWidgetItem(str(item.get("item_type", "Produk")))
             type_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -525,8 +557,8 @@ class CartPanel(CardWidget):
             subtotal_item.setFlags(subtotal_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
             self.table.setItem(row_idx, 0, no_item)
-            self.table.setItem(row_idx, 1, sku_item)
-            self.table.setItem(row_idx, 2, name_item)
+            self.table.setCellWidget(row_idx, 1, sku_label)
+            self.table.setCellWidget(row_idx, 2, name_label)
             self.table.setItem(row_idx, 3, type_item)
             self.table.setItem(row_idx, 4, price_item)
             self.table.setCellWidget(row_idx, 5, qty_control)
