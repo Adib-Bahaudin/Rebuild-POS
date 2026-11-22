@@ -972,6 +972,37 @@ def auto_fill_digital_payment_amount(
     return False
 
 
+def calculate_auto_rounding(base_total: int) -> int:
+    """Menghitung nilai penyesuaian pembulatan otomatis ke kelipatan 500 terdekat.
+
+    Logika pembulatan:
+        - Jika sisa total tagihan terhadap kelipatan 500 lebih dari 250:
+          dibulatkan ke atas menjadi 500 (penyesuaian bernilai positif).
+        - Jika sisa total tagihan terhadap kelipatan 500 kurang dari atau sama dengan 250:
+          dibulatkan ke bawah menjadi 0 (penyesuaian bernilai negatif atau nol).
+
+    Contoh:
+        - Total 2300 -> sisa 300 (> 250) -> rounding +200 -> total menjadi 2500.
+        - Total 2250 -> sisa 250 (<= 250) -> rounding -250 -> total menjadi 2000.
+
+    Args:
+        base_total: Nominal total tagihan sebelum pembulatan (subtotal - diskon + tip).
+
+    Returns:
+        int: Nilai pembulatan yang ditambahkan ke total (positif, negatif, atau 0).
+    """
+    if base_total <= 0:
+        return 0
+
+    remainder = base_total % 500
+    if remainder == 0:
+        return 0
+    elif remainder > 250:
+        return 500 - remainder
+    else:
+        return -remainder
+
+
 class TransactionController(QObject):
     """Controller yang menghubungkan seluruh event DashboardPOS ke backend database.
 
@@ -1313,19 +1344,36 @@ class TransactionController(QObject):
             self._refresh_ui_state()
 
     def _handle_rounding_clicked(self) -> None:
-        """Membuka dialog input nominal pembulatan positif atau negatif."""
-        value, accepted = CustomInputDialog.getInt(
-            self._get_dialog_parent(),
-            "Input Pembulatan",
-            "Masukkan nominal pembulatan (boleh negatif/positif, Rp):",
-            self._rounding,
-            -100000,
-            100000,
-            100,
-        )
-        if accepted:
-            self._rounding = value
-            self._refresh_ui_state()
+        """Menerapkan pembulatan otomatis ke kelipatan 500 terdekat atau membatalkannya jika sudah aktif.
+
+        Logika:
+            - Jika sisa total tagihan terhadap kelipatan 500 > 250: rounding ke atas menjadi 500.
+            - Jika sisa total tagihan terhadap kelipatan 500 <= 250: rounding ke bawah menjadi 0.
+            Contoh:
+                - Total tagihan 2300 -> sisa 300 (> 250) -> rounding +200 -> total menjadi 2500.
+                - Total tagihan 2250 -> sisa 250 (<= 250) -> rounding -250 -> total menjadi 2000.
+            Jika tombol ditekan kembali saat pembulatan otomatis sudah aktif, pembulatan di-reset ke 0.
+        """
+        subtotal = self._calculate_subtotal()
+        if subtotal <= 0:
+            QMessageBox.information(
+                self._get_dialog_parent(),
+                "Pembulatan",
+                "Tambahkan produk ke keranjang terlebih dahulu.",
+            )
+            return
+
+        base_total = max(0, subtotal - self._discount + self._tip)
+        auto_val = calculate_auto_rounding(base_total)
+
+        if self._rounding != 0 and self._rounding == auto_val:
+            self._rounding = 0
+        else:
+            self._rounding = auto_val
+
+        self._refresh_ui_state()
+
+    calculate_auto_rounding = staticmethod(calculate_auto_rounding)
 
     def _handle_tip_clicked(self) -> None:
         """Membuka dialog input nominal tip atau bonus kasir."""
