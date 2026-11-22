@@ -17,10 +17,10 @@ from typing import TYPE_CHECKING, Any, Optional
 from PySide6.QtCore import QObject, Signal, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
 from util.custominputdialog import CustomInputDialog
-from util.core.product_completer import ProductSearchCompleter
 
 if TYPE_CHECKING:
     from ui.dashboard_ui import DashboardPOS
+    from util.core.product_completer import ProductSearchCompleter
 
 
 from config import DEFAULT_DB_PATH
@@ -916,6 +916,62 @@ class TransactionRepository:
         )
 
 
+def auto_fill_digital_payment_amount(
+    dashboard: Any,
+    method: Optional[str] = None,
+    total: Optional[int] = None,
+) -> bool:
+    """Secara otomatis mengisi nominal pembayaran pada form dashboard jika metode adalah QRIS atau Transfer.
+
+    Memeriksa nilai metode pembayaran. Apabila metode adalah 'QRIS' atau 'Transfer'
+    (tidak sensitif huruf besar/kecil), kolom nominal pembayaran (amount_input)
+    akan diisi dengan nilai total tagihan transaksi.
+
+    Args:
+        dashboard: Instance antarmuka DashboardPOS atau objek yang memiliki payment_panel.
+        method: Nama metode pembayaran opsional. Jika None, membaca dari method_combo pada payment_panel.
+        total: Nominal total tagihan opsional. Jika None, membaca dari ringkasan atau bernilai 0.
+
+    Returns:
+        bool: True jika metode adalah QRIS/Transfer dan form berhasil diisi, False jika sebaliknya.
+    """
+    if dashboard is None:
+        return False
+
+    if method is None:
+        if hasattr(dashboard, "payment_panel") and hasattr(
+            dashboard.payment_panel, "method_combo"
+        ):
+            method = dashboard.payment_panel.method_combo.currentText()
+        else:
+            return False
+
+    if not isinstance(method, str):
+        return False
+
+    method_normalized = method.strip().lower()
+    if method_normalized in ("qris", "transfer"):
+        if total is None:
+            total = 0
+            if hasattr(dashboard, "summary_panel") and hasattr(
+                dashboard.summary_panel, "total_val"
+            ):
+                raw_text = dashboard.summary_panel.total_val.text()
+                digits = "".join(filter(str.isdigit, raw_text))
+                total = int(digits) if digits else 0
+
+        amount_str = str(total)
+        if hasattr(dashboard, "set_payment_amount"):
+            dashboard.set_payment_amount(amount_str)
+        elif hasattr(dashboard, "payment_panel") and hasattr(
+            dashboard.payment_panel, "amount_input"
+        ):
+            dashboard.payment_panel.amount_input.setText(amount_str)
+        return True
+
+    return False
+
+
 class TransactionController(QObject):
     """Controller yang menghubungkan seluruh event DashboardPOS ke backend database.
 
@@ -955,6 +1011,8 @@ class TransactionController(QObject):
         self._tip: int = 0
 
         self._connect_dashboard_signals()
+        from util.core.product_completer import ProductSearchCompleter
+
         self._search_completer = ProductSearchCompleter(
             search_input=self.dashboard.search_panel.search_input,
             category_combo=self.dashboard.search_panel.category_combo,
@@ -986,6 +1044,12 @@ class TransactionController(QObject):
         self.dashboard.rounding_requested.connect(self._handle_rounding_clicked)
         self.dashboard.tip_requested.connect(self._handle_tip_clicked)
         self.dashboard.payment_amount_changed.connect(self._handle_payment_amount_changed)
+        if hasattr(self.dashboard, "payment_method_changed"):
+            self.dashboard.payment_method_changed.connect(self._handle_payment_method_changed)
+        elif hasattr(self.dashboard, "payment_panel") and hasattr(
+            self.dashboard.payment_panel, "method_changed"
+        ):
+            self.dashboard.payment_panel.method_changed.connect(self._handle_payment_method_changed)
         self.dashboard.checkout_requested.connect(self._handle_checkout)
 
     def _handle_autocomplete_selected(self, product: CatalogProduct) -> None:
@@ -1038,6 +1102,7 @@ class TransactionController(QObject):
 
         self._update_change_display()
         self.dashboard.action_panel.set_pay_enabled(len(self._cart_items) > 0)
+        self.auto_fill_payment_amount()
 
     def _update_change_display(self) -> None:
         """Menghitung ulang dan memperbarui nominal kembalian pada panel pembayaran."""
@@ -1284,6 +1349,31 @@ class TransactionController(QObject):
             _raw_text: Teks mentah dari kolom input nominal pembayaran.
         """
         self._update_change_display()
+
+    def auto_fill_payment_amount(self, method: Optional[str] = None) -> bool:
+        """Secara otomatis mengisi nominal pembayaran jika metode adalah QRIS atau Transfer.
+
+        Jika metode pembayaran yang aktif adalah QRIS atau Transfer, kolom nominal bayar
+        (amount_input) pada panel pembayaran dashboard akan diisi sebesar total tagihan transaksi.
+
+        Args:
+            method: Nama metode pembayaran opsional. Jika None, membaca metode terpilih dari dashboard.
+
+        Returns:
+            bool: True jika metode adalah QRIS atau Transfer dan pengisian berhasil, False sebaliknya.
+        """
+        total = self._calculate_total()
+        return auto_fill_digital_payment_amount(self.dashboard, method=method, total=total)
+
+    def _handle_payment_method_changed(self, method: str) -> None:
+        """Menangani pergantian metode pembayaran dari antarmuka pengguna.
+
+        Secara otomatis mengisi nominal pembayaran jika metode yang dipilih adalah QRIS atau Transfer.
+
+        Args:
+            method: Nama metode pembayaran yang baru dipilih kasir.
+        """
+        self.auto_fill_payment_amount(method)
 
     def _handle_checkout(self) -> None:
         """Mengeksekusi penyimpanan transaksi dari DashboardPOS ke database SQLite."""

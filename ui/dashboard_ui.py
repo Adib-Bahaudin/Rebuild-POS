@@ -860,6 +860,14 @@ class PaymentPanel(CardWidget):
         self.change_lbl.setText("Kembalian: Rp 0")
         self.print_check.setChecked(False)
 
+    def set_payment_amount(self, amount: Union[int, float, str]) -> None:
+        """Memperbarui teks pada input nominal pembayaran.
+
+        Args:
+            amount: Nilai nominal yang akan diisikan ke form.
+        """
+        self.amount_input.setText(str(amount))
+
     def set_payment_methods(self, methods: List[str]) -> None:
         """Memperbarui daftar opsi metode pembayaran yang tersedia.
 
@@ -954,6 +962,7 @@ class DashboardPOS(QWidget):
     tip_requested = Signal()
     checkout_requested = Signal()
     payment_amount_changed = Signal(str)
+    payment_method_changed = Signal(str)
     
     def __init__(self, user_name: str = "KASIR", user_role: str = "USER", parent=None):
         """Menginisialisasi dan merakit seluruh sub-komponen dashboard.
@@ -1017,6 +1026,7 @@ class DashboardPOS(QWidget):
         self.action_panel.tip_clicked.connect(self.tip_requested.emit)
         self.action_panel.pay_clicked.connect(self.checkout_requested.emit)
         self.payment_panel.amount_changed.connect(self.payment_amount_changed.emit)
+        self.payment_panel.method_changed.connect(self.payment_method_changed.emit)
 
     def set_user_info(self, user_name: str, user_role: str) -> None:
         """Memperbarui informasi identitas kasir dan level akses pengguna.
@@ -1096,6 +1106,14 @@ class DashboardPOS(QWidget):
             amount: Nilai kembalian yang dihitung.
         """
         self.payment_panel.set_change_amount(amount)
+
+    def set_payment_amount(self, amount: Union[int, float, str]) -> None:
+        """Memperbarui teks nominal pembayaran pada panel pembayaran.
+
+        Args:
+            amount: Nilai nominal yang akan diisikan.
+        """
+        self.payment_panel.set_payment_amount(amount)
 
     def clear_transaction(self) -> None:
         """Mengosongkan keranjang belanja, ringkasan transaksi, dan formulir pembayaran."""
