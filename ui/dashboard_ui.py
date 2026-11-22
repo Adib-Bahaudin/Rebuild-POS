@@ -1,5 +1,8 @@
-from PySide6.QtCore import Qt, QSize, Signal, QEvent, QObject
-from PySide6.QtGui import QCursor, QIntValidator, QKeyEvent
+from PySide6.QtCore import Qt, QSize, Signal, QEvent, QObject, QTimer
+from PySide6.QtGui import (
+    QCursor, QIntValidator, QKeyEvent, 
+    QKeySequence, QShortcut, QShowEvent
+)
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -1070,6 +1073,10 @@ class DashboardPOS(QWidget):
         main_layout.addWidget(right_widget)
 
         self._connect_signals()
+        
+        self.shortcut_pay = QShortcut(QKeySequence("Ctrl+B"), self)
+        self.shortcut_pay.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
+        self.shortcut_pay.activated.connect(self._on_shortcut_pay)
 
     def _connect_signals(self) -> None:
         """Menghubungkan sinyal-sinyal komponen sub-panel ke sinyal publik DashboardPOS."""
@@ -1173,6 +1180,11 @@ class DashboardPOS(QWidget):
         """
         self.payment_panel.set_payment_amount(amount)
 
+    def _on_shortcut_pay(self) -> None:
+        """Memicu klik tombol Bayar saat shortcut Ctrl+B ditekan."""
+        if self.action_panel.btn_bayar.isEnabled():
+            self.action_panel.btn_bayar.animateClick()
+
     def clear_transaction(self) -> None:
         """Mengosongkan keranjang belanja, ringkasan transaksi, dan formulir pembayaran."""
         self.cart_panel.clear_cart()
@@ -1180,3 +1192,18 @@ class DashboardPOS(QWidget):
         self.payment_panel.clear_form()
         self.search_panel.clear_search()
         self._update_cart_tab_order()
+        QTimer.singleShot(0, self.focus_search_input)
+
+    def focus_search_input(self) -> None:
+        """Memindahkan fokus keyboard ke input pencarian produk."""
+        self.search_panel.search_input.setFocus()
+        self.search_panel.search_input.selectAll()
+
+    def showEvent(self, event: QShowEvent) -> None:
+        """Memfokuskan kolom pencarian secara otomatis saat halaman tampil pertama kali.
+
+        Args:
+            event: Objek event saat widget ditampilkan.
+        """
+        super().showEvent(event)
+        QTimer.singleShot(0, self.focus_search_input)
