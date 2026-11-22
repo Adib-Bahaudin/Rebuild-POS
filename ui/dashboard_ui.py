@@ -1,5 +1,5 @@
-from PySide6.QtCore import Qt, QSize, Signal
-from PySide6.QtGui import QCursor, QIntValidator
+from PySide6.QtCore import Qt, QSize, Signal, QEvent, QObject
+from PySide6.QtGui import QCursor, QIntValidator, QKeyEvent
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
@@ -936,9 +936,14 @@ class TransactionActionPanel(CardWidget):
                 padding: 8px;
                 font-weight: bold;
                 font-size: 13px;
+                outline: none;
             }
             QPushButton::hover {
                 background-color: %s;
+            }
+            QPushButton:focus {
+                border: 2px solid #FFFFFF;
+                padding: 6px;
             }
         """
         
@@ -961,6 +966,7 @@ class TransactionActionPanel(CardWidget):
         cursors = [self.btn_diskon, self.btn_pembulatan, self.btn_tip, self.btn_bayar]
         for btn in cursors:
             btn.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
+            btn.installEventFilter(self)
             
         layout.addWidget(self.btn_diskon, 0, 0)
         layout.addWidget(self.btn_pembulatan, 0, 1)
@@ -974,6 +980,26 @@ class TransactionActionPanel(CardWidget):
             enabled: True jika tombol aktif, False jika dinonaktifkan.
         """
         self.btn_bayar.setEnabled(enabled)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        """Menangkap tombol Enter saat fokus berada pada tombol aksi.
+
+        Args:
+            watched: Objek widget yang sedang dipantau.
+            event: Objek event yang terjadi pada widget.
+
+        Returns:
+            True jika event ditangani, selain itu diteruskan ke superclass.
+        """
+        if (
+            isinstance(watched, QPushButton)
+            and event.type() == QEvent.Type.KeyPress
+            and isinstance(event, QKeyEvent)
+            and event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+        ):
+            watched.animateClick()
+            return True
+        return super().eventFilter(watched, event)
 
 
 class DashboardPOS(QWidget):
