@@ -411,6 +411,13 @@ class CartPanel(CardWidget):
             ["No", "SKU", "Produk", "Tipe", "Harga", "Qty", "Subtotal", "Aksi"]
         )
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        header = self.table.horizontalHeader()
+        header.setSectionsClickable(False)
+        header.setHighlightSections(False)
+        header.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, True)
+        self.table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setColumnWidth(0, 45)
         self.table.setColumnWidth(5, 120)
         self.table.setColumnWidth(7, 80)
