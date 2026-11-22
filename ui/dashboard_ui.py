@@ -146,6 +146,9 @@ class ProductSearchPanel(CardWidget):
                 padding: 10px;
                 color: #CDD6F4;
             }
+            QLineEdit:focus {
+                border: 1px solid #2ECC71;
+            }
             """
         )
         
@@ -179,6 +182,9 @@ class ProductSearchPanel(CardWidget):
                 border: 1px solid #313244;
                 selection-background-color: #0078D7;
             }}
+            QComboBox:focus {{
+                border: 1px solid #2ECC71;
+            }}
             """
         )
         
@@ -192,9 +198,14 @@ class ProductSearchPanel(CardWidget):
                 border-radius: 6px;
                 padding: 10px 24px;
                 font-weight: bold;
+                outline: none;
             }
             QPushButton:hover {
                 background-color: #27AE60;
+            }
+            QPushButton:focus {
+                border: 2px solid #FFFFFF;
+                padding: 8px 22px;
             }
             """
         )
@@ -475,9 +486,14 @@ class CartPanel(CardWidget):
                 border: 1px solid #313244;
                 border-radius: 6px;
                 padding: 8px 16px;
+                outline: none;
             }
             QPushButton:hover {
                 background-color: #313244;
+            }
+            QPushButton:focus {
+                border: 1px solid #2ECC71;
+                color: #2ECC71;
             }
             """
         )
@@ -751,6 +767,9 @@ class PaymentPanel(CardWidget):
                 color: #CDD6F4;
                 font-size: 12px;
             }}
+            QComboBox:focus, QLineEdit:focus, QTextEdit:focus {{
+                border: 1px solid #2ECC71;
+            }}
             QComboBox::drop-down {{
                 subcontrol-origin: padding;
                 subcontrol-position: top right;
@@ -813,7 +832,19 @@ class PaymentPanel(CardWidget):
         self.change_lbl = QLabel("Kembalian: Rp 0")
         self.change_lbl.setStyleSheet("color: #CDD6F4; font-size: 14px; font-weight: bold; background-color: transparent;")
         self.print_check = QCheckBox("Cetak Nota Transaksi")
-        self.print_check.setStyleSheet("color: #A6ADC8; font-size: 12px; background-color: transparent;")
+        self.print_check.setStyleSheet(
+            """
+            QCheckBox {
+                color: #A6ADC8;
+                font-size: 12px;
+                background-color: transparent;
+                outline: none;
+            }
+            QCheckBox:focus {
+                color: #2ECC71;
+            }
+            """
+        )
         note_layout.addWidget(note_lbl)
         note_layout.addWidget(self.note_input)
         note_layout.addWidget(self.change_lbl)
