@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from PySide6.QtCore import QObject, Signal, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
+from ui.dialogtip import DialogTip
 from util.custominputdialog import CustomInputDialog
 
 if TYPE_CHECKING:
@@ -1376,15 +1377,16 @@ class TransactionController(QObject):
     calculate_auto_rounding = staticmethod(calculate_auto_rounding)
 
     def _handle_tip_clicked(self) -> None:
-        """Membuka dialog input nominal tip atau bonus kasir."""
-        value, accepted = CustomInputDialog.getInt(
-            self._get_dialog_parent(),
-            "Input Tip / Bonus",
-            "Masukkan nominal tip atau bonus (Rp):",
-            self._tip,
-            0,
-            10000000,
-            1000,
+        """Membuka dialog input nominal tip atau bonus kasir dengan opsi nilai cepat dan kembalian."""
+        payment_data = self.dashboard.get_payment_data()
+        amount_paid = int(payment_data.get("amount_paid", 0))
+        total = self._calculate_total()
+        current_change = max(0, amount_paid - total)
+
+        value, accepted = DialogTip.get_tip(
+            parent=self._get_dialog_parent(),
+            initial_tip=self._tip,
+            change_amount=current_change,
         )
         if accepted:
             self._tip = value
