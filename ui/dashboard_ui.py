@@ -405,13 +405,15 @@ class CartPanel(CardWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         
-        self.table = QTableWidget(0, 7)
+        self.table = QTableWidget(0, 8)
+        self.table.verticalHeader().setVisible(False)
         self.table.setHorizontalHeaderLabels(
-            ["SKU", "Produk", "Tipe", "Harga", "Qty", "Subtotal", "Aksi"]
+            ["No", "SKU", "Produk", "Tipe", "Harga", "Qty", "Subtotal", "Aksi"]
         )
-        self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-        self.table.setColumnWidth(4, 120)
-        self.table.setColumnWidth(6, 80)
+        self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.table.setColumnWidth(0, 45)
+        self.table.setColumnWidth(5, 120)
+        self.table.setColumnWidth(7, 80)
         self.table.setStyleSheet(
             """
             QTableWidget {
@@ -482,6 +484,10 @@ class CartPanel(CardWidget):
         for row_idx, item in enumerate(items):
             item_id = item.get("id", row_idx)
 
+            no_item = QTableWidgetItem(str(row_idx + 1))
+            no_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            no_item.setFlags(no_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+
             sku_item = QTableWidgetItem(str(item.get("sku", "")))
             sku_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             sku_item.setFlags(sku_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -511,12 +517,13 @@ class CartPanel(CardWidget):
             subtotal_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             subtotal_item.setFlags(subtotal_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
-            self.table.setItem(row_idx, 0, sku_item)
-            self.table.setItem(row_idx, 1, name_item)
-            self.table.setItem(row_idx, 2, type_item)
-            self.table.setItem(row_idx, 3, price_item)
-            self.table.setCellWidget(row_idx, 4, qty_control)
-            self.table.setItem(row_idx, 5, subtotal_item)
+            self.table.setItem(row_idx, 0, no_item)
+            self.table.setItem(row_idx, 1, sku_item)
+            self.table.setItem(row_idx, 2, name_item)
+            self.table.setItem(row_idx, 3, type_item)
+            self.table.setItem(row_idx, 4, price_item)
+            self.table.setCellWidget(row_idx, 5, qty_control)
+            self.table.setItem(row_idx, 6, subtotal_item)
 
             action_widget = QWidget()
             action_layout = QHBoxLayout(action_widget)
@@ -543,7 +550,7 @@ class CartPanel(CardWidget):
             )
             del_btn.clicked.connect(lambda checked=False, idx=item_id: self.item_removed.emit(idx))
             action_layout.addWidget(del_btn)
-            self.table.setCellWidget(row_idx, 6, action_widget)
+            self.table.setCellWidget(row_idx, 7, action_widget)
 
         self.stacked_widget.setCurrentIndex(1)
 
