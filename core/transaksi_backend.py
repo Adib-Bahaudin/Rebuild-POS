@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import sqlite3
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -19,7 +19,6 @@ from PySide6.QtWidgets import QMessageBox, QWidget
 from ui.dialog.dialogbonus import DialogBonus
 from ui.dialog.dialogtip import DialogTip
 from util.custominputdialog import CustomInputDialog
-from util.core.product_completer import ProductSearchCompleter
 
 if TYPE_CHECKING:
     from ui.dashboard_ui import DashboardPOS
@@ -176,6 +175,9 @@ class TransactionResult:
         change_amount: Nominal kembalian yang diberikan ke pelanggan.
         print_receipt: Status apakah kasir memilih opsi cetak nota.
         items: Daftar salinan dictionary item yang dibeli.
+        payment_status: Status pelunasan ('PAID', 'PARTIAL', 'UNPAID').
+        remaining_amount: Sisa piutang/tagihan yang belum terbayar.
+        due_date: Tanggal jatuh tempo pelunasan piutang.
     """
 
     sale_id: int
@@ -193,6 +195,9 @@ class TransactionResult:
     change_amount: int
     print_receipt: bool
     items: list[dict[str, Any]]
+    payment_status: str = "PAID"
+    remaining_amount: int = 0
+    due_date: Optional[str] = None
 
 
 class TransactionRepository:
@@ -672,12 +677,16 @@ class TransactionRepository:
         cashier_name: str,
         note: str,
         print_receipt: bool,
+        due_date: Optional[str] = None,
+        payment_status: Optional[str] = None,
     ) -> TransactionResult:
         """Memvalidasi dan menyimpan satu transaksi penjualan lengkap secara atomik.
 
-        Alur penyimpanan mencakup insert header sales, insert sale_details,
-        ekspansi bahan baku jasa ke sale_detail_materials, pencatatan
-        stock_movements, serta pemotongan layer FIFO dan stock_issue_allocations.
+        Mendukung skenario pelunasan penuh (PAID), transaksi belum lunas (UNPAID / Tempo),
+        serta transaksi dengan uang muka / DP (PARTIAL). Alur penyimpanan mencakup insert
+        header sales, pencatatan pembayaran DP ke sale_payments jika bertipe PARTIAL,
+        insert sale_details, ekspansi bahan baku jasa ke sale_detail_materials,
+        pencatatan stock_movements, serta pemotongan layer FIFO dan stock_issue_allocations.
 
         Args:
             cart_items: Daftar objek CartLineItem yang akan dibayar.
@@ -685,18 +694,21 @@ class TransactionRepository:
             rounding: Nominal pembulatan tagihan.
             tip: Nominal tip atau bonus.
             payment_method: Metode pembayaran yang digunakan.
-            amount_paid: Nominal uang yang dibayarkan pelanggan.
-            customer_name: Nama pelanggan, boleh kosong untuk pelanggan umum.
+            amount_paid: Nominal uang yang dibayarkan pelanggan (atau DP jika PARTIAL).
+            customer_name: Nama pelanggan, wajib diisi jika payment_status bukan PAID.
             cashier_name: Nama kasir yang bertugas.
             note: Catatan transaksi tambahan dari kasir.
             print_receipt: Penanda apakah nota perlu dicetak.
+            due_date: Tanggal jatuh tempo pelunasan piutang (YYYY-MM-DD). Default 12 hari ke depan.
+            payment_status: Status pembayaran eksplisit ('PAID', 'PARTIAL', 'UNPAID') jika ada.
 
         Returns:
             Objek TransactionResult berisi detail faktur yang tersimpan.
 
         Raises:
             EmptyCartError: Jika keranjang belanja kosong.
-            InsufficientPaymentError: Jika nominal bayar lebih kecil dari total tagihan.
+            InsufficientPaymentError: Jika nominal bayar lebih kecil dari total tagihan pada transaksi PAID.
+            TransactionError: Jika validasi pembayaran DP, customer tempo, atau produk gagal.
             InsufficientStockError: Jika stok barang atau bahan baku jasa tidak cukup.
             sqlite3.Error: Jika terjadi kegagalan pada tingkat database SQLite.
         """
@@ -707,15 +719,74 @@ class TransactionRepository:
         safe_discount = max(0, int(discount))
         total = max(0, subtotal - safe_discount + int(rounding) + int(tip))
 
-        if amount_paid < total:
-            raise InsufficientPaymentError(
-                f"Nominal pembayaran (Rp {amount_paid:,}) kurang dari "
-                f"total tagihan (Rp {total:,}).".replace(",", ".")
-            )
+        # Deteksi status pembayaran
+        if payment_status:
+            effective_payment_status = payment_status.strip().upper()
+        elif payment_method == "Belum Lunas":
+            if amount_paid > 1000:
+                effective_payment_status = "PARTIAL"
+            elif amount_paid == 0:
+                effective_payment_status = "UNPAID"
+            else:
+                raise TransactionError(
+                    "Untuk metode 'Belum Lunas', nominal pembayaran harus Rp 0 (tempo/UNPAID) "
+                    "atau lebih dari Rp 1.000 (uang muka / DP)."
+                )
+        else:
+            effective_payment_status = "PAID"
 
-        change_amount = amount_paid - total
         sale_dt = datetime.now()
         sale_date_str = sale_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+        # Validasi Customer untuk piutang (UNPAID dan PARTIAL)
+        if effective_payment_status != "PAID":
+            if not customer_name.strip():
+                raise TransactionError(
+                    "Nama Customer wajib diisi untuk transaksi belum lunas (UNPAID atau PARTIAL) "
+                    "agar piutang jelas tertagih ke pelanggan tertentu."
+                )
+
+        dp_amount = 0
+        if effective_payment_status == "UNPAID":
+            # Skenario 1: Transaksi Belum Lunas Sama Sekali (UNPAID / Tempo)
+            # Simpan ke sales dengan amount_paid = 0, payment_method = 'Belum Lunas', due_date = '2026-12-05'
+            amount_paid = 0
+            change_amount = 0
+            header_payment_method = payment_method if payment_method else "Belum Lunas"
+            initial_amount_paid = 0
+            if not due_date:
+                due_date = (sale_dt + timedelta(days=12)).strftime("%Y-%m-%d")
+
+        elif effective_payment_status == "PARTIAL":
+            # Skenario 2: Transaksi dengan Uang Muka / DP (PARTIAL)
+            # Simpan header ke sales dengan total, payment_method = 'Tunai', lalu insert DP ke sale_payments
+            if amount_paid <= 1000:
+                raise TransactionError(
+                    "Nominal pembayaran uang muka (DP) harus lebih dari Rp 1.000."
+                )
+            if total > 0 and amount_paid >= total:
+                raise TransactionError(
+                    f"Nominal DP (Rp {amount_paid:,}) tidak boleh melebihi atau sama dengan "
+                    f"total tagihan (Rp {total:,}). Silakan gunakan metode bayar lunas.".replace(",", ".")
+                )
+            dp_amount = amount_paid
+            change_amount = 0
+            header_payment_method = "Tunai" if payment_method == "Belum Lunas" else payment_method
+            initial_amount_paid = 0
+            if not due_date:
+                due_date = (sale_dt + timedelta(days=12)).strftime("%Y-%m-%d")
+
+        else:
+            # Transaksi Lunas Penuh (PAID)
+            if amount_paid < total:
+                raise InsufficientPaymentError(
+                    f"Nominal pembayaran (Rp {amount_paid:,}) kurang dari "
+                    f"total tagihan (Rp {total:,}).".replace(",", ".")
+                )
+            change_amount = amount_paid - total
+            header_payment_method = payment_method
+            initial_amount_paid = amount_paid
+            due_date = due_date or None
 
         with self._connect() as conn:
             invoice_number = self._generate_invoice_number(conn, sale_dt)
@@ -738,11 +809,12 @@ class TransactionRepository:
                     payment_method,
                     amount_paid,
                     change_amount,
+                    due_date,
                     cashier_name,
                     status,
                     notes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED', ?);
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'COMPLETED', ?);
                 """,
                 (
                     invoice_number,
@@ -753,14 +825,46 @@ class TransactionRepository:
                     int(rounding),
                     int(tip),
                     total,
-                    payment_method,
-                    amount_paid,
+                    header_payment_method,
+                    initial_amount_paid,
                     change_amount,
+                    due_date,
                     cashier_name,
                     sale_notes,
                 ),
             )
             sale_id = self._require_lastrowid(sale_cursor, "sales")
+
+            # Jika PARTIAL, simpan pembayaran DP ke sale_payments
+            # Trigger trg_sale_payments_after_insert akan otomatis mengupdate sales:
+            # amount_paid = dp_amount, remaining_amount = total - dp_amount, payment_status = 'PARTIAL'
+            if effective_payment_status == "PARTIAL":
+                dp_payment_method = "Tunai" if payment_method == "Belum Lunas" else payment_method
+                conn.execute(
+                    """
+                    INSERT INTO sale_payments (
+                        sale_id,
+                        payment_date,
+                        amount,
+                        tendered_amount,
+                        change_given,
+                        payment_method,
+                        reference_number,
+                        cashier_name,
+                        notes
+                    )
+                    VALUES (?, ?, ?, ?, 0, ?, NULL, ?, ?);
+                    """,
+                    (
+                        sale_id,
+                        sale_date_str,
+                        dp_amount,
+                        dp_amount,
+                        dp_payment_method,
+                        cashier_name,
+                        "Pembayaran Uang Muka (DP)",
+                    ),
+                )
 
             for line in cart_items:
                 product = line.product
@@ -893,10 +997,29 @@ class TransactionRepository:
 
             conn.commit()
 
+            # Membaca data pelunasan dan status akhir yang disinkronkan oleh trigger SQLite
+            sale_record = conn.execute(
+                """
+                SELECT amount_paid, remaining_amount, payment_status, due_date, payment_method
+                FROM sales
+                WHERE id = ?;
+                """,
+                (sale_id,),
+            ).fetchone()
+
+        final_amount_paid = int(sale_record["amount_paid"]) if sale_record else amount_paid
+        final_remaining = int(sale_record["remaining_amount"]) if sale_record else 0
+        final_status = str(sale_record["payment_status"]) if sale_record else effective_payment_status
+        final_due_date = sale_record["due_date"] if sale_record else due_date
+        final_payment_method = str(sale_record["payment_method"]) if sale_record else header_payment_method
+
         logger.info(
-            "Transaksi %s berhasil disimpan dengan total Rp %s",
+            "Transaksi %s berhasil disimpan dengan total Rp %s (status: %s, dibayar: Rp %s, sisa: Rp %s)",
             invoice_number,
             f"{total:,}",
+            final_status,
+            f"{final_amount_paid:,}",
+            f"{final_remaining:,}",
         )
 
         return TransactionResult(
@@ -905,16 +1028,19 @@ class TransactionRepository:
             sale_date=sale_date_str,
             customer_name=customer_name.strip() or "Umum",
             cashier_name=cashier_name,
-            payment_method=payment_method,
+            payment_method=final_payment_method,
             subtotal=subtotal,
             discount=safe_discount,
             rounding=int(rounding),
             tip=int(tip),
             total=total,
-            amount_paid=amount_paid,
+            amount_paid=final_amount_paid,
             change_amount=change_amount,
             print_receipt=print_receipt,
             items=[line.to_ui_dict() for line in cart_items],
+            payment_status=final_status,
+            remaining_amount=final_remaining,
+            due_date=final_due_date,
         )
 
 
@@ -1046,6 +1172,8 @@ class TransactionController(QObject):
         self._tip: int = 0
 
         self._connect_dashboard_signals()
+
+        from util.core.product_completer import ProductSearchCompleter
 
         self._search_completer = ProductSearchCompleter(
             search_input=self.dashboard.search_panel.search_input,
@@ -1453,14 +1581,41 @@ class TransactionController(QObject):
         """Menangani pergantian metode pembayaran dari antarmuka pengguna.
 
         Secara otomatis mengisi nominal pembayaran jika metode yang dipilih adalah QRIS atau Transfer.
+        Jika metode yang dipilih adalah 'Belum Lunas', mengosongkan nominal agar kasir dapat
+        menentukan pembayaran tempo (Rp 0) atau uang muka / DP (> Rp 1.000).
 
         Args:
             method: Nama metode pembayaran yang baru dipilih kasir.
         """
-        self.auto_fill_payment_amount(method)
+        if method.strip().lower() == "belum lunas":
+            if hasattr(self.dashboard, "set_payment_amount"):
+                self.dashboard.set_payment_amount("")
+            elif hasattr(self.dashboard, "payment_panel") and hasattr(
+                self.dashboard.payment_panel, "amount_input"
+            ):
+                self.dashboard.payment_panel.amount_input.clear()
+            self._update_change_display()
+        else:
+            self.auto_fill_payment_amount(method)
 
     def _handle_checkout(self) -> None:
         """Mengeksekusi penyimpanan transaksi dari DashboardPOS ke database SQLite."""
+        # Validasi aturan form pembayaran jika didukung oleh dashboard / panel pembayaran
+        if hasattr(self.dashboard, "validate_payment"):
+            is_valid, val_err = self.dashboard.validate_payment()
+            if not is_valid:
+                QMessageBox.warning(self._get_dialog_parent(), "Validasi Pembayaran", val_err)
+                self.transaction_failed.emit(val_err)
+                return
+        elif hasattr(self.dashboard, "payment_panel") and hasattr(
+            self.dashboard.payment_panel, "validate_payment"
+        ):
+            is_valid, val_err = self.dashboard.payment_panel.validate_payment()
+            if not is_valid:
+                QMessageBox.warning(self._get_dialog_parent(), "Validasi Pembayaran", val_err)
+                self.transaction_failed.emit(val_err)
+                return
+
         payment_data = self.dashboard.get_payment_data()
 
         try:
@@ -1475,6 +1630,8 @@ class TransactionController(QObject):
                 cashier_name=self.cashier_name,
                 note=str(payment_data["note"]),
                 print_receipt=bool(payment_data["print_receipt"]),
+                due_date=payment_data.get("due_date"),
+                payment_status=payment_data.get("payment_status"),
             )
         except TransactionError as exc:
             logger.warning("Validasi transaksi ditolak: %s", exc)

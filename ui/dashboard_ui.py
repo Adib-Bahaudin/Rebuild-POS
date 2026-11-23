@@ -797,9 +797,9 @@ class PaymentPanel(CardWidget):
         method_lbl.setFixedWidth(100)
         method_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background-color: transparent;")
         self.method_combo = QComboBox()
-        self.method_combo.addItems(["Tunai", "QRIS", "Transfer"])
+        self.method_combo.addItems(["Tunai", "QRIS", "Transfer", "Belum Lunas"])
         self.method_combo.setStyleSheet(common_input_style)
-        self.method_combo.currentTextChanged.connect(self.method_changed.emit)
+        self.method_combo.currentTextChanged.connect(self._on_method_selection_changed)
         method_layout.addWidget(method_lbl)
         method_layout.addWidget(self.method_combo)
         
@@ -859,17 +859,98 @@ class PaymentPanel(CardWidget):
         layout.addLayout(cust_layout)
         layout.addLayout(note_layout)
 
+    def _on_method_selection_changed(self, method: str) -> None:
+        """Menangani penyesuaian visual formulir saat metode pembayaran berganti.
+
+        Args:
+            method: Nama metode pembayaran yang dipilih.
+        """
+        if method == "Belum Lunas":
+            self.amount_input.setPlaceholderText("Rp. 0 (Tempo) / > 1.000 (DP)")
+            self.cust_input.setPlaceholderText("Wajib diisi (Piutang Pelanggan)...")
+        else:
+            self.amount_input.setPlaceholderText("Rp. ")
+            self.cust_input.setPlaceholderText("Opsional, misal: Pelanggan ...")
+        self.method_changed.emit(method)
+
+    def get_payment_status(self) -> str:
+        """Mendeteksi otomatis payment_status berdasarkan metode bayar dan nominal yang diinput.
+
+        Logika deteksi:
+            - Jika metode 'Belum Lunas':
+              - Jika nominal bayar (amount_input) > 1000: 'PARTIAL' (uang muka / DP)
+              - Jika nominal bayar == 0 (atau <= 1000): 'UNPAID' (tempo / belum bayar sama sekali)
+            - Jika metode lainnya (Tunai, QRIS, Transfer): 'PAID'
+
+        Returns:
+            String status pelunasan: 'PAID', 'PARTIAL', atau 'UNPAID'.
+        """
+        method = self.method_combo.currentText().strip()
+        raw_text = self.amount_input.text().replace("Rp", "").replace(".", "").replace(",", "").strip()
+        parsed_amount = int(raw_text) if raw_text.isdigit() else 0
+
+        if method == "Belum Lunas":
+            if parsed_amount > 1000:
+                return "PARTIAL"
+            return "UNPAID"
+        return "PAID"
+
+    def validate_payment(self) -> tuple[bool, str]:
+        """Memvalidasi aturan bisnis input pembayaran sebelum transaksi dieksekusi.
+
+        Aturan:
+            1. Jika metode 'Belum Lunas':
+               - Nominal bayar harus lebih dari 1000 (DP) atau bernilai 0 (tempo penuh).
+               - Nominal antara 1 s.d. 1000 tidak diizinkan.
+               - Nama Customer wajib diisi agar piutang tertagih ke pelanggan tertentu.
+            2. Jika payment_status != 'PAID', Nama Customer wajib diisi.
+
+        Returns:
+            Tuple (is_valid, error_message).
+        """
+        data = self.get_payment_data()
+        method = data["payment_method"]
+        amount = data["amount_paid"]
+        cust = data["customer_name"]
+        status = data["payment_status"]
+
+        if method == "Belum Lunas":
+            if 0 < amount <= 1000:
+                return (
+                    False,
+                    "Untuk metode 'Belum Lunas', nominal bayar harus Rp 0 (tanpa DP/tempo) "
+                    "atau lebih dari Rp 1.000 (uang muka / DP).",
+                )
+            if not cust:
+                return (
+                    False,
+                    "Nama Customer wajib diisi untuk transaksi 'Belum Lunas' (UNPAID / PARTIAL) "
+                    "agar piutang jelas tertagih ke pelanggan tertentu.",
+                )
+        elif status != "PAID" and not cust:
+            return (
+                False,
+                "Nama Customer wajib diisi ketika status pembayaran belum lunas "
+                "agar piutang jelas tertagih ke pelanggan tertentu.",
+            )
+
+        return True, ""
+
     def get_payment_data(self) -> Dict[str, Any]:
         """Mengambil seluruh data form input pembayaran saat ini.
 
         Returns:
-            Dictionary rincian metode pembayaran, nominal yang diinput,
+            Dictionary rincian metode pembayaran, payment_status, nominal yang diinput,
             nama pelanggan, catatan transaksi, dan status opsi cetak nota.
         """
         raw_text = self.amount_input.text().replace("Rp", "").replace(".", "").replace(",", "").strip()
         parsed_amount = int(raw_text) if raw_text.isdigit() else 0
+        method = self.method_combo.currentText().strip()
+        payment_status = self.get_payment_status()
+
         return {
-            "payment_method": self.method_combo.currentText(),
+            "payment_method": method,
+            "payment_status": payment_status,
             "amount_paid": parsed_amount,
             "raw_amount_text": self.amount_input.text(),
             "customer_name": self.cust_input.text().strip(),
@@ -890,7 +971,9 @@ class PaymentPanel(CardWidget):
         """Mengosongkan isian formulir pembayaran dan mengembalikan ke status awal."""
         self.method_combo.setCurrentIndex(0)
         self.amount_input.clear()
+        self.amount_input.setPlaceholderText("Rp. ")
         self.cust_input.clear()
+        self.cust_input.setPlaceholderText("Opsional, misal: Pelanggan ...")
         self.note_input.clear()
         self.change_lbl.setText("Kembalian: Rp 0")
         self.print_check.setChecked(False)
@@ -1163,6 +1246,14 @@ class DashboardPOS(QWidget):
             Dictionary rincian pembayaran dari form.
         """
         return self.payment_panel.get_payment_data()
+
+    def validate_payment(self) -> tuple[bool, str]:
+        """Memvalidasi aturan formulir pembayaran sebelum transaksi dieksekusi.
+
+        Returns:
+            Tuple (is_valid, error_message).
+        """
+        return self.payment_panel.validate_payment()
 
     def set_change_amount(self, amount: Union[int, float]) -> None:
         """Memperbarui nominal estimasi kembalian customer pada panel pembayaran.
