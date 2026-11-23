@@ -28,6 +28,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from util.customtooltip import TooltipPosition, attach_tooltip
+
 
 @dataclass(frozen=True)
 class SidebarIconPaths:
@@ -51,6 +53,14 @@ SIDEBAR_ICONS_CONFIG: Dict[str, Dict[str, str]] = {
     "settings": {"normal": "assets/icons/set_normal.png", "hover": "assets/icons/set_hover.png"},
 }
 
+SIDEBAR_TOOLTIPS: dict[str, str] = {
+    "dashboard": "Dashboard",
+    "history": "Riwayat Transaksi",
+    "product": "Manajemen Produk",
+    "report": "Laporan Penjualan",
+    "people": "Data Pelanggan",
+    "settings": "Pengaturan",
+}
 
 def validate_sidebar_icons(config: Dict[str, Dict[str, str]]) -> List[SidebarIconPaths]:
     """Memeriksa keberadaan file fisik ikon sebelum aplikasi dimuat.
@@ -232,6 +242,11 @@ class Sidebar(QFrame):
             is_active = (i == 0)
 
             btn = SidebarButton(icon_paths, is_active=is_active)
+            attach_tooltip(
+                btn,
+                SIDEBAR_TOOLTIPS.get(key, key.title()),
+                position=TooltipPosition.RIGHT,
+            )
             if is_active:
                 btn.setProperty("active", "true")
 
