@@ -17,6 +17,7 @@ from PySide6.QtCore import (
     QDate,
     QModelIndex,
     QPersistentModelIndex,
+    QPoint,
     QSize,
     Qt,
     Signal,
@@ -25,9 +26,11 @@ from PySide6.QtGui import QColor, QFontMetrics, QIcon, QPainter, QPen, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QApplication,
     QCalendarWidget,
     QComboBox,
     QFrame,
+    QGraphicsDropShadowEffect,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -540,11 +543,12 @@ class SummaryCardsContainer(QWidget):
         self.card_rata_rata.reset_display()
 
 
-class DateRangeCalendarPanel(QFrame):
-    """Panel kalender ganda untuk memilih tanggal awal dan tanggal akhir.
+class DateRangeCalendarPanel(QWidget):
+    """Panel popup kalender ganda mengambang dengan latar solid dan border elegan.
 
-    Panel ini tampil otomatis saat pengguna memilih opsi 'Custom' pada dropdown
-    periode tanggal di filter bar.
+    Panel ini menggunakan kontainer kartu bagian dalam berlatar solid dan bayangan
+    halus tanpa bayangan persegi panjang bawaan OS, sehingga melayang rapi di atas
+    widget lain tanpa mengubah tinggi FilterBarWidget.
 
     Signals:
         date_range_applied: Dipancarkan saat rentang tanggal diterapkan, membawa
@@ -552,31 +556,46 @@ class DateRangeCalendarPanel(QFrame):
         panel_closed: Dipancarkan saat panel kalender ditutup oleh pengguna.
     """
 
+    SHADOW_MARGIN: int = 20
+
     date_range_applied = Signal(QDate, QDate)
     panel_closed = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        """Menginisialisasi panel pemilih rentang tanggal berbasis QCalendarWidget.
+        """Menginisialisasi panel popup pemilih rentang tanggal berbasis QCalendarWidget.
 
         Args:
-            parent: Widget induk opsional.
+            parent: Widget induk opsional untuk manajemen siklus hidup memori Qt.
         """
         super().__init__(parent)
-        self._start_calendar = QCalendarWidget(self)
-        self._end_calendar = QCalendarWidget(self)
-        self._summary_label = QLabel(self)
-        self._apply_button = QPushButton("Terapkan Rentang", self)
-        self._close_button = QPushButton("Tutup", self)
+        self._card_container = QFrame(self)
+        self._start_calendar = QCalendarWidget(self._card_container)
+        self._end_calendar = QCalendarWidget(self._card_container)
+        self._summary_label = QLabel(self._card_container)
+        self._apply_button = QPushButton("Terapkan Rentang", self._card_container)
+        self._close_button = QPushButton("Tutup", self._card_container)
 
         self.setObjectName("DateRangeCalendarPanel")
+        self.setWindowFlags(
+            Qt.WindowType.Popup
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.NoDropShadowWindowHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setSizePolicy(
+            QSizePolicy.Policy.Maximum,
+            QSizePolicy.Policy.Fixed,
+        )
+
         self._configure_calendars()
         self._setup_ui()
         self._apply_styles()
+        self._apply_drop_shadow()
         self._connect_signals()
         self._refresh_summary_text()
 
     def _configure_calendars(self) -> None:
-        """Mengatur konfigurasi dasar kedua widget kalender."""
+        """Mengatur konfigurasi dan dimensi proporsional kedua widget kalender."""
         today = QDate.currentDate()
         for calendar in (self._start_calendar, self._end_calendar):
             calendar.setGridVisible(False)
@@ -586,89 +605,136 @@ class DateRangeCalendarPanel(QFrame):
             calendar.setHorizontalHeaderFormat(
                 QCalendarWidget.HorizontalHeaderFormat.ShortDayNames
             )
-            calendar.setFixedHeight(215)
+            calendar.setFixedSize(270, 175)
+            calendar.setSizePolicy(
+                QSizePolicy.Policy.Fixed,
+                QSizePolicy.Policy.Fixed,
+            )
             calendar.setSelectedDate(today)
 
     def _setup_ui(self) -> None:
-        """Menyusun kalender tanggal awal, tanggal akhir, dan tombol aksi."""
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(16, 14, 16, 14)
-        main_layout.setSpacing(12)
+        """Menyusun kontainer kartu solid, kedua kalender, pemisah, dan tombol aksi."""
+        outer_layout = QVBoxLayout(self)
+        outer_layout.setContentsMargins(
+            self.SHADOW_MARGIN,
+            self.SHADOW_MARGIN,
+            self.SHADOW_MARGIN,
+            self.SHADOW_MARGIN,
+        )
+        outer_layout.setSpacing(0)
+
+        self._card_container.setObjectName("CalendarPopupCard")
+        self._card_container.setAttribute(
+            Qt.WidgetAttribute.WA_StyledBackground,
+            True,
+        )
+        outer_layout.addWidget(self._card_container)
+
+        card_layout = QVBoxLayout(self._card_container)
+        card_layout.setContentsMargins(16, 14, 16, 14)
+        card_layout.setSpacing(10)
 
         calendars_layout = QHBoxLayout()
-        calendars_layout.setSpacing(20)
+        calendars_layout.setContentsMargins(0, 0, 0, 0)
+        calendars_layout.setSpacing(16)
 
         start_column = QVBoxLayout()
-        start_column.setSpacing(6)
-        start_title = QLabel("Tanggal Awal", self)
+        start_column.setContentsMargins(0, 0, 0, 0)
+        start_column.setSpacing(5)
+        start_title = QLabel("Tanggal Awal", self._card_container)
         start_title.setObjectName("CalendarSectionTitle")
         start_column.addWidget(start_title)
         start_column.addWidget(self._start_calendar)
 
         end_column = QVBoxLayout()
-        end_column.setSpacing(6)
-        end_title = QLabel("Tanggal Akhir", self)
+        end_column.setContentsMargins(0, 0, 0, 0)
+        end_column.setSpacing(5)
+        end_title = QLabel("Tanggal Akhir", self._card_container)
         end_title.setObjectName("CalendarSectionTitle")
         end_column.addWidget(end_title)
         end_column.addWidget(self._end_calendar)
 
-        calendars_layout.addLayout(start_column, stretch=1)
-        calendars_layout.addLayout(end_column, stretch=1)
+        calendars_layout.addLayout(start_column)
+        calendars_layout.addLayout(end_column)
+
+        divider = QFrame(self._card_container)
+        divider.setObjectName("CalendarDivider")
+        divider.setFrameShape(QFrame.Shape.HLine)
+        divider.setFixedHeight(1)
 
         footer_layout = QHBoxLayout()
-        footer_layout.setSpacing(10)
+        footer_layout.setContentsMargins(0, 0, 0, 0)
+        footer_layout.setSpacing(8)
 
         self._summary_label.setObjectName("CalendarSummaryLabel")
         self._close_button.setObjectName("CalendarSecondaryButton")
         self._close_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._close_button.setFixedHeight(34)
+        self._close_button.setFixedHeight(30)
 
         self._apply_button.setObjectName("CalendarPrimaryButton")
         self._apply_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._apply_button.setFixedHeight(34)
+        self._apply_button.setFixedHeight(30)
 
         footer_layout.addWidget(self._summary_label)
         footer_layout.addStretch()
         footer_layout.addWidget(self._close_button)
         footer_layout.addWidget(self._apply_button)
 
-        main_layout.addLayout(calendars_layout)
-        main_layout.addLayout(footer_layout)
+        card_layout.addLayout(calendars_layout)
+        card_layout.addWidget(divider)
+        card_layout.addLayout(footer_layout)
+
+    def _apply_drop_shadow(self) -> None:
+        """Menambahkan bayangan lembut yang memudar penuh di dalam batas margin popup."""
+        shadow = QGraphicsDropShadowEffect(self._card_container)
+        shadow.setBlurRadius(16)
+        shadow.setXOffset(0)
+        shadow.setYOffset(4)
+        shadow.setColor(QColor(0, 0, 0, 145))
+        self._card_container.setGraphicsEffect(shadow)
 
     def _apply_styles(self) -> None:
-        """Menerapkan gaya visual gelap modern untuk panel dan QCalendarWidget."""
+        """Menerapkan latar solid, border elegan, dan gaya QCalendarWidget."""
         self.setStyleSheet(
             """
-            QFrame#DateRangeCalendarPanel {
-                background-color: #161622;
-                border: 1px solid #313244;
+            QWidget#DateRangeCalendarPanel {
+                background: transparent;
+                border: none;
+            }
+            QFrame#CalendarPopupCard {
+                background-color: #1B1C2B;
+                border: 1px solid #4A5578;
                 border-radius: 12px;
             }
+            QFrame#CalendarDivider {
+                background-color: #2E3248;
+                border: none;
+            }
             QLabel#CalendarSectionTitle {
-                color: #89B4FA;
+                color: #93C5FD;
                 font-size: 12px;
                 font-weight: 700;
                 letter-spacing: 0.4px;
                 background: transparent;
             }
             QLabel#CalendarSummaryLabel {
-                color: #BAC2DE;
+                color: #CBD5E1;
                 font-size: 12px;
                 font-weight: 500;
                 background: transparent;
             }
             QCalendarWidget QWidget {
-                alternate-background-color: #1E1E2E;
+                alternate-background-color: #232538;
             }
             QCalendarWidget QWidget#qt_calendar_navigationbar {
-                background-color: #1E1E2E;
-                border: 1px solid #313244;
+                background-color: #232538;
+                border: 1px solid #383D56;
                 border-top-left-radius: 8px;
                 border-top-right-radius: 8px;
                 padding: 4px;
             }
             QCalendarWidget QToolButton {
-                color: #CDD6F4;
+                color: #E2E8F0;
                 background-color: transparent;
                 font-size: 12px;
                 font-weight: 600;
@@ -676,30 +742,30 @@ class DateRangeCalendarPanel(QFrame):
                 padding: 4px 8px;
             }
             QCalendarWidget QToolButton:hover {
-                background-color: #313244;
+                background-color: #353A52;
             }
             QCalendarWidget QToolButton::menu-indicator {
                 image: none;
             }
             QCalendarWidget QMenu {
-                background-color: #1E1E2E;
-                color: #CDD6F4;
-                border: 1px solid #45475A;
+                background-color: #1E2030;
+                color: #E2E8F0;
+                border: 1px solid #4A5578;
             }
             QCalendarWidget QSpinBox {
-                background-color: #11111B;
-                color: #CDD6F4;
-                border: 1px solid #45475A;
+                background-color: #131420;
+                color: #E2E8F0;
+                border: 1px solid #4A5578;
                 border-radius: 4px;
                 padding: 2px 6px;
             }
             QCalendarWidget QAbstractItemView:enabled {
-                background-color: #181825;
-                color: #CDD6F4;
+                background-color: #141522;
+                color: #E2E8F0;
                 font-size: 12px;
                 selection-background-color: #2563EB;
                 selection-color: #FFFFFF;
-                border: 1px solid #313244;
+                border: 1px solid #383D56;
                 border-top: none;
                 border-bottom-left-radius: 8px;
                 border-bottom-right-radius: 8px;
@@ -709,7 +775,11 @@ class DateRangeCalendarPanel(QFrame):
                 color: #585B70;
             }
             QPushButton#CalendarPrimaryButton {
-                background-color: #2563EB;
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 #3B82F6,
+                    stop: 1 #2563EB
+                );
                 color: #FFFFFF;
                 border: none;
                 border-radius: 8px;
@@ -718,29 +788,34 @@ class DateRangeCalendarPanel(QFrame):
                 font-weight: 600;
             }
             QPushButton#CalendarPrimaryButton:hover {
-                background-color: #3B82F6;
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 #60A5FA,
+                    stop: 1 #3B82F6
+                );
             }
             QPushButton#CalendarSecondaryButton {
-                background-color: #242538;
-                color: #CDD6F4;
-                border: 1px solid #3B3D54;
+                background-color: #25273B;
+                color: #E2E8F0;
+                border: 1px solid #3E4360;
                 border-radius: 8px;
                 padding: 0px 14px;
                 font-size: 12px;
                 font-weight: 600;
             }
             QPushButton#CalendarSecondaryButton:hover {
-                background-color: #313244;
+                background-color: #32354E;
+                border-color: #58638A;
             }
             """
         )
 
     def _connect_signals(self) -> None:
-        """Menghubungkan event pemilihan tanggal dan klik tombol pada panel."""
+        """Menghubungkan event pemilihan tanggal dan klik tombol pada popup."""
         self._start_calendar.selectionChanged.connect(self._on_start_date_changed)
         self._end_calendar.selectionChanged.connect(self._on_end_date_changed)
         self._apply_button.clicked.connect(self._on_apply_clicked)
-        self._close_button.clicked.connect(self.panel_closed.emit)
+        self._close_button.clicked.connect(self._on_close_clicked)
 
     def _on_start_date_changed(self) -> None:
         """Menjaga agar tanggal akhir tidak lebih awal dari tanggal awal."""
@@ -765,11 +840,51 @@ class DateRangeCalendarPanel(QFrame):
         self._summary_label.setText(f"Rentang dipilih: {start_str}  —  {end_str}")
 
     def _on_apply_clicked(self) -> None:
-        """Memancarkan sinyal penerapan rentang tanggal terpilih."""
+        """Menutup popup dan memancarkan sinyal penerapan rentang tanggal."""
+        self.hide()
         self.date_range_applied.emit(
             self._start_calendar.selectedDate(),
             self._end_calendar.selectedDate(),
         )
+
+    def _on_close_clicked(self) -> None:
+        """Menutup popup dan memancarkan sinyal penutupan panel."""
+        self.hide()
+        self.panel_closed.emit()
+
+    def show_below(self, anchor: QWidget, vertical_gap: int = 6) -> None:
+        """Menampilkan panel mengambang sejajar tepat di bawah widget jangkar.
+
+        Posisi memperhitungkan margin bayangan agar tepi kiri kartu sejajar rapi
+        dengan widget jangkar serta tidak terpotong batas layar.
+
+        Args:
+            anchor: Widget referensi tempat popup akan ditambatkan.
+            vertical_gap: Jarak vertikal dalam piksel antara jangkar dan kartu popup.
+        """
+        self.adjustSize()
+        popup_size = self.sizeHint()
+        target_pos = anchor.mapToGlobal(QPoint(0, anchor.height() + vertical_gap))
+
+        target_x = target_pos.x() - self.SHADOW_MARGIN
+        target_y = target_pos.y() - self.SHADOW_MARGIN
+
+        screen = anchor.screen() or QApplication.primaryScreen()
+        if screen is not None:
+            available = screen.availableGeometry()
+            target_x = max(
+                available.left(),
+                min(target_x, available.right() - popup_size.width()),
+            )
+            if target_y + popup_size.height() > available.bottom():
+                above_pos = anchor.mapToGlobal(
+                    QPoint(0, -popup_size.height() + self.SHADOW_MARGIN - vertical_gap)
+                )
+                target_y = max(available.top(), above_pos.y())
+
+        self.move(target_x, target_y)
+        self.show()
+        self.raise_()
 
     def get_date_range(self) -> tuple[QDate, QDate]:
         """Mengembalikan pasangan tanggal awal dan tanggal akhir yang dipilih.
@@ -830,34 +945,32 @@ class FilterBarWidget(QFrame):
         self._sync_custom_date_button_label()
 
     def _setup_ui(self) -> None:
-        """Menyusun kontrol filter secara horizontal serta panel kalender di bawahnya."""
-        root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(16, 7, 16, 7)
-        root_layout.setSpacing(0)
-
-        controls_layout = QHBoxLayout()
-        controls_layout.setContentsMargins(0, 0, 0, 0)
+        """Menyusun kontrol filter secara horizontal tanpa menyertakan popup kalender."""
+        controls_layout = QHBoxLayout(self)
+        controls_layout.setContentsMargins(16, 7, 16, 7)
         controls_layout.setSpacing(12)
 
         self.date_combo.addItems(list(DATE_FILTER_OPTIONS))
         self.date_combo.setMinimumWidth(148)
-        self.date_combo.setFixedHeight(38)
+        self.date_combo.setFixedHeight(32)
         self.date_combo.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.custom_date_button.setObjectName("CustomDateToggleButton")
         self.custom_date_button.setIcon(render_svg_icon("calendar", 15, "#93C5FD"))
-        self.custom_date_button.setFixedHeight(38)
+        self.custom_date_button.setFixedHeight(32)
         self.custom_date_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.custom_date_button.setVisible(False)
 
         self.payment_combo.addItems(list(PAYMENT_METHOD_OPTIONS))
         self.payment_combo.setMinimumWidth(155)
-        self.payment_combo.setFixedHeight(38)
+        self.payment_combo.setFixedHeight(32)
         self.payment_combo.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        self.search_input.setPlaceholderText("Cari nomor invoice atau catatan transaksi...")
+        self.search_input.setPlaceholderText(
+            "Cari nomor invoice atau catatan transaksi..."
+        )
         self.search_input.setClearButtonEnabled(True)
-        self.search_input.setFixedHeight(38)
+        self.search_input.setFixedHeight(32)
         self.search_input.addAction(
             render_svg_icon("search", 15, "#94A3B8"),
             QLineEdit.ActionPosition.LeadingPosition,
@@ -866,7 +979,7 @@ class FilterBarWidget(QFrame):
         self.filter_button.setObjectName("PrimaryFilterButton")
         self.filter_button.setIcon(render_svg_icon("filter", 15, "#FFFFFF"))
         self.filter_button.setIconSize(QSize(15, 15))
-        self.filter_button.setFixedHeight(38)
+        self.filter_button.setFixedHeight(32)
         self.filter_button.setMinimumWidth(108)
         self.filter_button.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -890,11 +1003,6 @@ class FilterBarWidget(QFrame):
         button_column.addWidget(spacer_label)
         button_column.addWidget(self.filter_button)
         controls_layout.addLayout(button_column)
-
-        self.date_range_panel.setVisible(False)
-
-        root_layout.addLayout(controls_layout)
-        root_layout.addWidget(self.date_range_panel)
 
     def _wrap_labeled_field(self, label_text: str, widget: QWidget) -> QVBoxLayout:
         """Membungkus widget input dengan label kecil di bagian atasnya.
@@ -1024,34 +1132,39 @@ class FilterBarWidget(QFrame):
             linked_label.setVisible(visible)
 
     def _on_date_preset_changed(self, selected_text: str) -> None:
-        """Menampilkan atau menyembunyikan kalender rentang sesuai pilihan tanggal.
+        """Menampilkan popup kalender mengambang ketika opsi Custom dipilih.
 
         Args:
             selected_text: Teks opsi periode yang dipilih dari dropdown.
         """
         is_custom = selected_text == "Custom"
         self._set_custom_controls_visible(is_custom)
-        self.date_range_panel.setVisible(is_custom)
         if is_custom:
             self._sync_custom_date_button_label()
+            self.date_range_panel.show_below(self.date_combo)
+        else:
+            self.date_range_panel.hide()
 
     def _toggle_date_panel(self) -> None:
-        """Mengubah status tampil atau sembunyi panel kalender kustom."""
-        self.date_range_panel.setVisible(not self.date_range_panel.isVisible())
+        """Menampilkan atau menyembunyikan popup kalender di bawah kontrol tanggal."""
+        if self.date_range_panel.isVisible():
+            self.date_range_panel.hide()
+        else:
+            self.date_range_panel.show_below(self.date_combo)
 
     def _hide_date_panel(self) -> None:
-        """Menyembunyikan panel kalender kustom."""
-        self.date_range_panel.setVisible(False)
+        """Menyembunyikan popup kalender kustom."""
+        self.date_range_panel.hide()
 
     def _on_custom_date_applied(self, start_date: QDate, end_date: QDate) -> None:
-        """Memperbarui label tombol rentang dan menutup panel saat diterapkan.
+        """Memperbarui label tombol rentang saat tanggal kustom diterapkan.
 
         Args:
             start_date: Tanggal awal yang dipilih pengguna.
             end_date: Tanggal akhir yang dipilih pengguna.
         """
         self._sync_custom_date_button_label()
-        self.date_range_panel.setVisible(False)
+        self.date_range_panel.hide()
         self.custom_date_changed.emit(start_date, end_date)
 
     def _sync_custom_date_button_label(self) -> None:
@@ -1088,7 +1201,7 @@ class FilterBarWidget(QFrame):
         self.payment_combo.setCurrentIndex(0)
         self.search_input.clear()
         self.date_range_panel.set_date_range(today, today)
-        self.date_range_panel.setVisible(False)
+        self.date_range_panel.hide()
         self._set_custom_controls_visible(False)
         self._sync_custom_date_button_label()
 
