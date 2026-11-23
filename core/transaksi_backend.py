@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from PySide6.QtCore import QObject, Signal, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
+from ui.dialog.dialogbonus import DialogBonus
 from ui.dialog.dialogtip import DialogTip
 from util.custominputdialog import CustomInputDialog
 from util.core.product_completer import ProductSearchCompleter
@@ -1039,6 +1040,8 @@ class TransactionController(QObject):
         self._cart_items: list[CartLineItem] = []
         self._next_line_id: int = 1
         self._discount: int = 0
+        self._discount_percent: float = 0.0
+        self._discount_type: str = "none"
         self._rounding: int = 0
         self._tip: int = 0
 
@@ -1119,6 +1122,9 @@ class TransactionController(QObject):
         self.dashboard.set_cart_items(ui_items)
 
         subtotal = self._calculate_subtotal()
+        if self._discount_type == "percent" and self._discount_percent > 0.0:
+            self._discount = int(round(subtotal * (self._discount_percent / 100.0)))
+
         if self._discount > subtotal:
             self._discount = subtotal
 
@@ -1307,6 +1313,8 @@ class TransactionController(QObject):
         """Mengosongkan seluruh isi keranjang beserta nilai penyesuaian transaksi."""
         self._cart_items.clear()
         self._discount = 0
+        self._discount_percent = 0.0
+        self._discount_type = "none"
         self._rounding = 0
         self._tip = 0
         self.dashboard.clear_transaction()
@@ -1320,7 +1328,7 @@ class TransactionController(QObject):
             return self.dashboard
 
     def _handle_discount_clicked(self) -> None:
-        """Membuka dialog input nominal diskon dan menerapkannya pada ringkasan transaksi."""
+        """Membuka dialog input nominal atau persentase diskon transaksi."""
         subtotal = self._calculate_subtotal()
         if subtotal <= 0:
             QMessageBox.information(
@@ -1330,17 +1338,35 @@ class TransactionController(QObject):
             )
             return
 
-        value, accepted = CustomInputDialog.getInt(
-            self._get_dialog_parent(),
-            "Input Diskon",
-            "Masukkan nominal diskon (Rp):",
-            self._discount,
-            0,
-            subtotal,
-            500,
+        initial_nominal = (
+            self._discount if self._discount_type == "nominal" else 0
+        )
+        initial_percent = (
+            self._discount_percent if self._discount_type == "percent" else 0.0
+        )
+        if self._discount_type == "none" and self._discount > 0:
+            initial_nominal = self._discount
+
+        discount_type, value, accepted = DialogBonus.get_bonus(
+            parent=self._get_dialog_parent(),
+            initial_nominal=initial_nominal,
+            initial_percent=initial_percent,
         )
         if accepted:
-            self._discount = value
+            if discount_type == "percent":
+                self._discount_type = "percent"
+                self._discount_percent = value
+                self._discount = int(round(subtotal * (value / 100.0)))
+                self._discount = max(0, min(self._discount, subtotal))
+            elif discount_type == "nominal":
+                self._discount_type = "nominal"
+                self._discount_percent = 0.0
+                self._discount = max(0, min(int(value), subtotal))
+            else:
+                self._discount_type = "none"
+                self._discount_percent = 0.0
+                self._discount = 0
+
             self._refresh_ui_state()
 
     def _handle_rounding_clicked(self) -> None:
