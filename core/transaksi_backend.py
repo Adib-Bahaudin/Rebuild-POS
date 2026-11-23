@@ -16,12 +16,12 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from PySide6.QtCore import QObject, Signal, QTimer
 from PySide6.QtWidgets import QMessageBox, QWidget
-from ui.dialogtip import DialogTip
+from ui.dialog.dialogtip import DialogTip
 from util.custominputdialog import CustomInputDialog
+from util.core.product_completer import ProductSearchCompleter
 
 if TYPE_CHECKING:
     from ui.dashboard_ui import DashboardPOS
-    from util.core.product_completer import ProductSearchCompleter
 
 
 from config import DEFAULT_DB_PATH
@@ -1043,7 +1043,6 @@ class TransactionController(QObject):
         self._tip: int = 0
 
         self._connect_dashboard_signals()
-        from util.core.product_completer import ProductSearchCompleter
 
         self._search_completer = ProductSearchCompleter(
             search_input=self.dashboard.search_panel.search_input,
@@ -1378,6 +1377,15 @@ class TransactionController(QObject):
 
     def _handle_tip_clicked(self) -> None:
         """Membuka dialog input nominal tip atau bonus kasir dengan opsi nilai cepat dan kembalian."""
+        subtotal = self._calculate_subtotal()
+        if subtotal <= 0:
+            QMessageBox.information(
+                self._get_dialog_parent(),
+                "Pembulatan",
+                "Tambahkan produk ke keranjang terlebih dahulu.",
+            )
+            return
+
         payment_data = self.dashboard.get_payment_data()
         amount_paid = int(payment_data.get("amount_paid", 0))
         total = self._calculate_total()
