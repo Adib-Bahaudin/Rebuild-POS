@@ -320,7 +320,7 @@ class SummaryCardWidget(QFrame):
     """Kartu ringkasan statistik dengan latar gradien, ikon, nilai, dan pembanding.
 
     Komponen ini memiliki tiga bagian utama: header (judul kiri dan ikon kanan),
-    body (nilai utama berukuran besar), serta footer (teks pembanding tren).
+    body (nilai utama), serta footer (teks pembanding tren).
     """
 
     def __init__(
@@ -342,7 +342,7 @@ class SummaryCardWidget(QFrame):
         self._comparison_label = QLabel("0% dari minggu kemarin", self)
 
         self.setObjectName("SummaryCard")
-        self.setMinimumHeight(134)
+        self.setFixedHeight(96)
         self.setSizePolicy(
             QSizePolicy.Policy.Expanding,
             QSizePolicy.Policy.Fixed,
@@ -355,21 +355,21 @@ class SummaryCardWidget(QFrame):
     def _setup_ui(self) -> None:
         """Menyusun tata letak vertikal header, body, dan footer pada kartu."""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(20, 16, 20, 16)
-        layout.setSpacing(10)
+        layout.setContentsMargins(16, 10, 16, 10)
+        layout.setSpacing(4)
 
         header_layout = QHBoxLayout()
         header_layout.setContentsMargins(0, 0, 0, 0)
-        header_layout.setSpacing(8)
+        header_layout.setSpacing(6)
 
         self._title_label.setObjectName("CardTitle")
         self._icon_label.setObjectName("CardIconBadge")
-        self._icon_label.setFixedSize(38, 38)
+        self._icon_label.setFixedSize(28, 28)
         self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._icon_label.setPixmap(
             render_svg_pixmap(
                 self._style_config.icon_key,
-                20,
+                15,
                 self._style_config.icon_color,
             )
         )
@@ -393,7 +393,7 @@ class SummaryCardWidget(QFrame):
         layout.addWidget(self._comparison_label)
 
     def _apply_styles(self) -> None:
-        """Menerapkan aturan QSS gradien dan tipografi untuk kartu."""
+        """Menerapkan aturan QSS gradien dan tipografi ringkas untuk kartu."""
         cfg = self._style_config
         self.setStyleSheet(
             f"""
@@ -405,26 +405,26 @@ class SummaryCardWidget(QFrame):
                     stop: 1 {cfg.gradient_end}
                 );
                 border: 1px solid {cfg.border_color};
-                border-radius: 14px;
+                border-radius: 12px;
             }}
             QFrame#SummaryCard:hover {{
                 border: 1px solid {cfg.hover_border_color};
             }}
             QLabel#CardTitle {{
                 color: #CBD5E1;
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 600;
-                letter-spacing: 0.4px;
+                letter-spacing: 0.3px;
                 background: transparent;
             }}
             QLabel#CardIconBadge {{
                 background-color: {cfg.icon_bg_color};
-                border-radius: 10px;
+                border-radius: 8px;
                 border: 1px solid rgba(255, 255, 255, 0.08);
             }}
             QLabel#CardValue {{
                 color: #FFFFFF;
-                font-size: 26px;
+                font-size: 20px;
                 font-weight: 700;
                 background: transparent;
             }}
@@ -461,7 +461,7 @@ class SummaryCardWidget(QFrame):
             f"""
             QLabel#CardComparison {{
                 color: {accent};
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 500;
                 background: transparent;
             }}
@@ -477,7 +477,7 @@ class SummaryCardWidget(QFrame):
         Returns:
             True jika ikon berhasil dimuat dan diterapkan, False jika gagal.
         """
-        pixmap = load_pixmap_from_path(icon_path, size=20)
+        pixmap = load_pixmap_from_path(icon_path, size=15)
         if pixmap is None:
             return False
         self._icon_label.setPixmap(pixmap)
@@ -832,8 +832,8 @@ class FilterBarWidget(QFrame):
     def _setup_ui(self) -> None:
         """Menyusun kontrol filter secara horizontal serta panel kalender di bawahnya."""
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(16, 14, 16, 14)
-        root_layout.setSpacing(12)
+        root_layout.setContentsMargins(16, 7, 16, 7)
+        root_layout.setSpacing(0)
 
         controls_layout = QHBoxLayout()
         controls_layout.setContentsMargins(0, 0, 0, 0)
@@ -1492,15 +1492,15 @@ class PaginationWidget(QWidget):
         layout.setSpacing(8)
 
         self._prev_button.setObjectName("NavPageButton")
-        self._prev_button.setFixedHeight(36)
+        self._prev_button.setFixedHeight(30)
         self._prev_button.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._page_badge.setObjectName("ActivePageBadge")
-        self._page_badge.setFixedSize(36, 36)
+        self._page_badge.setFixedSize(30, 30)
         self._page_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self._next_button.setObjectName("NavPageButton")
-        self._next_button.setFixedHeight(36)
+        self._next_button.setFixedHeight(30)
         self._next_button.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._page_label.setObjectName("PageMetaLabel")
@@ -1659,14 +1659,14 @@ class FooterBarWidget(QFrame):
         self.export_excel.setObjectName("ExportExcelButton")
         self.export_excel.setIcon(render_svg_icon("excel", 16, "#FFFFFF"))
         self.export_excel.setIconSize(QSize(16, 16))
-        self.export_excel.setFixedHeight(38)
+        self.export_excel.setFixedHeight(30)
         self.export_excel.setMinimumWidth(138)
         self.export_excel.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.export_pdf.setObjectName("ExportPdfButton")
         self.export_pdf.setIcon(render_svg_icon("pdf", 16, "#FFFFFF"))
         self.export_pdf.setIconSize(QSize(16, 16))
-        self.export_pdf.setFixedHeight(38)
+        self.export_pdf.setFixedHeight(30)
         self.export_pdf.setMinimumWidth(132)
         self.export_pdf.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -1681,7 +1681,6 @@ class FooterBarWidget(QFrame):
             """
             QFrame#FooterBarContainer {
                 background-color: #181825;
-                border: 1px solid #313244;
                 border-radius: 12px;
             }
             QPushButton#ExportExcelButton {
@@ -1835,8 +1834,8 @@ class RiwayatTransaksiPage(QWidget):
     def _setup_ui(self) -> None:
         """Menyusun tata letak vertikal seluruh bagian halaman Riwayat Transaksi."""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 20, 24, 20)
-        layout.setSpacing(16)
+        layout.setContentsMargins(24, 20, 24, 1)
+        layout.setSpacing(8)
 
         layout.addWidget(self._header_widget)
         layout.addWidget(self.summary_cards)
