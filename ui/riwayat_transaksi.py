@@ -1793,7 +1793,7 @@ class FooterBarWidget(QFrame):
         self.setStyleSheet(
             """
             QFrame#FooterBarContainer {
-                background-color: #181825;
+                background-color: transparent;
                 border-radius: 12px;
             }
             QPushButton#ExportExcelButton {
