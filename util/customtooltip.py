@@ -30,6 +30,7 @@ from PySide6.QtGui import (
     QTextOption,
 )
 from PySide6.QtWidgets import QWidget
+from shiboken6 import isValid
 
 _SHADOW_PAD: int = 10
 _ARROW_SIZE: int = 6
@@ -200,32 +201,38 @@ class CustomTooltip(QWidget):
 
     def hide_animated(self) -> None:
         """Menyembunyikan tooltip secara halus menggunakan animasi fade-out."""
-        if not self.isVisible() or self._is_hiding:
-            return
+        try:
+            if not self.isVisible() or self._is_hiding:
+                return
 
-        self._is_hiding = True
-        self._anim_group.stop()
+            self._is_hiding = True
+            self._anim_group.stop()
 
-        opacity_anim, pos_anim = self._animations
-        current_pos = self.pos()
+            opacity_anim, pos_anim = self._animations
+            current_pos = self.pos()
 
-        opacity_anim.setDuration(110)
-        opacity_anim.setEasingCurve(QEasingCurve.Type.InCubic)
-        opacity_anim.setStartValue(self.windowOpacity())
-        opacity_anim.setEndValue(0.0)
+            opacity_anim.setDuration(110)
+            opacity_anim.setEasingCurve(QEasingCurve.Type.InCubic)
+            opacity_anim.setStartValue(self.windowOpacity())
+            opacity_anim.setEndValue(0.0)
 
-        pos_anim.setDuration(110)
-        pos_anim.setEasingCurve(QEasingCurve.Type.InCubic)
-        pos_anim.setStartValue(current_pos)
-        pos_anim.setEndValue(current_pos)
+            pos_anim.setDuration(110)
+            pos_anim.setEasingCurve(QEasingCurve.Type.InCubic)
+            pos_anim.setStartValue(current_pos)
+            pos_anim.setEndValue(current_pos)
 
-        self._anim_group.start()
+            self._anim_group.start()
+        except RuntimeError:
+            pass
 
     def _on_animation_finished(self) -> None:
         """Menutup tampilan widget setelah animasi keluar selesai dijalankan."""
-        if self._is_hiding:
-            self.hide()
-            self._is_hiding = False
+        try:
+            if self._is_hiding:
+                self.hide()
+                self._is_hiding = False
+        except RuntimeError:
+            pass
 
     def _get_slide_start(self, end_pos: QPoint) -> QPoint:
         """Menghitung titik awal pergeseran animasi berdasarkan arah tooltip.
@@ -451,7 +458,10 @@ class TooltipController(QObject):
         super().__init__(target)
         resolved_style = style if style is not None else TooltipStyle()
         self._target: QWidget = target
-        self._tooltip: CustomTooltip = CustomTooltip(text, position, resolved_style)
+        self._tooltip: CustomTooltip | None = CustomTooltip(
+            text, position, resolved_style
+        )
+        self._tooltip.destroyed.connect(self._on_tooltip_destroyed)
 
         self._delay_timer: QTimer = QTimer(self)
         self._delay_timer.setSingleShot(True)
@@ -467,17 +477,42 @@ class TooltipController(QObject):
         Args:
             text: Teks tooltip terbaru.
         """
-        self._tooltip.set_text(text)
+        try:
+            if self._tooltip is not None and isValid(self._tooltip):
+                self._tooltip.set_text(text)
+        except RuntimeError:
+            pass
 
     def _show_tooltip(self) -> None:
         """Memicu kemunculan tooltip apabila kursor masih berada di atas target."""
-        if self._target.isVisible() and self._target.underMouse():
-            self._tooltip.show_for_widget(self._target)
+        try:
+            if not isValid(self._target):
+                return
+            if self._tooltip is not None and isValid(self._tooltip):
+                if self._target.isVisible() and self._target.underMouse():
+                    self._tooltip.show_for_widget(self._target)
+        except RuntimeError:
+            pass
+
+    def _on_tooltip_destroyed(self) -> None:
+        """Menghapus referensi saat objek CustomTooltip dihancurkan terlebih dahulu."""
+        self._tooltip = None
 
     def _on_target_destroyed(self) -> None:
         """Membersihkan timer dan objek tooltip saat widget target dihapus."""
-        self._delay_timer.stop()
-        self._tooltip.deleteLater()
+        try:
+            self._delay_timer.stop()
+        except RuntimeError:
+            pass
+
+        tooltip = self._tooltip
+        self._tooltip = None
+        if tooltip is not None:
+            try:
+                if isValid(tooltip):
+                    tooltip.deleteLater()
+            except RuntimeError:
+                pass
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Menyaring event mouse dan visibilitas pada widget target.
@@ -489,19 +524,26 @@ class TooltipController(QObject):
         Returns:
             Status boolean penerusan event dari kelas induk.
         """
-        if watched is self._target:
-            event_type = event.type()
-            if event_type == QEvent.Type.Enter:
-                self._delay_timer.start()
-            elif event_type in (
-                QEvent.Type.Leave,
-                QEvent.Type.MouseButtonPress,
-                QEvent.Type.Hide,
-            ):
-                self._delay_timer.stop()
-                self._tooltip.hide_animated()
+        try:
+            if isValid(self._target) and watched is self._target:
+                event_type = event.type()
+                if event_type == QEvent.Type.Enter:
+                    self._delay_timer.start()
+                elif event_type in (
+                    QEvent.Type.Leave,
+                    QEvent.Type.MouseButtonPress,
+                    QEvent.Type.Hide,
+                ):
+                    self._delay_timer.stop()
+                    if self._tooltip is not None and isValid(self._tooltip):
+                        self._tooltip.hide_animated()
+        except RuntimeError:
+            return False
 
-        return super().eventFilter(watched, event)
+        try:
+            return super().eventFilter(watched, event)
+        except RuntimeError:
+            return False
 
 
 def attach_tooltip(
