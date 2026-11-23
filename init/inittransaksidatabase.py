@@ -1,9 +1,9 @@
 """Modul inisialisasi database transaksi dan inventaris FIFO berbasis SQLite.
 
 Modul ini bertanggung jawab untuk memverifikasi keberadaan file database,
-memeriksa kelengkapan tabel, serta membuat struktur tabel dan indeks yang
-diperlukan untuk operasional transaksi (pembelian, penjualan, jasa) dan
-pelacakan stok menggunakan metode FIFO (First-In, First-Out).
+memeriksa kelengkapan tabel, melakukan migrasi skema secara aman, serta membuat
+struktur tabel, indeks, dan trigger yang diperlukan untuk operasional transaksi
+(pembelian, penjualan lunas/cicilan/tempo, jasa) dan pelacakan stok FIFO.
 """
 
 from __future__ import annotations
@@ -120,6 +120,12 @@ class TransaksiDatabaseInitializer:
                 subtotal INTEGER NOT NULL DEFAULT 0 CHECK (subtotal >= 0),
                 discount INTEGER NOT NULL DEFAULT 0 CHECK (discount >= 0),
                 total INTEGER NOT NULL DEFAULT 0 CHECK (total >= 0),
+                payment_method TEXT NOT NULL DEFAULT 'Tunai',
+                amount_paid INTEGER NOT NULL DEFAULT 0 CHECK (amount_paid >= 0),
+                remaining_amount INTEGER NOT NULL DEFAULT 0 CHECK (remaining_amount >= 0),
+                payment_status TEXT NOT NULL DEFAULT 'PAID'
+                    CHECK (payment_status IN ('PAID', 'PARTIAL', 'UNPAID')),
+                due_date TEXT NULL,
                 status TEXT NOT NULL DEFAULT 'COMPLETED',
                 notes TEXT,
                 created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -137,7 +143,6 @@ class TransaksiDatabaseInitializer:
                 quantity REAL NOT NULL CHECK (quantity > 0),
                 conversion_qty REAL NOT NULL CHECK (conversion_qty > 0),
                 base_quantity REAL NOT NULL CHECK (base_quantity > 0),
-                -- Harga beli per satuan beli (item_unit_id).
                 unit_cost REAL NOT NULL CHECK (unit_cost >= 0),
                 subtotal REAL NOT NULL CHECK (subtotal >= 0),
                 created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -146,6 +151,20 @@ class TransaksiDatabaseInitializer:
                 FOREIGN KEY (item_id) REFERENCES items(id)
                     ON DELETE NO ACTION ON UPDATE NO ACTION,
                 FOREIGN KEY (item_unit_id) REFERENCES item_units(id)
+                    ON DELETE NO ACTION ON UPDATE NO ACTION
+            );
+        """,
+        "purchase_payments": """
+            CREATE TABLE IF NOT EXISTS purchase_payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                purchase_id INTEGER NOT NULL,
+                payment_date TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+                amount INTEGER NOT NULL CHECK (amount > 0),
+                payment_method TEXT NOT NULL DEFAULT 'Tunai',
+                reference_number TEXT NULL,
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+                FOREIGN KEY (purchase_id) REFERENCES purchases(id)
                     ON DELETE NO ACTION ON UPDATE NO ACTION
             );
         """,
@@ -171,7 +190,11 @@ class TransaksiDatabaseInitializer:
                 total INTEGER NOT NULL DEFAULT 0 CHECK (total >= 0),
                 payment_method TEXT NOT NULL DEFAULT 'Tunai',
                 amount_paid INTEGER NOT NULL DEFAULT 0 CHECK (amount_paid >= 0),
+                remaining_amount INTEGER NOT NULL DEFAULT 0 CHECK (remaining_amount >= 0),
                 change_amount INTEGER NOT NULL DEFAULT 0 CHECK (change_amount >= 0),
+                payment_status TEXT NOT NULL DEFAULT 'PAID'
+                    CHECK (payment_status IN ('PAID', 'PARTIAL', 'UNPAID')),
+                due_date TEXT NULL,
                 cashier_name TEXT NOT NULL DEFAULT 'KASIR',
                 status TEXT NOT NULL DEFAULT 'COMPLETED',
                 notes TEXT,
@@ -220,6 +243,23 @@ class TransaksiDatabaseInitializer:
                     ON DELETE NO ACTION ON UPDATE NO ACTION
             );
         """,
+        "sale_payments": """
+            CREATE TABLE IF NOT EXISTS sale_payments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                sale_id INTEGER NOT NULL,
+                payment_date TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+                amount INTEGER NOT NULL CHECK (amount > 0),
+                tendered_amount INTEGER NOT NULL DEFAULT 0 CHECK (tendered_amount >= 0),
+                change_given INTEGER NOT NULL DEFAULT 0 CHECK (change_given >= 0),
+                payment_method TEXT NOT NULL DEFAULT 'Tunai',
+                reference_number TEXT NULL,
+                cashier_name TEXT NOT NULL DEFAULT 'KASIR',
+                notes TEXT,
+                created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+                FOREIGN KEY (sale_id) REFERENCES sales(id)
+                    ON DELETE NO ACTION ON UPDATE NO ACTION
+            );
+        """,
         "inventory_layers": """
             CREATE TABLE IF NOT EXISTS inventory_layers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -232,7 +272,6 @@ class TransaksiDatabaseInitializer:
                 received_qty REAL NOT NULL CHECK (received_qty > 0),
                 remaining_qty REAL NOT NULL
                     CHECK (remaining_qty >= 0 AND remaining_qty <= received_qty),
-                -- Harga modal per satuan dasar (base_unit) dalam presisi desimal.
                 unit_cost REAL NOT NULL CHECK (unit_cost >= 0),
                 received_at TEXT NOT NULL,
                 created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
@@ -304,6 +343,15 @@ class TransaksiDatabaseInitializer:
         ON purchase_details (purchase_id);
         """,
         """
+        CREATE INDEX IF NOT EXISTS idx_purchase_payments_purchase_id
+        ON purchase_payments (purchase_id);
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_purchases_payment_status
+        ON purchases (payment_status, due_date)
+        WHERE payment_status IN ('UNPAID', 'PARTIAL');
+        """,
+        """
         CREATE INDEX IF NOT EXISTS idx_sale_details_sale_id
         ON sale_details (sale_id);
         """,
@@ -311,22 +359,160 @@ class TransaksiDatabaseInitializer:
         CREATE INDEX IF NOT EXISTS idx_sale_detail_materials_sale_detail_id
         ON sale_detail_materials (sale_detail_id);
         """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_sale_payments_sale_id
+        ON sale_payments (sale_id);
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_sales_payment_status
+        ON sales (payment_status, due_date)
+        WHERE payment_status IN ('UNPAID', 'PARTIAL');
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_sales_customer_payment_status
+        ON sales (customer_id, payment_status);
+        """,
+    ]
+
+    TRIGGER_STATEMENTS: list[str] = [
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_sales_after_insert_sync_payment
+        AFTER INSERT ON sales
+        BEGIN
+            UPDATE sales
+            SET remaining_amount = MAX(0, NEW.total - NEW.amount_paid),
+                payment_status = CASE
+                    WHEN NEW.amount_paid >= NEW.total THEN 'PAID'
+                    WHEN NEW.amount_paid > 0 THEN 'PARTIAL'
+                    ELSE 'UNPAID'
+                END
+            WHERE id = NEW.id;
+        END;
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_sales_after_update_sync_payment
+        AFTER UPDATE OF total, amount_paid ON sales
+        BEGIN
+            UPDATE sales
+            SET remaining_amount = MAX(0, NEW.total - NEW.amount_paid),
+                payment_status = CASE
+                    WHEN NEW.amount_paid >= NEW.total THEN 'PAID'
+                    WHEN NEW.amount_paid > 0 THEN 'PARTIAL'
+                    ELSE 'UNPAID'
+                END
+            WHERE id = NEW.id;
+        END;
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_sale_payments_after_insert
+        AFTER INSERT ON sale_payments
+        BEGIN
+            UPDATE sales
+            SET amount_paid = COALESCE((
+                    SELECT SUM(amount) FROM sale_payments WHERE sale_id = NEW.sale_id
+                ), 0),
+                remaining_amount = MAX(0, total - COALESCE((
+                    SELECT SUM(amount) FROM sale_payments WHERE sale_id = NEW.sale_id
+                ), 0)),
+                payment_status = CASE
+                    WHEN COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = NEW.sale_id), 0) >= total THEN 'PAID'
+                    WHEN COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = NEW.sale_id), 0) > 0 THEN 'PARTIAL'
+                    ELSE 'UNPAID'
+                END
+            WHERE id = NEW.sale_id;
+        END;
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_sale_payments_after_update
+        AFTER UPDATE OF amount ON sale_payments
+        BEGIN
+            UPDATE sales
+            SET amount_paid = COALESCE((
+                    SELECT SUM(amount) FROM sale_payments WHERE sale_id = NEW.sale_id
+                ), 0),
+                remaining_amount = MAX(0, total - COALESCE((
+                    SELECT SUM(amount) FROM sale_payments WHERE sale_id = NEW.sale_id
+                ), 0)),
+                payment_status = CASE
+                    WHEN COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = NEW.sale_id), 0) >= total THEN 'PAID'
+                    WHEN COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = NEW.sale_id), 0) > 0 THEN 'PARTIAL'
+                    ELSE 'UNPAID'
+                END
+            WHERE id = NEW.sale_id;
+        END;
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_sale_payments_after_delete
+        AFTER DELETE ON sale_payments
+        BEGIN
+            UPDATE sales
+            SET amount_paid = COALESCE((
+                    SELECT SUM(amount) FROM sale_payments WHERE sale_id = OLD.sale_id
+                ), 0),
+                remaining_amount = MAX(0, total - COALESCE((
+                    SELECT SUM(amount) FROM sale_payments WHERE sale_id = OLD.sale_id
+                ), 0)),
+                payment_status = CASE
+                    WHEN COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = OLD.sale_id), 0) >= total THEN 'PAID'
+                    WHEN COALESCE((SELECT SUM(amount) FROM sale_payments WHERE sale_id = OLD.sale_id), 0) > 0 THEN 'PARTIAL'
+                    ELSE 'UNPAID'
+                END
+            WHERE id = OLD.sale_id;
+        END;
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_purchases_after_insert_sync_payment
+        AFTER INSERT ON purchases
+        BEGIN
+            UPDATE purchases
+            SET remaining_amount = MAX(0, NEW.total - NEW.amount_paid),
+                payment_status = CASE
+                    WHEN NEW.amount_paid >= NEW.total THEN 'PAID'
+                    WHEN NEW.amount_paid > 0 THEN 'PARTIAL'
+                    ELSE 'UNPAID'
+                END
+            WHERE id = NEW.id;
+        END;
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_purchases_after_update_sync_payment
+        AFTER UPDATE OF total, amount_paid ON purchases
+        BEGIN
+            UPDATE purchases
+            SET remaining_amount = MAX(0, NEW.total - NEW.amount_paid),
+                payment_status = CASE
+                    WHEN NEW.amount_paid >= NEW.total THEN 'PAID'
+                    WHEN NEW.amount_paid > 0 THEN 'PARTIAL'
+                    ELSE 'UNPAID'
+                END
+            WHERE id = NEW.id;
+        END;
+        """,
+        """
+        CREATE TRIGGER IF NOT EXISTS trg_purchase_payments_after_insert
+        AFTER INSERT ON purchase_payments
+        BEGIN
+            UPDATE purchases
+            SET amount_paid = COALESCE((
+                    SELECT SUM(amount) FROM purchase_payments WHERE purchase_id = NEW.purchase_id
+                ), 0),
+                remaining_amount = MAX(0, total - COALESCE((
+                    SELECT SUM(amount) FROM purchase_payments WHERE purchase_id = NEW.purchase_id
+                ), 0)),
+                payment_status = CASE
+                    WHEN COALESCE((SELECT SUM(amount) FROM purchase_payments WHERE purchase_id = NEW.purchase_id), 0) >= total THEN 'PAID'
+                    WHEN COALESCE((SELECT SUM(amount) FROM purchase_payments WHERE purchase_id = NEW.purchase_id), 0) > 0 THEN 'PARTIAL'
+                    ELSE 'UNPAID'
+                END
+            WHERE id = NEW.purchase_id;
+        END;
+        """,
     ]
 
     def __init__(self, db_path: Optional[str | Path] = None) -> None:
-        """Menginisialisasi instance dengan lokasi file database.
-
-        Args:
-            db_path: Path menuju file database SQLite. Default menggunakan DEFAULT_DB_PATH.
-        """
         self.db_path: Path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
 
     def check_database_exists(self) -> bool:
-        """Memverifikasi apakah file database sudah ada di penyimpanan.
-
-        Returns:
-            True jika file database sudah ada dan berupa file valid, False jika belum.
-        """
         exists = self.db_path.exists() and self.db_path.is_file()
         if exists:
             logger.debug("Database ditemukan di: %s", self.db_path)
@@ -335,25 +521,12 @@ class TransaksiDatabaseInitializer:
         return exists
 
     def _connect(self) -> sqlite3.Connection:
-        """Membuka koneksi ke database SQLite dengan pengaturan integritas aktif.
-
-        Returns:
-            Objek koneksi sqlite3 dengan foreign_keys dan WAL mode aktif.
-        """
         conn = sqlite3.connect(self.db_path)
         conn.execute("PRAGMA foreign_keys = ON;")
         conn.execute("PRAGMA journal_mode = WAL;")
         return conn
 
     def get_existing_tables(self, conn: sqlite3.Connection) -> set[str]:
-        """Mengambil daftar nama tabel yang saat ini sudah ada di database.
-
-        Args:
-            conn: Koneksi aktif ke database SQLite.
-
-        Returns:
-            Himpunan (set) nama tabel yang sudah terbentuk di database.
-        """
         cursor = conn.execute(
             """
             SELECT name
@@ -364,16 +537,6 @@ class TransaksiDatabaseInitializer:
         return {row[0] for row in cursor.fetchall()}
 
     def verify_tables(self, conn: sqlite3.Connection) -> dict[str, list[str]]:
-        """Memverifikasi tabel mana saja yang sudah ada dan mana yang belum.
-
-        Args:
-            conn: Koneksi aktif ke database SQLite.
-
-        Returns:
-            Dictionary berisi dua list:
-                - 'existing': daftar tabel yang sudah ada.
-                - 'missing': daftar tabel yang belum ada sesuai urutan pembuatan.
-        """
         existing_set = self.get_existing_tables(conn)
         expected_order = list(self.TABLE_SCHEMAS.keys())
 
@@ -383,45 +546,87 @@ class TransaksiDatabaseInitializer:
         return {"existing": existing, "missing": missing}
 
     def _migrate_sales_columns(self, conn: sqlite3.Connection) -> None:
-        """Memastikan kolom-kolom transaksi pada tabel sales telah lengkap jika tabel lama sudah ada.
-
-        Args:
-            conn: Koneksi aktif ke database SQLite.
-        """
+        """Memastikan kolom lama & baru pada tabel sales lengkap serta melakukan backfill data lama."""
         cursor = conn.execute("PRAGMA table_info(sales);")
         existing_cols = {row[1] for row in cursor.fetchall()}
         if not existing_cols:
             return
 
+        added_cols: set[str] = set()
         column_defs = [
             ("rounding", "INTEGER NOT NULL DEFAULT 0"),
             ("tip", "INTEGER NOT NULL DEFAULT 0 CHECK (tip >= 0)"),
             ("payment_method", "TEXT NOT NULL DEFAULT 'Tunai'"),
             ("amount_paid", "INTEGER NOT NULL DEFAULT 0 CHECK (amount_paid >= 0)"),
+            ("remaining_amount", "INTEGER NOT NULL DEFAULT 0 CHECK (remaining_amount >= 0)"),
             ("change_amount", "INTEGER NOT NULL DEFAULT 0 CHECK (change_amount >= 0)"),
+            (
+                "payment_status",
+                "TEXT NOT NULL DEFAULT 'PAID' CHECK (payment_status IN ('PAID', 'PARTIAL', 'UNPAID'))",
+            ),
+            ("due_date", "TEXT NULL"),
             ("cashier_name", "TEXT NOT NULL DEFAULT 'KASIR'"),
         ]
         for col_name, col_type in column_defs:
             if col_name not in existing_cols:
                 conn.execute(f"ALTER TABLE sales ADD COLUMN {col_name} {col_type};")
+                added_cols.add(col_name)
                 logger.info("Kolom '%s' berhasil ditambahkan ke tabel sales", col_name)
 
+        if {"remaining_amount", "payment_status"} & added_cols:
+            conn.execute(
+                """
+                UPDATE sales
+                SET remaining_amount = CASE
+                        WHEN total > amount_paid THEN total - amount_paid
+                        ELSE 0
+                    END,
+                    payment_status = CASE
+                        WHEN amount_paid >= total THEN 'PAID'
+                        WHEN amount_paid > 0 THEN 'PARTIAL'
+                        ELSE 'UNPAID'
+                    END;
+                """
+            )
+            logger.info("Sinkronisasi data pelunasan transaksi lama pada tabel sales selesai")
+
+    def _migrate_purchases_columns(self, conn: sqlite3.Connection) -> None:
+        """Memastikan kolom pembayaran pada tabel purchases lengkap tanpa merusak data lama."""
+        cursor = conn.execute("PRAGMA table_info(purchases);")
+        existing_cols = {row[1] for row in cursor.fetchall()}
+        if not existing_cols:
+            return
+
+        added_cols: set[str] = set()
+        column_defs = [
+            ("payment_method", "TEXT NOT NULL DEFAULT 'Tunai'"),
+            ("amount_paid", "INTEGER NOT NULL DEFAULT 0 CHECK (amount_paid >= 0)"),
+            ("remaining_amount", "INTEGER NOT NULL DEFAULT 0 CHECK (remaining_amount >= 0)"),
+            (
+                "payment_status",
+                "TEXT NOT NULL DEFAULT 'PAID' CHECK (payment_status IN ('PAID', 'PARTIAL', 'UNPAID'))",
+            ),
+            ("due_date", "TEXT NULL"),
+        ]
+        for col_name, col_type in column_defs:
+            if col_name not in existing_cols:
+                conn.execute(f"ALTER TABLE purchases ADD COLUMN {col_name} {col_type};")
+                added_cols.add(col_name)
+                logger.info("Kolom '%s' berhasil ditambahkan ke tabel purchases", col_name)
+
+        if "amount_paid" in added_cols:
+            conn.execute(
+                """
+                UPDATE purchases
+                SET amount_paid = total,
+                    remaining_amount = 0,
+                    payment_status = 'PAID';
+                """
+            )
+            logger.info("Sinkronisasi data pembayaran lama pada tabel purchases selesai")
+
     def initialize(self) -> dict[str, Any]:
-        """Menjalankan verifikasi awal dan membuat database/tabel yang belum ada.
-
-        Alur kerja:
-            1. Memeriksa apakah file database sudah ada atau belum.
-            2. Membuat direktori induk jika belum tersedia.
-            3. Memeriksa kelengkapan tabel yang sudah ada di dalam database.
-            4. Membuat tabel yang masih kurang serta seluruh indeks FIFO.
-            5. Memverifikasi ulang kelengkapan seluruh tabel setelah eksekusi.
-
-        Returns:
-            Dictionary berisi ringkasan hasil verifikasi dan inisialisasi.
-
-        Raises:
-            sqlite3.Error: Jika terjadi kegagalan saat eksekusi DDL SQLite.
-        """
+        """Menjalankan verifikasi awal, migrasi kolom, dan pembuatan tabel/indeks/trigger."""
         try:
             db_existed = self.check_database_exists()
             if not db_existed:
@@ -451,10 +656,14 @@ class TransaksiDatabaseInitializer:
                         created_tables.append(table_name)
                         logger.info("Tabel '%s' berhasil dibuat", table_name)
 
+                self._migrate_sales_columns(conn)
+                self._migrate_purchases_columns(conn)
+
                 for index_sql in self.INDEX_STATEMENTS:
                     conn.execute(index_sql)
 
-                self._migrate_sales_columns(conn)
+                for trigger_sql in self.TRIGGER_STATEMENTS:
+                    conn.execute(trigger_sql)
 
                 conn.commit()
 
@@ -486,28 +695,5 @@ class TransaksiDatabaseInitializer:
 def init_transaksi_database(
     db_path: Optional[str | Path] = None,
 ) -> dict[str, Any]:
-    """Fungsi helper untuk menjalankan inisialisasi database transaksi.
-
-    Args:
-        db_path: Path menuju file database SQLite. Default menggunakan DEFAULT_DB_PATH.
-
-    Returns:
-        Ringkasan hasil verifikasi dan inisialisasi database.
-    """
     initializer = TransaksiDatabaseInitializer(db_path=db_path)
     return initializer.initialize()
-
-
-if __name__ == "__main__":
-    import sys
-
-    project_root = Path(__file__).resolve().parent.parent
-    if str(project_root) not in sys.path:
-        sys.path.insert(0, str(project_root))
-
-    from core.logging_config import setup_logging
-
-    setup_logging()
-    target_db = sys.argv[1] if len(sys.argv) > 1 else str(DEFAULT_DB_PATH)
-    init_transaksi_database(db_path=target_db)
-
