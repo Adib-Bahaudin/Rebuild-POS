@@ -11,6 +11,7 @@ from PySide6.QtCore import (
     QPoint,
     QPointF,
     QPropertyAnimation,
+    QRect,
     QRectF,
     QSize,
     Qt,
@@ -61,6 +62,7 @@ class TooltipStyle:
         text_color: Kode warna hex teks utama tooltip.
         border_radius: Radius lengkungan sudut tooltip dalam piksel.
         delay_ms: Jeda waktu dalam milidetik sebelum tooltip muncul saat hover.
+        max_width: Batas lebar maksimal badan tooltip sebelum teks dibungkus ke baris baru.
     """
 
     bg_top: str = "#252638"
@@ -70,6 +72,7 @@ class TooltipStyle:
     text_color: str = "#ECEFF4"
     border_radius: int = 8
     delay_ms: int = 120
+    max_width: int = 360
 
 
 class CustomTooltip(QWidget):
@@ -133,17 +136,23 @@ class CustomTooltip(QWidget):
         self.update()
 
     def sizeHint(self) -> QSize:
-        """Menghitung ukuran total ideal widget termasuk ruang panah dan bayangan.
+        """Menghitung ukuran total ideal widget dengan batas lebar sebelum word wrap.
 
         Returns:
             Objek QSize berisi lebar dan tinggi total tooltip.
         """
         metrics = QFontMetrics(self._font)
-        text_width = metrics.horizontalAdvance(self._text)
-        text_height = metrics.height()
+        chrome_w = (_PAD_X * 2) + _ACCENT_WIDTH + _ACCENT_GAP
+        max_text_w = max(80, self._style.max_width - chrome_w)
 
-        bubble_w = (_PAD_X * 2) + _ACCENT_WIDTH + _ACCENT_GAP + text_width
-        bubble_h = max(34, text_height + (_PAD_Y * 2))
+        text_bounds = metrics.boundingRect(
+            QRect(0, 0, max_text_w, 10000),
+            int(Qt.TextFlag.TextWordWrap),
+            self._text,
+        )
+
+        bubble_w = chrome_w + text_bounds.width() + 4
+        bubble_h = max(34, text_bounds.height() + (_PAD_Y * 2))
 
         if self._position in (TooltipPosition.RIGHT, TooltipPosition.LEFT):
             return QSize(
@@ -414,6 +423,7 @@ class CustomTooltip(QWidget):
         text_option = QTextOption(
             Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft
         )
+        text_option.setWrapMode(QTextOption.WrapMode.WordWrap)
         painter.setFont(self._font)
         painter.setPen(QColor(self._style.text_color))
         painter.drawText(text_rect, self._text, text_option)
