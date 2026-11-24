@@ -37,8 +37,14 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_PAGE_SIZE: int = 9
 SEARCH_DEBOUNCE_MS: int = 300
-UNPAID_FILTER_LABEL: str = "Belum Lunas"
 ALL_METHODS_LABEL: str = "Semua Metode"
+ALL_STATUSES_LABEL: str = "Semua Status"
+
+PAYMENT_STATUS_FILTER_MAP: dict[str, str] = {
+    "Lunas": "PAID",
+    "Cicilan": "PARTIAL",
+    "Belum Lunas": "UNPAID",
+}
 
 
 @dataclass(frozen=True)
@@ -311,22 +317,15 @@ def format_display_datetime(raw_value: str) -> str:
     return cleaned
 
 
-def format_payment_label(payment_method: str, payment_status: str) -> str:
-    """Menyusun label kolom Metode Bayar berdasarkan metode dan status pelunasan.
+def format_payment_method_label(payment_method: str) -> str:
+    """Memformat label metode pembayaran transaksi dari tabel sales.
 
     Args:
-        payment_method: Nilai kolom payment_method dari tabel sales.
-        payment_status: Nilai kolom payment_status ('PAID', 'PARTIAL', 'UNPAID').
+        payment_method: Nilai kolom payment_method pada database.
 
     Returns:
-        Label ringkas siap tampil pada kolom tabel UI.
+        Nama metode pembayaran terformat rapi untuk ditampilkan pada tabel.
     """
-    status_upper = payment_status.strip().upper()
-    if status_upper == "UNPAID":
-        return "Belum Lunas"
-    if status_upper == "PARTIAL":
-        return "Cicilan"
-
     method_clean = payment_method.strip()
     if not method_clean:
         return "Tunai"
@@ -334,6 +333,21 @@ def format_payment_label(payment_method: str, payment_status: str) -> str:
         return "QRIS"
     return method_clean
 
+def format_payment_status_label(payment_status: str) -> str:
+    """Mengonversi kode status pembayaran database menjadi label bahasa Indonesia.
+
+    Args:
+        payment_status: Nilai kolom payment_status ('PAID', 'PARTIAL', 'UNPAID').
+
+    Returns:
+        Label status pembayaran ('Lunas', 'Cicilan', atau 'Belum Lunas').
+    """
+    status_map: dict[str, str] = {
+        "PAID": "Lunas",
+        "PARTIAL": "Cicilan",
+        "UNPAID": "Belum Lunas",
+    }
+    return status_map.get(payment_status.strip().upper(), "Lunas")
 
 def parse_iso_date(raw_date: str, fallback: date) -> date:
     """Mengurai string tanggal ISO (YYYY-MM-DD) secara aman dengan nilai cadangan.
@@ -527,7 +541,7 @@ class RiwayatRepository:
         Args:
             start_date: Batas tanggal awal filter.
             end_date: Batas tanggal akhir filter.
-            criteria: Kriteria filter metode bayar dan pencarian teks dari UI.
+            criteria: Kriteria filter metode bayar, status bayar, dan pencarian UI.
 
         Returns:
             Tuple berisi string klausa WHERE dan daftar nilai parameter SQL.
@@ -540,14 +554,17 @@ class RiwayatRepository:
 
         payment_filter = criteria.payment_method.strip()
         if payment_filter and payment_filter != ALL_METHODS_LABEL:
-            if payment_filter.lower() == UNPAID_FILTER_LABEL.lower():
+            conditions.append("LOWER(TRIM(s.payment_method)) = LOWER(TRIM(?))")
+            params.append(payment_filter)
+
+        status_filter = criteria.payment_status.strip()
+        if status_filter and status_filter != ALL_STATUSES_LABEL:
+            db_status = PAYMENT_STATUS_FILTER_MAP.get(status_filter)
+            if db_status is not None:
                 conditions.append(
-                    "(s.payment_status IN ('UNPAID', 'PARTIAL') "
-                    "OR s.remaining_amount > 0)"
+                    "UPPER(TRIM(COALESCE(s.payment_status, 'PAID'))) = ?"
                 )
-            else:
-                conditions.append("LOWER(TRIM(s.payment_method)) = LOWER(TRIM(?))")
-                params.append(payment_filter)
+                params.append(db_status)
 
         search_term = criteria.search_query.strip()
         if search_term:
@@ -661,9 +678,11 @@ class RiwayatRepository:
                     no=idx,
                     invoice=str(row["invoice_number"] or ""),
                     tanggal=format_display_datetime(str(row["sale_date"] or "")),
-                    metode_bayar=format_payment_label(
-                        str(row["payment_method"] or ""),
-                        str(row["payment_status"] or "PAID"),
+                    metode_bayar=format_payment_method_label(
+                        str(row["payment_method"] or "")
+                    ),
+                    status_bayar=format_payment_status_label(
+                        str(row["payment_status"] or "PAID")
                     ),
                     sub_total=format_rupiah(int(row["subtotal"] or 0)),
                     diskon=format_rupiah(int(row["discount"] or 0)),

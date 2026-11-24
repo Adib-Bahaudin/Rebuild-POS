@@ -72,8 +72,14 @@ DATE_FILTER_OPTIONS: tuple[str, ...] = (
 PAYMENT_METHOD_OPTIONS: tuple[str, ...] = (
     "Semua Metode",
     "Tunai",
-    "Qris",
+    "QRIS",
     "Transfer",
+)
+
+PAYMENT_STATUS_OPTIONS: tuple[str, ...] = (
+    "Semua Status",
+    "Lunas",
+    "Cicilan",
     "Belum Lunas",
 )
 
@@ -82,6 +88,7 @@ TABLE_COLUMNS: tuple[str, ...] = (
     "Invoice",
     "Tanggal",
     "Metode Bayar",
+    "Status",
     "Sub Total",
     "Diskon",
     "Pembulatan",
@@ -146,6 +153,13 @@ SVG_ICONS: dict[str, str] = {
         '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>'
         '<polyline points="14 2 14 8 20 8"/>'
         '<path d="M8 13h8"/><path d="M8 17h5"/></svg>'
+    ),
+    "reset": (
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" '
+        'fill="none" stroke="{color}" stroke-width="2" '
+        'stroke-linecap="round" stroke-linejoin="round">'
+        '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>'
+        '<path d="M3 3v5h5"/></svg>'
     ),
 }
 
@@ -252,6 +266,7 @@ class FilterCriteria:
         start_date: Tanggal awal dalam format ISO (YYYY-MM-DD).
         end_date: Tanggal akhir dalam format ISO (YYYY-MM-DD).
         payment_method: Pilihan metode pembayaran yang dipilih pengguna.
+        payment_status: Pilihan status pelunasan yang dipilih pengguna.
         search_query: Kata kunci pencarian dari kolom input.
     """
 
@@ -259,6 +274,7 @@ class FilterCriteria:
     start_date: str
     end_date: str
     payment_method: str
+    payment_status: str
     search_query: str
 
 
@@ -271,6 +287,7 @@ class TransactionRowData:
         invoice: Kode atau nomor faktur transaksi.
         tanggal: String tanggal dan waktu transaksi terformat.
         metode_bayar: Label metode pembayaran transaksi.
+        status_bayar: Label status pelunasan transaksi ('Lunas', 'Cicilan', 'Belum Lunas').
         sub_total: String nominal subtotal terformat.
         diskon: String nominal diskon terformat.
         pembulatan: String nominal pembulatan terformat.
@@ -281,6 +298,7 @@ class TransactionRowData:
     invoice: str
     tanggal: str
     metode_bayar: str
+    status_bayar: str
     sub_total: str
     diskon: str
     pembulatan: str
@@ -941,8 +959,10 @@ class FilterBarWidget(QFrame):
         super().__init__(parent)
         self.date_combo = QComboBox(self)
         self.payment_combo = QComboBox(self)
+        self.status_combo = QComboBox(self)
         self.search_input = QLineEdit(self)
         self.filter_button = QPushButton("Filter", self)
+        self.reset_button = QPushButton("Reset", self)
         self.custom_date_button = QPushButton(self)
         self.date_range_panel = DateRangeCalendarPanel(self)
 
@@ -959,7 +979,7 @@ class FilterBarWidget(QFrame):
         controls_layout.setSpacing(12)
 
         self.date_combo.addItems(list(DATE_FILTER_OPTIONS))
-        self.date_combo.setMinimumWidth(148)
+        self.date_combo.setMinimumWidth(130)
         self.date_combo.setFixedHeight(32)
         self.date_combo.setCursor(Qt.CursorShape.PointingHandCursor)
 
@@ -970,9 +990,14 @@ class FilterBarWidget(QFrame):
         self.custom_date_button.setVisible(False)
 
         self.payment_combo.addItems(list(PAYMENT_METHOD_OPTIONS))
-        self.payment_combo.setMinimumWidth(155)
+        self.payment_combo.setMinimumWidth(138)
         self.payment_combo.setFixedHeight(32)
         self.payment_combo.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self.status_combo.addItems(list(PAYMENT_STATUS_OPTIONS))
+        self.status_combo.setMinimumWidth(138)
+        self.status_combo.setFixedHeight(32)
+        self.status_combo.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.search_input.setPlaceholderText(
             "Cari nomor invoice atau catatan transaksi..."
@@ -988,8 +1013,15 @@ class FilterBarWidget(QFrame):
         self.filter_button.setIcon(render_svg_icon("filter", 15, "#FFFFFF"))
         self.filter_button.setIconSize(QSize(15, 15))
         self.filter_button.setFixedHeight(32)
-        self.filter_button.setMinimumWidth(108)
+        self.filter_button.setMinimumWidth(96)
         self.filter_button.setCursor(Qt.CursorShape.PointingHandCursor)
+
+        self.reset_button.setObjectName("ResetFilterButton")
+        self.reset_button.setIcon(render_svg_icon("reset", 14, "#CBD5E1"))
+        self.reset_button.setIconSize(QSize(14, 14))
+        self.reset_button.setFixedHeight(32)
+        self.reset_button.setMinimumWidth(88)
+        self.reset_button.setCursor(Qt.CursorShape.PointingHandCursor)
 
         controls_layout.addLayout(self._wrap_labeled_field("Tanggal", self.date_combo))
         controls_layout.addLayout(
@@ -999,9 +1031,18 @@ class FilterBarWidget(QFrame):
             self._wrap_labeled_field("Metode Bayar", self.payment_combo)
         )
         controls_layout.addLayout(
+            self._wrap_labeled_field("Status Bayar", self.status_combo)
+        )
+        controls_layout.addLayout(
             self._wrap_labeled_field("Pencarian", self.search_input),
             stretch=1,
         )
+
+        button_row = QHBoxLayout()
+        button_row.setContentsMargins(0, 0, 0, 0)
+        button_row.setSpacing(8)
+        button_row.addWidget(self.filter_button)
+        button_row.addWidget(self.reset_button)
 
         button_column = QVBoxLayout()
         button_column.setContentsMargins(0, 0, 0, 0)
@@ -1009,7 +1050,7 @@ class FilterBarWidget(QFrame):
         spacer_label = QLabel("", self)
         spacer_label.setObjectName("FilterFieldLabel")
         button_column.addWidget(spacer_label)
-        button_column.addWidget(self.filter_button)
+        button_column.addLayout(button_row)
         controls_layout.addLayout(button_column)
 
     def _wrap_labeled_field(self, label_text: str, widget: QWidget) -> QVBoxLayout:
@@ -1115,16 +1156,36 @@ class FilterBarWidget(QFrame):
             QPushButton#PrimaryFilterButton:pressed {
                 background-color: #1D4ED8;
             }
+            QPushButton#ResetFilterButton {
+                background-color: #25273B;
+                color: #CBD5E1;
+                border: 1px solid #3E4360;
+                border-radius: 8px;
+                padding: 0px 14px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            QPushButton#ResetFilterButton:hover {
+                background-color: #32354E;
+                border-color: #60A5FA;
+                color: #FFFFFF;
+            }
+            QPushButton#ResetFilterButton:pressed {
+                background-color: #1E2030;
+            }
             """
         )
 
     def _connect_signals(self) -> None:
         """Menghubungkan seluruh sinyal interaksi kontrol filter."""
         self.date_combo.currentTextChanged.connect(self._on_date_preset_changed)
+        self.payment_combo.currentTextChanged.connect(self._on_dropdown_filter_changed)
+        self.status_combo.currentTextChanged.connect(self._on_dropdown_filter_changed)
         self.custom_date_button.clicked.connect(self._toggle_date_panel)
         self.date_range_panel.date_range_applied.connect(self._on_custom_date_applied)
         self.date_range_panel.panel_closed.connect(self._hide_date_panel)
         self.filter_button.clicked.connect(self._emit_filter_request)
+        self.reset_button.clicked.connect(self._on_reset_clicked)
         self.search_input.returnPressed.connect(self._emit_filter_request)
         self.search_input.textChanged.connect(self.search_text_changed.emit)
 
@@ -1140,7 +1201,7 @@ class FilterBarWidget(QFrame):
             linked_label.setVisible(visible)
 
     def _on_date_preset_changed(self, selected_text: str) -> None:
-        """Menampilkan popup kalender mengambang ketika opsi Custom dipilih.
+        """Menampilkan popup kalender untuk Custom atau langsung menerapkan preset tanggal.
 
         Args:
             selected_text: Teks opsi periode yang dipilih dari dropdown.
@@ -1152,6 +1213,20 @@ class FilterBarWidget(QFrame):
             self.date_range_panel.show_below(self.date_combo)
         else:
             self.date_range_panel.hide()
+            self._emit_filter_request()
+
+    def _on_dropdown_filter_changed(self, _selected_text: str) -> None:
+        """Menerapkan filter otomatis saat pilihan dropdown metode atau status berubah.
+
+        Args:
+            _selected_text: Teks opsi baru yang dipilih pengguna.
+        """
+        self._emit_filter_request()
+
+    def _on_reset_clicked(self) -> None:
+        """Mereset seluruh kontrol filter lalu memicu pemuatan ulang data satu kali."""
+        self.reset_filters()
+        self._emit_filter_request()
 
     def _toggle_date_panel(self) -> None:
         """Menampilkan atau menyembunyikan popup kalender di bawah kontrol tanggal."""
@@ -1191,7 +1266,7 @@ class FilterBarWidget(QFrame):
 
         Returns:
             Objek FilterCriteria berisi periode, rentang tanggal, metode bayar,
-            dan kata kunci pencarian.
+            status bayar, dan kata kunci pencarian.
         """
         start_date, end_date = self.date_range_panel.get_date_range()
         return FilterCriteria(
@@ -1199,19 +1274,33 @@ class FilterBarWidget(QFrame):
             start_date=start_date.toString("yyyy-MM-dd"),
             end_date=end_date.toString("yyyy-MM-dd"),
             payment_method=self.payment_combo.currentText(),
+            payment_status=self.status_combo.currentText(),
             search_query=self.search_input.text().strip(),
         )
 
     def reset_filters(self) -> None:
-        """Mengembalikan seluruh pilihan filter ke kondisi bawaan."""
+        """Mengembalikan seluruh pilihan filter ke kondisi bawaan tanpa memicu sinyal ganda."""
         today = QDate.currentDate()
-        self.date_combo.setCurrentIndex(0)
-        self.payment_combo.setCurrentIndex(0)
-        self.search_input.clear()
-        self.date_range_panel.set_date_range(today, today)
-        self.date_range_panel.hide()
-        self._set_custom_controls_visible(False)
-        self._sync_custom_date_button_label()
+        widgets = (
+            self.date_combo,
+            self.payment_combo,
+            self.status_combo,
+            self.search_input,
+        )
+        for widget in widgets:
+            widget.blockSignals(True)
+        try:
+            self.date_combo.setCurrentIndex(0)
+            self.payment_combo.setCurrentIndex(0)
+            self.status_combo.setCurrentIndex(0)
+            self.search_input.clear()
+            self.date_range_panel.set_date_range(today, today)
+            self.date_range_panel.hide()
+            self._set_custom_controls_visible(False)
+            self._sync_custom_date_button_label()
+        finally:
+            for widget in widgets:
+                widget.blockSignals(False)
 
 
 class ZebraRowDelegate(QStyledItemDelegate):
@@ -1254,6 +1343,53 @@ class ZebraRowDelegate(QStyledItemDelegate):
         """
         return row_index % 2 == 0
 
+    def _resolve_text_style(
+        self,
+        col: int,
+        text_str: str,
+        is_selected: bool,
+        base_font: QFont,
+    ) -> tuple[QColor, QFont]:
+        """Menentukan warna teks dan bobot font sesuai kolom serta status pilihan sel.
+
+        Args:
+            col: Indeks kolom tabel berbasis nol.
+            text_str: Teks isi sel yang akan dirender.
+            is_selected: True apabila baris sedang dipilih pengguna.
+            base_font: Font dasar bawaan dari opsi tampilan sel.
+
+        Returns:
+            Tuple berisi objek (QColor warna teks, QFont terkonfigurasi).
+        """
+        font = QFont(base_font)
+        status_colors: dict[str, QColor] = {
+            "Lunas": QColor("#4ADE80"),
+            "Cicilan": QColor("#FBBF24"),
+            "Belum Lunas": QColor("#F87171"),
+        }
+
+        if is_selected:
+            text_color = self._selected_text
+        elif col == 0:
+            text_color = self._muted_text
+        elif col == 1:
+            text_color = self._invoice_text
+            font.setWeight(QFont.Weight.DemiBold)
+        elif col == 2:
+            text_color = QColor("#A6ADC8")
+        elif col == 4 and text_str in status_colors:
+            text_color = status_colors[text_str]
+            font.setWeight(QFont.Weight.DemiBold)
+        elif col == 6 and text_str not in ("Rp 0", "0", "-"):
+            text_color = QColor("#F87171")
+        elif col == 8:
+            text_color = self._total_text
+            font.setWeight(QFont.Weight.Bold)
+        else:
+            text_color = self._default_text
+
+        return text_color, font
+
     def paint(
         self,
         painter: QPainter,
@@ -1268,71 +1404,57 @@ class ZebraRowDelegate(QStyledItemDelegate):
             index: Indeks model baris dan kolom yang sedang dirender.
         """
         painter.save()
-
-        is_odd = self.is_odd_visual_row(index.row())
-        is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
-        is_hovered = bool(option.state & QStyle.StateFlag.State_MouseOver)
-
-        if is_selected:
-            bg_color = self._selected_bg
-            divider_color = self._selected_divider
-        elif is_hovered:
-            bg_color = self._hover_bg
-            divider_color = self._divider_color
-        elif is_odd:
-            bg_color = self._odd_bg
-            divider_color = self._divider_color
-        else:
-            bg_color = self._even_bg
-            divider_color = self._divider_color
-
-        painter.fillRect(option.rect, bg_color)
-
-        pen = QPen(divider_color)
-        pen.setWidth(1)
-        painter.setPen(pen)
-        painter.drawLine(
-            option.rect.bottomLeft(),
-            option.rect.bottomRight(),
-        )
-
-        raw_text = index.data(Qt.ItemDataRole.DisplayRole)
-        if raw_text is not None and str(raw_text) != "":
-            text_str = str(raw_text)
-            text_rect = option.rect.adjusted(12, 0, -12, 0)
-            alignment_flags = self._resolve_alignment(index)
-
-            col = index.column()
-            font = QFont(option.font)
+        try:
+            is_odd = self.is_odd_visual_row(index.row())
+            is_selected = bool(option.state & QStyle.StateFlag.State_Selected)
+            is_hovered = bool(option.state & QStyle.StateFlag.State_MouseOver)
 
             if is_selected:
-                text_color = self._selected_text
-            elif col == 0:  
-                text_color = self._muted_text
-            elif col == 1:  
-                text_color = self._invoice_text
-                font.setWeight(QFont.Weight.DemiBold)
-            elif col == 7:  
-                text_color = self._total_text
-                font.setWeight(QFont.Weight.Bold)
-            elif col == 5 and text_str not in ("Rp 0", "0", "-"):  
-                text_color = QColor("#F87171")
-            elif col == 2:  
-                text_color = QColor("#A6ADC8")
+                bg_color = self._selected_bg
+                divider_color = self._selected_divider
+            elif is_hovered:
+                bg_color = self._hover_bg
+                divider_color = self._divider_color
+            elif is_odd:
+                bg_color = self._odd_bg
+                divider_color = self._divider_color
             else:
-                text_color = self._default_text
+                bg_color = self._even_bg
+                divider_color = self._divider_color
 
-            painter.setFont(font)
-            painter.setPen(text_color)
-            metrics = QFontMetrics(font)
-            elided = metrics.elidedText(
-                text_str,
-                Qt.TextElideMode.ElideRight,
-                max(0, text_rect.width()),
+            painter.fillRect(option.rect, bg_color)
+
+            pen = QPen(divider_color)
+            pen.setWidth(1)
+            painter.setPen(pen)
+            painter.drawLine(
+                option.rect.bottomLeft(),
+                option.rect.bottomRight(),
             )
-            painter.drawText(text_rect, alignment_flags, elided)
 
-        painter.restore()
+            raw_text = index.data(Qt.ItemDataRole.DisplayRole)
+            if raw_text is not None and str(raw_text) != "":
+                text_str = str(raw_text)
+                text_rect = option.rect.adjusted(12, 0, -12, 0)
+                alignment_flags = self._resolve_alignment(index)
+                text_color, font = self._resolve_text_style(
+                    col=index.column(),
+                    text_str=text_str,
+                    is_selected=is_selected,
+                    base_font=option.font,
+                )
+
+                painter.setFont(font)
+                painter.setPen(text_color)
+                metrics = QFontMetrics(font)
+                elided = metrics.elidedText(
+                    text_str,
+                    Qt.TextElideMode.ElideRight,
+                    max(0, text_rect.width()),
+                )
+                painter.drawText(text_rect, alignment_flags, elided)
+        finally:
+            painter.restore()
 
     @staticmethod
     def _resolve_alignment(index: QModelIndex | QPersistentModelIndex) -> int:
@@ -1396,14 +1518,15 @@ class TransactionTableWidget(QTableWidget):
             h_header.setStretchLastSection(False)
 
             column_widths: dict[str, int] = {
-                "No": 54,
-                "Tanggal": 142,
-                "Metode Bayar": 122,
-                "Sub Total": 125,
-                "Diskon": 108,
-                "Pembulatan": 108,
-                "Total": 130,
-                "Aksi": 148,
+                "No": 50,
+                "Tanggal": 136,
+                "Metode Bayar": 110,
+                "Status": 106,
+                "Sub Total": 120,
+                "Diskon": 102,
+                "Pembulatan": 102,
+                "Total": 126,
+                "Aksi": 144,
             }
             for col_index, col_name in enumerate(TABLE_COLUMNS):
                 if col_name == "Invoice":
@@ -1555,6 +1678,7 @@ class TransactionTableWidget(QTableWidget):
             ),
             (row_data.tanggal, Qt.AlignmentFlag.AlignCenter),
             (row_data.metode_bayar, Qt.AlignmentFlag.AlignCenter),
+            (row_data.status_bayar, Qt.AlignmentFlag.AlignCenter),
             (
                 row_data.sub_total,
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
