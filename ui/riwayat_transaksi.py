@@ -2088,6 +2088,34 @@ class RiwayatTransaksiPage(QWidget):
         self.table.clear_rows()
         self.navigation_page.reset_pagination()
 
+    def bind_backend(
+        self,
+        db_path: Path | str | None = None,
+        page_size: int = 20,
+        enable_notifications: bool = True,
+        auto_show_detail_dialog: bool = True,
+    ) -> object:
+        """Mengikat halaman ini ke backend database SQLite melalui RiwayatTransaksiHelper.
+
+        Args:
+            db_path: Path file database transaksi SQLite opsional.
+            page_size: Jumlah baris data per halaman.
+            enable_notifications: Aktifkan popup notifikasi toast.
+            auto_show_detail_dialog: Tampilkan dialog modal detail otomatis saat tombol Detail diklik.
+
+        Returns:
+            Instance RiwayatTransaksiHelper yang mengendalikan halaman ini.
+        """
+        from util.core.riwayat_transaksi_helper import bind_riwayat_to_backend
+
+        return bind_riwayat_to_backend(
+            page=self,
+            db_path=db_path,
+            page_size=page_size,
+            enable_notifications=enable_notifications,
+            auto_show_detail_dialog=auto_show_detail_dialog,
+        )
+
 
 class RiwayatTransaksiWindow(FramelessMainWindow):
     """Jendela standalone Riwayat Transaksi dengan CustomTitleBar bawaan proyek.
@@ -2100,6 +2128,8 @@ class RiwayatTransaksiWindow(FramelessMainWindow):
         self,
         icon_config: TitleBarIconConfig | None = None,
         page_title: str = "Riwayat Transaksi",
+        connect_backend: bool = False,
+        db_path: Path | str | None = None,
         parent: QWidget | None = None,
     ) -> None:
         """Menginisialisasi jendela frameless beserta halaman Riwayat Transaksi.
@@ -2108,6 +2138,8 @@ class RiwayatTransaksiWindow(FramelessMainWindow):
             icon_config: Konfigurasi path ikon title bar. Jika None, akan memuat
                 konfigurasi standar dari ICON_PATHS.
             page_title: Judul halaman yang ditampilkan pada CustomTitleBar.
+            connect_backend: Jika True, langsung mengikat halaman ke backend database SQLite.
+            db_path: Path database SQLite kustom opsional.
             parent: Widget induk opsional.
         """
         resolved_config = (
@@ -2122,5 +2154,9 @@ class RiwayatTransaksiWindow(FramelessMainWindow):
         )
         self.page = RiwayatTransaksiPage(self)
         self.set_content_widget(self.page)
+
+        if connect_backend:
+            self.page.bind_backend(db_path=db_path)
+
 
 

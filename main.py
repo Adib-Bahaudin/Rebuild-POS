@@ -39,10 +39,10 @@ from ui.customwindowtitlebar import (
 )
 from ui.loginpage import LoginPage
 from util.core.dashboard_transaksi_helper import create_connected_dashboard
+from util.core.riwayat_transaksi_helper import create_connected_riwayat_page
 from util.helper.initdatabase import InitDatabase
 from util.ui.MainShell import MainShell, create_placeholder_page
 from util.ui.scrollbar_manager import GlobalScrollBarManager
-from ui.riwayat_transaksi import RiwayatTransaksiPage
 
 try:
     from pyqttoast import Toast, ToastPreset
@@ -161,7 +161,7 @@ def main() -> int:
             )
             dashboard_window.register_page(
                 "history",
-                RiwayatTransaksiPage,
+                lambda: create_connected_riwayat_page(db_path=DEFAULT_DB_PATH),
                 title="Riwayat Transaksi",
             )
             dashboard_window.register_page(
