@@ -22,7 +22,15 @@ from PySide6.QtCore import (
     Qt,
     Signal,
 )
-from PySide6.QtGui import QColor, QFontMetrics, QIcon, QPainter, QPen, QPixmap
+from PySide6.QtGui import (
+    QColor,
+    QFont,
+    QFontMetrics,
+    QIcon,
+    QPainter,
+    QPen,
+    QPixmap,
+)
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -1207,25 +1215,31 @@ class FilterBarWidget(QFrame):
 
 
 class ZebraRowDelegate(QStyledItemDelegate):
-    """Delegate kustom untuk merender pola baris zebra hitam dan putih kontras tinggi.
+    """Delegate kustom untuk merender pola baris zebra bertema gelap yang rapi dan menyatu.
 
-    Baris ganjil (nomor urut 1, 3, 5, ...) digambar dengan latar hitam dan teks
-    putih, sedangkan baris genap (nomor urut 2, 4, 6, ...) digambar dengan latar
-    putih dan teks hitam agar seluruh data terbaca tajam.
+    Baris ganjil dan genap digambar dengan kontras halus bernuansa slate/Catppuccin
+    agar selaras dengan estetika antarmuka POS, dilengkapi efek hover dan penekanan
+    warna tematik per kolom data.
     """
 
     def __init__(self, parent: QWidget | None = None) -> None:
-        """Menginisialisasi palet warna baris ganjil, genap, dan terpilih.
+        """Menginisialisasi palet warna baris ganjil, genap, hover, dan terpilih.
 
         Args:
             parent: Widget induk opsional.
         """
         super().__init__(parent)
-        self._odd_bg = QColor("#12121A")
-        self._odd_text = QColor("#F8FAFC")
-        self._even_bg = QColor("#FFFFFF")
-        self._even_text = QColor("#11111B")
-        self._selected_bg = QColor("#2563EB")
+        self._odd_bg = QColor("#14141F")
+        self._even_bg = QColor("#1A1A28")
+        self._hover_bg = QColor("#222436")
+        self._selected_bg = QColor("#23385E")
+        self._divider_color = QColor("#222333")
+        self._selected_divider = QColor("#3B82F6")
+
+        self._default_text = QColor("#CDD6F4")
+        self._invoice_text = QColor("#60A5FA")
+        self._total_text = QColor("#4ADE80")
+        self._muted_text = QColor("#9399B2")
         self._selected_text = QColor("#FFFFFF")
 
     @staticmethod
@@ -1246,7 +1260,7 @@ class ZebraRowDelegate(QStyledItemDelegate):
         option: QStyleOptionViewItem,
         index: QModelIndex | QPersistentModelIndex,
     ) -> None:
-        """Menggambar latar zebra hitam-putih, garis pemisah, dan teks sel tabel.
+        """Menggambar latar zebra gelap lembut, garis pemisah halus, dan teks sel tabel.
 
         Args:
             painter: Objek QPainter aktif untuk proses menggambar sel.
@@ -1261,16 +1275,16 @@ class ZebraRowDelegate(QStyledItemDelegate):
 
         if is_selected:
             bg_color = self._selected_bg
-            text_color = self._selected_text
-            divider_color = QColor("#1D4ED8")
+            divider_color = self._selected_divider
+        elif is_hovered:
+            bg_color = self._hover_bg
+            divider_color = self._divider_color
         elif is_odd:
-            bg_color = QColor("#1E2233") if is_hovered else self._odd_bg
-            text_color = self._odd_text
-            divider_color = QColor("#27273A")
+            bg_color = self._odd_bg
+            divider_color = self._divider_color
         else:
-            bg_color = QColor("#EBF2FF") if is_hovered else self._even_bg
-            text_color = self._even_text
-            divider_color = QColor("#CBD5E1")
+            bg_color = self._even_bg
+            divider_color = self._divider_color
 
         painter.fillRect(option.rect, bg_color)
 
@@ -1288,9 +1302,29 @@ class ZebraRowDelegate(QStyledItemDelegate):
             text_rect = option.rect.adjusted(12, 0, -12, 0)
             alignment_flags = self._resolve_alignment(index)
 
-            painter.setFont(option.font)
+            col = index.column()
+            font = QFont(option.font)
+
+            if is_selected:
+                text_color = self._selected_text
+            elif col == 0:  
+                text_color = self._muted_text
+            elif col == 1:  
+                text_color = self._invoice_text
+                font.setWeight(QFont.Weight.DemiBold)
+            elif col == 7:  
+                text_color = self._total_text
+                font.setWeight(QFont.Weight.Bold)
+            elif col == 5 and text_str not in ("Rp 0", "0", "-"):  
+                text_color = QColor("#F87171")
+            elif col == 2:  
+                text_color = QColor("#A6ADC8")
+            else:
+                text_color = self._default_text
+
+            painter.setFont(font)
             painter.setPen(text_color)
-            metrics = QFontMetrics(option.font)
+            metrics = QFontMetrics(font)
             elided = metrics.elidedText(
                 text_str,
                 Qt.TextElideMode.ElideRight,
@@ -1320,7 +1354,7 @@ class ZebraRowDelegate(QStyledItemDelegate):
 
 
 class TransactionTableWidget(QTableWidget):
-    """Tabel daftar riwayat transaksi dengan pola baris zebra hitam dan putih.
+    """Tabel daftar riwayat transaksi dengan pola baris zebra bernuansa gelap rapi.
 
     Signals:
         detail_requested: Dipancarkan saat tombol Detail pada kolom Aksi diklik.
@@ -1358,7 +1392,7 @@ class TransactionTableWidget(QTableWidget):
         h_header = self.horizontalHeader()
         if h_header is not None:
             h_header.setHighlightSections(False)
-            h_header.setFixedHeight(44)
+            h_header.setFixedHeight(38)
             h_header.setStretchLastSection(False)
 
             column_widths: dict[str, int] = {
@@ -1390,7 +1424,7 @@ class TransactionTableWidget(QTableWidget):
         v_header = self.verticalHeader()
         if v_header is not None:
             v_header.setVisible(False)
-            v_header.setDefaultSectionSize(44)
+            v_header.setDefaultSectionSize(36)
 
     def _apply_styles(self) -> None:
         """Menerapkan gaya QSS untuk bingkai, viewport, dan header tabel."""
@@ -1408,7 +1442,7 @@ class TransactionTableWidget(QTableWidget):
                 color: #BAC2DE;
                 font-size: 12px;
                 font-weight: 700;
-                padding: 8px 12px;
+                padding: 6px 12px;
                 border: none;
                 border-bottom: 2px solid #313244;
             }
@@ -1436,12 +1470,12 @@ class TransactionTableWidget(QTableWidget):
         container.setStyleSheet("background: transparent;")
 
         layout = QHBoxLayout(container)
-        layout.setContentsMargins(6, 4, 6, 4)
+        layout.setContentsMargins(6, 2, 6, 2)
         layout.setSpacing(6)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         detail_btn = QPushButton("Detail", container)
-        detail_btn.setFixedHeight(28)
+        detail_btn.setFixedHeight(24)
         detail_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         detail_btn.setStyleSheet(
             """
@@ -1449,19 +1483,22 @@ class TransactionTableWidget(QTableWidget):
                 background-color: #2563EB;
                 color: #FFFFFF;
                 border: none;
-                border-radius: 6px;
-                padding: 0px 10px;
+                border-radius: 5px;
+                padding: 0px 8px;
                 font-size: 11px;
                 font-weight: 600;
             }
             QPushButton:hover {
                 background-color: #3B82F6;
             }
+            QPushButton:pressed {
+                background-color: #1D4ED8;
+            }
             """
         )
 
         print_btn = QPushButton("Cetak", container)
-        print_btn.setFixedHeight(28)
+        print_btn.setFixedHeight(24)
         print_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         print_btn.setStyleSheet(
             """
@@ -1469,13 +1506,16 @@ class TransactionTableWidget(QTableWidget):
                 background-color: #334155;
                 color: #F8FAFC;
                 border: 1px solid #475569;
-                border-radius: 6px;
-                padding: 0px 10px;
+                border-radius: 5px;
+                padding: 0px 8px;
                 font-size: 11px;
                 font-weight: 600;
             }
             QPushButton:hover {
                 background-color: #475569;
+            }
+            QPushButton:pressed {
+                background-color: #1E293B;
             }
             """
         )

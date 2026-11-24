@@ -90,19 +90,15 @@ class TransactionDetailDialog(CustomDialog):
         main_layout.setContentsMargins(20, 16, 20, 20)
         main_layout.setSpacing(14)
 
-        # Header Info Card
         header_card = self._build_header_card()
         main_layout.addWidget(header_card)
 
-        # Items Table
         items_table = self._build_items_table()
         main_layout.addWidget(items_table, stretch=1)
 
-        # Totals & Payment Summary Card
         totals_card = self._build_totals_card()
         main_layout.addWidget(totals_card)
 
-        # Action Buttons Footer
         footer_layout = QHBoxLayout()
         footer_layout.setContentsMargins(0, 4, 0, 0)
         footer_layout.setSpacing(10)
@@ -188,7 +184,6 @@ class TransactionDetailDialog(CustomDialog):
         layout.setContentsMargins(12, 10, 12, 10)
         layout.setSpacing(16)
 
-        # Left Column: Invoice & Date
         left_col = QVBoxLayout()
         left_col.setSpacing(4)
 
@@ -202,7 +197,6 @@ class TransactionDetailDialog(CustomDialog):
         left_col.addWidget(date_label)
         layout.addLayout(left_col, stretch=2)
 
-        # Middle Column: Cashier & Customer
         mid_col = QVBoxLayout()
         mid_col.setSpacing(4)
 
@@ -216,7 +210,6 @@ class TransactionDetailDialog(CustomDialog):
         mid_col.addWidget(customer_label)
         layout.addLayout(mid_col, stretch=2)
 
-        # Right Column: Status & Payment Method
         right_col = QVBoxLayout()
         right_col.setSpacing(4)
         right_col.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -340,7 +333,6 @@ class TransactionDetailDialog(CustomDialog):
         layout.setContentsMargins(14, 10, 14, 10)
         layout.setSpacing(20)
 
-        # Left side: Pembayaran / Catatan
         left_layout = QVBoxLayout()
         left_layout.setSpacing(4)
 
@@ -363,7 +355,6 @@ class TransactionDetailDialog(CustomDialog):
 
         layout.addLayout(left_layout, stretch=1)
 
-        # Right side: Breakdown
         right_layout = QVBoxLayout()
         right_layout.setSpacing(4)
         right_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
