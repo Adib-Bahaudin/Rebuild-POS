@@ -15,6 +15,10 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Tuple
 
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 from config import DEFAULT_DB_PATH
 
 logger = logging.getLogger(__name__)
@@ -136,10 +140,16 @@ def run_superuser_in_cmd(db_path: Optional[str | Path] = None) -> None:
     resolved_db_path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
     try:
         script_path = Path(__file__).resolve()
+        proj_root = script_path.parent.parent
         logger.info("Membuka jendela CMD untuk inisialisasi Super User")
+        
+        env = os.environ.copy()
+        env["PYTHONPATH"] = str(proj_root) + os.pathsep + env.get("PYTHONPATH", "")
         
         result = subprocess.run(
             [sys.executable, str(script_path), str(resolved_db_path)],
+            cwd=str(proj_root),
+            env=env,
             creationflags=subprocess.CREATE_NEW_CONSOLE
         )
         
@@ -179,8 +189,8 @@ if __name__ == "__main__":
             input("Tekan Enter untuk menutup jendela ini dan kembali ke aplikasi...")
         sys.exit(e.code)
         
-    except Exception:
+    except (Exception, KeyboardInterrupt):
         logger.exception("Kesalahan sistem tidak terduga saat inisialisasi Super User")
-        print("\n[ERROR] Terjadi kesalahan sistem yang tidak terduga.")
+        print("\n[ERROR] Terjadi kesalahan sistem atau proses dibatalkan.")
         input("Tekan Enter untuk menutup jendela ini dan kembali ke aplikasi...")
         sys.exit(1)
