@@ -677,8 +677,9 @@ class TransactionRepository:
         cashier_name: str,
         note: str,
         print_receipt: bool,
-        due_date: Optional[str] = None,
-        payment_status: Optional[str] = None,
+        due_date: str | None = None,
+        payment_status: str | None = None,
+        dp_payment_method: str | None = None,
     ) -> TransactionResult:
         """Memvalidasi dan menyimpan satu transaksi penjualan lengkap secara atomik.
 
@@ -701,6 +702,8 @@ class TransactionRepository:
             print_receipt: Penanda apakah nota perlu dicetak.
             due_date: Tanggal jatuh tempo pelunasan piutang (YYYY-MM-DD). Default 12 hari ke depan.
             payment_status: Status pembayaran eksplisit ('PAID', 'PARTIAL', 'UNPAID') jika ada.
+            dp_payment_method: Metode pembayaran uang muka (DP) untuk kolom payment_method
+                pada tabel sale_payments saat status bernilai PARTIAL.
 
         Returns:
             Objek TransactionResult berisi detail faktur yang tersimpan.
@@ -833,11 +836,12 @@ class TransactionRepository:
             )
             sale_id = self._require_lastrowid(sale_cursor, "sales")
 
-            # Jika PARTIAL, simpan pembayaran DP ke sale_payments
-            # Trigger trg_sale_payments_after_insert akan otomatis mengupdate sales:
-            # amount_paid = dp_amount, remaining_amount = total - dp_amount, payment_status = 'PARTIAL'
             if effective_payment_status == "PARTIAL":
-                dp_payment_method = "Tunai" if payment_method == "Belum Lunas" else payment_method
+                resolved_dp_method = (
+                    dp_payment_method.strip()
+                    if dp_payment_method is not None and dp_payment_method.strip()
+                    else ("Tunai" if payment_method == "Belum Lunas" else payment_method)
+                )
                 conn.execute(
                     """
                     INSERT INTO sale_payments (
@@ -858,7 +862,7 @@ class TransactionRepository:
                         sale_date_str,
                         dp_amount,
                         dp_amount,
-                        dp_payment_method,
+                        resolved_dp_method,
                         cashier_name,
                         "Pembayaran Uang Muka (DP)",
                     ),
@@ -995,7 +999,6 @@ class TransactionRepository:
 
             conn.commit()
 
-            # Membaca data pelunasan dan status akhir yang disinkronkan oleh trigger SQLite
             sale_record = conn.execute(
                 """
                 SELECT amount_paid, remaining_amount, payment_status, due_date, payment_method
@@ -1144,9 +1147,10 @@ class TransactionController(QObject):
     def __init__(
         self,
         dashboard: DashboardPOS,
-        db_path: Optional[str | Path] = None,
+        db_path: str | Path | None = None,
         cashier_name: str = "KASIR",
-        parent: Optional[QObject] = None,
+        parent: QObject | None = None,
+        auto_connect_checkout: bool = True,
     ) -> None:
         """Menginisialisasi controller, repository database, dan koneksi sinyal UI.
 
@@ -1155,11 +1159,14 @@ class TransactionController(QObject):
             db_path: Lokasi file database SQLite transaksi. Default konfigurasi sistem.
             cashier_name: Nama kasir aktif untuk pencatatan transaksi.
             parent: Objek QObject induk opsional.
+            auto_connect_checkout: Jika True, langsung menghubungkan sinyal checkout_requested
+                ke slot _handle_checkout milik controller.
         """
         super().__init__(parent or dashboard)
         self.dashboard = dashboard
         self.repository = TransactionRepository(db_path=db_path)
         self.cashier_name = cashier_name
+        self._auto_connect_checkout: bool = auto_connect_checkout
 
         self._cart_items: list[CartLineItem] = []
         self._next_line_id: int = 1
@@ -1210,7 +1217,12 @@ class TransactionController(QObject):
             self.dashboard.payment_panel, "method_changed"
         ):
             self.dashboard.payment_panel.method_changed.connect(self._handle_payment_method_changed)
-        self.dashboard.checkout_requested.connect(self._handle_checkout)
+        if self._auto_connect_checkout:
+            self.dashboard.checkout_requested.connect(self._handle_checkout)
+
+    def _handle_checkout(self) -> None:
+        """Meneruskan sinyal checkout bawaan ke metode eksekusi checkout publik."""
+        self.execute_checkout()
 
     def _handle_autocomplete_selected(self, product: CatalogProduct) -> None:
         """Menambahkan produk terpilih dari dropdown autocomplete langsung ke keranjang."""
@@ -1596,13 +1608,22 @@ class TransactionController(QObject):
         else:
             self.auto_fill_payment_amount(method)
 
-    def _handle_checkout(self) -> None:
-        """Mengeksekusi penyimpanan transaksi dari DashboardPOS ke database SQLite."""
-        # Validasi aturan form pembayaran jika didukung oleh dashboard / panel pembayaran
+    def execute_checkout(self, dp_payment_method: str | None = None) -> None:
+        """Mengeksekusi penyimpanan transaksi dari DashboardPOS ke database SQLite.
+
+        Args:
+            dp_payment_method: Metode pembayaran khusus uang muka (DP) yang akan
+                disimpan ke kolom payment_method pada tabel sale_payments apabila
+                status pembayaran bernilai PARTIAL.
+        """
         if hasattr(self.dashboard, "validate_payment"):
             is_valid, val_err = self.dashboard.validate_payment()
             if not is_valid:
-                QMessageBox.warning(self._get_dialog_parent(), "Validasi Pembayaran", val_err)
+                QMessageBox.warning(
+                    self._get_dialog_parent(),
+                    "Validasi Pembayaran",
+                    val_err,
+                )
                 self.transaction_failed.emit(val_err)
                 return
         elif hasattr(self.dashboard, "payment_panel") and hasattr(
@@ -1610,7 +1631,11 @@ class TransactionController(QObject):
         ):
             is_valid, val_err = self.dashboard.payment_panel.validate_payment()
             if not is_valid:
-                QMessageBox.warning(self._get_dialog_parent(), "Validasi Pembayaran", val_err)
+                QMessageBox.warning(
+                    self._get_dialog_parent(),
+                    "Validasi Pembayaran",
+                    val_err,
+                )
                 self.transaction_failed.emit(val_err)
                 return
 
@@ -1630,6 +1655,7 @@ class TransactionController(QObject):
                 print_receipt=bool(payment_data["print_receipt"]),
                 due_date=payment_data.get("due_date"),
                 payment_status=payment_data.get("payment_status"),
+                dp_payment_method=dp_payment_method,
             )
         except TransactionError as exc:
             logger.warning("Validasi transaksi ditolak: %s", exc)
@@ -1639,9 +1665,21 @@ class TransactionController(QObject):
         except Exception as exc:
             logger.exception("Terjadi kesalahan saat menyimpan transaksi")
             error_msg = f"Terjadi kesalahan sistem saat menyimpan transaksi:\n{exc}"
-            QMessageBox.critical(self._get_dialog_parent(), "Kesalahan Database", error_msg)
+            QMessageBox.critical(
+                self._get_dialog_parent(),
+                "Kesalahan Database",
+                error_msg,
+            )
             self.transaction_failed.emit(error_msg)
             return
 
         self._handle_clear_cart()
         self.transaction_completed.emit(result)
+
+    def get_current_total(self) -> int:
+        """Mengembalikan total tagihan akhir transaksi aktif saat ini.
+
+        Returns:
+            Total tagihan akhir dalam rupiah.
+        """
+        return self._calculate_total()

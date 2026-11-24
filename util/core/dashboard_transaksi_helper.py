@@ -26,6 +26,7 @@ from core.transaksi_backend import (
     TransactionResult,
 )
 from ui.dashboard_ui import DashboardPOS
+from util.custominputdialog import CustomInputDialog
 
 try:
     from pyqttoast import Toast, ToastPreset
@@ -50,6 +51,7 @@ class DashboardTransaksiHelper(QObject):
     sale_succeeded = Signal(object)
     sale_failed = Signal(str)
     nav_selected = Signal(str)
+    DP_PAYMENT_METHODS: tuple[str, ...] = ("Tunai", "QRIS", "Transfer")
 
     def __init__(
         self,
@@ -80,6 +82,7 @@ class DashboardTransaksiHelper(QObject):
             db_path=self.db_path,
             cashier_name=effective_cashier,
             parent=self,
+            auto_connect_checkout=False,
         )
 
         self.repository: TransactionRepository = self.controller.repository
@@ -121,6 +124,88 @@ class DashboardTransaksiHelper(QObject):
         self.controller.transaction_completed.connect(self._handle_transaction_completed)
         self.controller.transaction_failed.connect(self._handle_transaction_failed)
         self.dashboard.navigation_requested.connect(self._handle_navigation)
+        self.dashboard.checkout_requested.connect(self._handle_checkout_requested)
+
+    def _get_dialog_parent(self) -> QWidget:
+        """Mengembalikan widget induk yang aman untuk menampilkan modal dialog.
+
+        Returns:
+            Widget jendela utama atau instance dashboard sebagai induk dialog.
+        """
+        return self.dashboard.window() or self.dashboard
+
+    def _is_partial_unpaid_transaction(self) -> bool:
+        """Memeriksa apakah transaksi termasuk pembayaran belum lunas dengan uang muka (DP).
+
+        Kondisi bernilai True apabila dropdown metode bayar bernilai 'Belum Lunas',
+        nominal pada kolom bayar lebih dari Rp 1.000, serta hasil get_payment_status()
+        mengembalikan 'PARTIAL'.
+
+        Returns:
+            True jika transaksi merupakan pembayaran parsial (DP), False sebaliknya.
+        """
+        payment_panel = self.dashboard.payment_panel
+        selected_method = payment_panel.method_combo.currentText().strip()
+        payment_data = self.dashboard.get_payment_data()
+        amount_paid = int(payment_data.get("amount_paid", 0))
+        payment_status = payment_panel.get_payment_status().strip().upper()
+
+        return (
+            selected_method == "Belum Lunas"
+            and amount_paid > 1000
+            and payment_status == "PARTIAL"
+        )
+
+    def _prompt_dp_payment_method(self) -> str | None:
+        """Menampilkan CustomInputDialog untuk memilih metode pembayaran uang muka (DP).
+
+        Returns:
+            Nama metode pembayaran terpilih ('Tunai', 'QRIS', atau 'Transfer'),
+            atau None jika kasir membatalkan dialog.
+        """
+        selected_method, accepted = CustomInputDialog.getItem(
+            self._get_dialog_parent(),
+            "Metode Pembayaran DP",
+            "Pilih metode pembayaran uang muka (DP):",
+            list(self.DP_PAYMENT_METHODS),
+            0,
+            False,
+        )
+        if not accepted:
+            return None
+
+        cleaned_method = selected_method.strip()
+        return cleaned_method if cleaned_method else None
+
+    def _handle_checkout_requested(self) -> None:
+        """Menangani penekanan tombol Bayar dengan dialog metode DP saat status PARTIAL."""
+        if not self.dashboard.get_cart_items():
+            self.controller.execute_checkout()
+            return
+
+        is_valid, _ = self.dashboard.validate_payment()
+        if not is_valid:
+            self.controller.execute_checkout()
+            return
+
+        if self._is_partial_unpaid_transaction():
+            payment_data = self.dashboard.get_payment_data()
+            amount_paid = int(payment_data.get("amount_paid", 0))
+            current_total = self.controller.get_current_total()
+
+            if current_total > 0 and amount_paid >= current_total:
+                self.controller.execute_checkout()
+                return
+
+            dp_payment_method = self._prompt_dp_payment_method()
+            if dp_payment_method is None:
+                logger.debug("Proses pembayaran DP dibatalkan oleh kasir.")
+                return
+
+            self.controller.execute_checkout(dp_payment_method=dp_payment_method)
+            return
+
+        self.controller.execute_checkout()
 
     def _handle_transaction_completed(self, result: TransactionResult) -> None:
         """Menangani event transaksi berhasil dari controller.
