@@ -74,12 +74,13 @@ PAYMENT_METHOD_OPTIONS: tuple[str, ...] = (
     "Tunai",
     "QRIS",
     "Transfer",
+    "Cicilan",
+    "Hutang",
 )
 
 PAYMENT_STATUS_OPTIONS: tuple[str, ...] = (
     "Semua Status",
     "Lunas",
-    "Cicilan",
     "Belum Lunas",
 )
 
@@ -1364,8 +1365,11 @@ class ZebraRowDelegate(QStyledItemDelegate):
         font = QFont(base_font)
         status_colors: dict[str, QColor] = {
             "Lunas": QColor("#4ADE80"),
-            "Cicilan": QColor("#FBBF24"),
             "Belum Lunas": QColor("#F87171"),
+        }
+        method_colors: dict[str, QColor] = {
+            "Cicilan": QColor("#FBBF24"),
+            "Hutang": QColor("#FB923C"),
         }
 
         if is_selected:
@@ -1377,6 +1381,9 @@ class ZebraRowDelegate(QStyledItemDelegate):
             font.setWeight(QFont.Weight.DemiBold)
         elif col == 2:
             text_color = QColor("#A6ADC8")
+        elif col == 3 and text_str in method_colors:
+            text_color = method_colors[text_str]
+            font.setWeight(QFont.Weight.DemiBold)
         elif col == 4 and text_str in status_colors:
             text_color = status_colors[text_str]
             font.setWeight(QFont.Weight.DemiBold)

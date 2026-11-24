@@ -719,7 +719,6 @@ class TransactionRepository:
         safe_discount = max(0, int(discount))
         total = max(0, subtotal - safe_discount + int(rounding) + int(tip))
 
-        # Deteksi status pembayaran
         if payment_status:
             effective_payment_status = payment_status.strip().upper()
         elif payment_method == "Belum Lunas":
@@ -738,7 +737,6 @@ class TransactionRepository:
         sale_dt = datetime.now()
         sale_date_str = sale_dt.strftime("%Y-%m-%d %H:%M:%S")
 
-        # Validasi Customer untuk piutang (UNPAID dan PARTIAL)
         if effective_payment_status != "PAID":
             if not customer_name.strip():
                 raise TransactionError(
@@ -759,7 +757,7 @@ class TransactionRepository:
 
         elif effective_payment_status == "PARTIAL":
             # Skenario 2: Transaksi dengan Uang Muka / DP (PARTIAL)
-            # Simpan header ke sales dengan total, payment_method = 'Tunai', lalu insert DP ke sale_payments
+            # Simpan header ke sales dengan total, payment_method = 'Belum Lunas', lalu insert DP ke sale_payments
             if amount_paid <= 1000:
                 raise TransactionError(
                     "Nominal pembayaran uang muka (DP) harus lebih dari Rp 1.000."
@@ -771,7 +769,7 @@ class TransactionRepository:
                 )
             dp_amount = amount_paid
             change_amount = 0
-            header_payment_method = "Tunai" if payment_method == "Belum Lunas" else payment_method
+            header_payment_method = "Belum Lunas"
             initial_amount_paid = 0
             if not due_date:
                 due_date = (sale_dt + timedelta(days=12)).strftime("%Y-%m-%d")
