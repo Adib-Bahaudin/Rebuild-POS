@@ -35,7 +35,7 @@ from ui.riwayat_transaksi import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PAGE_SIZE: int = 20
+DEFAULT_PAGE_SIZE: int = 9
 SEARCH_DEBOUNCE_MS: int = 300
 UNPAID_FILTER_LABEL: str = "Belum Lunas"
 ALL_METHODS_LABEL: str = "Semua Metode"
