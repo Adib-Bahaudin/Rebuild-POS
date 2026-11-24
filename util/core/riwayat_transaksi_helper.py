@@ -361,18 +361,26 @@ class TransactionDetailDialog(CustomDialog):
 
         subtotal_str = format_rupiah(self.detail.amounts.subtotal)
         discount_str = format_rupiah(self.detail.amounts.discount)
+        tip_str = format_rupiah(self.detail.amounts.tip)
         rounding_str = format_rupiah(self.detail.amounts.rounding, show_sign=True)
         total_str = format_rupiah(self.detail.amounts.total)
 
         sub_label = QLabel(f"Subtotal: {subtotal_str}", card)
         sub_label.setStyleSheet("color: #CDD6F4; font-size: 12px;")
         sub_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        right_layout.addWidget(sub_label)
 
         if self.detail.amounts.discount > 0:
             disc_label = QLabel(f"Diskon: -{discount_str}", card)
             disc_label.setStyleSheet("color: #F87171; font-size: 12px;")
             disc_label.setAlignment(Qt.AlignmentFlag.AlignRight)
             right_layout.addWidget(disc_label)
+
+        if self.detail.amounts.tip > 0:
+            tip_label = QLabel(f"Tip: +{tip_str}", card)
+            tip_label.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+            tip_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+            right_layout.addWidget(tip_label)
 
         if self.detail.amounts.rounding != 0:
             round_label = QLabel(f"Pembulatan: {rounding_str}", card)
@@ -384,7 +392,6 @@ class TransactionDetailDialog(CustomDialog):
         total_label.setStyleSheet("color: #4ADE80; font-size: 16px; font-weight: 700;")
         total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 
-        right_layout.addWidget(sub_label)
         right_layout.addWidget(total_label)
 
         layout.addLayout(right_layout, stretch=1)
