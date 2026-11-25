@@ -7,8 +7,11 @@ pelunasan, serta tombol cetak struk.
 
 from __future__ import annotations
 
+from typing import Callable
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
+    QDialog,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -21,6 +24,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.riwayat_backend import TransactionFullDetail, format_rupiah
+from ui.dialog.dialogbayarhutang import DialogBayarHutang
 from util.customdialog import CustomDialog
 
 
@@ -28,20 +32,25 @@ class TransactionDetailDialog(CustomDialog):
     """Dialog modal elegan untuk menampilkan rincian lengkap satu faktur transaksi."""
 
     print_requested = Signal(object)
+    debt_payment_submitted = Signal(str, int, str)
 
     def __init__(
         self,
         detail: TransactionFullDetail,
         parent: QWidget | None = None,
+        payment_handler: Callable[[str, int, str], TransactionFullDetail | None] | None = None,
     ) -> None:
         """Menginisialisasi dialog detail transaksi.
 
         Args:
             detail: Objek TransactionFullDetail yang memuat rincian transaksi lengkap.
             parent: Widget induk opsional.
+            payment_handler: Callback opsional untuk memproses pembayaran hutang
+                dan mengembalikan TransactionFullDetail terbaru.
         """
         super().__init__(parent=parent)
         self.detail: TransactionFullDetail = detail
+        self._payment_handler = payment_handler
 
         self.setWindowTitle(f"Detail Transaksi - {detail.metadata.invoice_number}")
         self.setFixedSize(680, 640)
@@ -49,22 +58,56 @@ class TransactionDetailDialog(CustomDialog):
 
     def _setup_ui(self) -> None:
         """Menyusun antarmuka dan komponen tata letak dialog detail."""
-        main_layout = QVBoxLayout(self.content_widget)
-        main_layout.setContentsMargins(20, 16, 20, 20)
-        main_layout.setSpacing(14)
+        self._main_layout = QVBoxLayout(self.content_widget)
+        self._main_layout.setContentsMargins(20, 16, 20, 20)
+        self._main_layout.setSpacing(14)
 
-        header_card = self._build_header_card()
-        main_layout.addWidget(header_card)
+        self._header_card = self._build_header_card()
+        self._main_layout.addWidget(self._header_card)
 
-        items_table = self._build_items_table()
-        main_layout.addWidget(items_table, stretch=1)
+        self._items_table = self._build_items_table()
+        self._main_layout.addWidget(self._items_table, stretch=1)
 
-        totals_card = self._build_totals_card()
-        main_layout.addWidget(totals_card)
+        self._totals_card = self._build_totals_card()
+        self._main_layout.addWidget(self._totals_card)
 
         footer_layout = QHBoxLayout()
         footer_layout.setContentsMargins(0, 4, 0, 0)
         footer_layout.setSpacing(10)
+
+        self.pay_debt_btn = QPushButton("Bayar Hutang", self)
+        self.pay_debt_btn.setObjectName("PayDebtButton")
+        self.pay_debt_btn.setFixedHeight(36)
+        self.pay_debt_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.pay_debt_btn.setStyleSheet(
+            """
+            QPushButton {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 #F59E0B,
+                    stop: 1 #D97706
+                );
+                color: #FFFFFF;
+                border: none;
+                border-radius: 6px;
+                padding: 0px 18px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 #FBBF24,
+                    stop: 1 #F59E0B
+                );
+            }
+            QPushButton:pressed {
+                background-color: #B45309;
+            }
+            """
+        )
+        self.pay_debt_btn.clicked.connect(self._on_pay_debt_clicked)
+        self.pay_debt_btn.setVisible(self._is_unpaid())
 
         print_btn = QPushButton("Cetak Struk", self)
         print_btn.setFixedHeight(36)
@@ -124,10 +167,11 @@ class TransactionDetailDialog(CustomDialog):
         )
         close_btn.clicked.connect(self.accept)
 
+        footer_layout.addWidget(self.pay_debt_btn)
         footer_layout.addStretch()
         footer_layout.addWidget(print_btn)
         footer_layout.addWidget(close_btn)
-        main_layout.addLayout(footer_layout)
+        self._main_layout.addLayout(footer_layout)
 
     def _build_header_card(self) -> QFrame:
         """Membangun kartu informasi metadata faktur."""
@@ -363,6 +407,49 @@ class TransactionDetailDialog(CustomDialog):
 
         layout.addLayout(right_layout, stretch=1)
         return card
+
+    def _is_unpaid(self) -> bool:
+        """Memeriksa apakah status pembayaran transaksi belum berstatus PAID."""
+        return self.detail.payment.payment_status.strip().upper() != "PAID"
+
+    def update_detail(self, detail: TransactionFullDetail) -> None:
+        """Memperbarui tampilan dialog dengan data transaksi terbaru."""
+        self.detail = detail
+
+        new_header = self._build_header_card()
+        self._main_layout.replaceWidget(self._header_card, new_header)
+        self._header_card.deleteLater()
+        self._header_card = new_header
+
+        new_totals = self._build_totals_card()
+        self._main_layout.replaceWidget(self._totals_card, new_totals)
+        self._totals_card.deleteLater()
+        self._totals_card = new_totals
+
+        self.pay_debt_btn.setVisible(self._is_unpaid())
+
+    def _on_pay_debt_clicked(self) -> None:
+        """Membuka dialog pembayaran hutang dan memproses pembayaran jika disetujui."""
+        dialog = DialogBayarHutang(detail=self.detail, parent=self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        amount = dialog.nominal
+        method = dialog.payment_method
+        if self._payment_handler is not None:
+            updated = self._payment_handler(
+                self.detail.metadata.invoice_number,
+                amount,
+                method,
+            )
+            if updated is not None:
+                self.update_detail(updated)
+
+        self.debt_payment_submitted.emit(
+            self.detail.metadata.invoice_number,
+            amount,
+            method,
+        )
 
     def _on_print_clicked(self) -> None:
         """Memancarkan sinyal print_requested dan menutup dialog."""

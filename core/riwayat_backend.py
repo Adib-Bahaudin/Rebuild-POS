@@ -972,6 +972,114 @@ class RiwayatRepository:
             payments=payments,
         )
 
+    def record_debt_payment(
+        self,
+        invoice_number: str,
+        tendered_amount: int,
+        payment_method: str,
+        cashier_name: str = "KASIR",
+        notes: str = "",
+    ) -> TransactionFullDetail | None:
+        """Mencatat pembayaran cicilan atau pelunasan hutang untuk satu transaksi.
+
+        Trigger SQLite pada tabel sale_payments akan otomatis memperbarui
+        amount_paid, remaining_amount, dan payment_status pada tabel sales.
+
+        Args:
+            invoice_number: Nomor faktur transaksi yang dibayar.
+            tendered_amount: Nominal uang yang diserahkan pelanggan.
+            payment_method: Metode pembayaran yang dipilih (Tunai/QRIS/Transfer).
+            cashier_name: Nama kasir yang menerima pembayaran.
+            notes: Catatan pembayaran opsional.
+
+        Returns:
+            Objek TransactionFullDetail terbaru setelah pembayaran dicatat.
+
+        Raises:
+            ValueError: Jika nominal tidak valid, faktur tidak ditemukan,
+                atau transaksi sudah berstatus lunas.
+        """
+        clean_invoice = invoice_number.strip()
+        if tendered_amount <= 0:
+            raise ValueError("Nominal pembayaran harus lebih dari Rp 0.")
+
+        clean_method = payment_method.strip() or "Tunai"
+        clean_cashier = cashier_name.strip() or "KASIR"
+        clean_notes = notes.strip() or "Pembayaran hutang"
+        payment_date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        with closing(self._connect()) as conn:
+            with conn:
+                sale_row = conn.execute(
+                    """
+                    SELECT
+                        id,
+                        total,
+                        amount_paid,
+                        remaining_amount,
+                        payment_status
+                    FROM sales
+                    WHERE invoice_number = ?
+                    LIMIT 1;
+                    """,
+                    (clean_invoice,),
+                ).fetchone()
+
+                if sale_row is None:
+                    raise ValueError(
+                        f"Transaksi dengan nomor invoice '{clean_invoice}' tidak ditemukan."
+                    )
+
+                current_status = str(sale_row["payment_status"] or "").strip().upper()
+                remaining_amount = int(sale_row["remaining_amount"] or 0)
+                if current_status == "PAID" or remaining_amount <= 0:
+                    raise ValueError(
+                        f"Transaksi '{clean_invoice}' sudah berstatus lunas."
+                    )
+
+                sale_id = int(sale_row["id"])
+                applied_amount = min(int(tendered_amount), remaining_amount)
+                change_given = max(0, int(tendered_amount) - remaining_amount)
+
+                conn.execute(
+                    """
+                    INSERT INTO sale_payments (
+                        sale_id,
+                        payment_date,
+                        amount,
+                        tendered_amount,
+                        change_given,
+                        payment_method,
+                        reference_number,
+                        cashier_name,
+                        notes
+                    )
+                    VALUES (?, ?, ?, ?, ?, ?, NULL, ?, ?);
+                    """,
+                    (
+                        sale_id,
+                        payment_date_str,
+                        applied_amount,
+                        int(tendered_amount),
+                        change_given,
+                        clean_method,
+                        clean_cashier,
+                        clean_notes,
+                    ),
+                )
+
+                if change_given > 0:
+                    conn.execute(
+                        """
+                        UPDATE sales
+                        SET change_amount = change_amount + ?
+                        WHERE id = ?;
+                        """,
+                        (change_given, sale_id),
+                    )
+
+        return self.fetch_transaction_detail(clean_invoice)
+
 
 class RiwayatExporter:
     """Layanan ekspor data riwayat transaksi ke dokumen Excel (.xlsx) dan PDF (.pdf)."""
@@ -1586,6 +1694,48 @@ class RiwayatBackend(QObject):
         detail = self.get_transaction_detail(invoice_number)
         if detail is not None:
             self.print_data_ready.emit(detail)
+
+    def record_debt_payment(
+        self,
+        invoice_number: str,
+        tendered_amount: int,
+        payment_method: str,
+        cashier_name: str = "KASIR",
+        notes: str = "",
+    ) -> TransactionFullDetail | None:
+        """Mencatat pembayaran hutang transaksi dan memuat ulang tabel riwayat.
+
+        Args:
+            invoice_number: Nomor faktur transaksi yang dibayar.
+            tendered_amount: Nominal pembayaran yang dimasukkan pengguna.
+            payment_method: Metode pembayaran yang dipilih.
+            cashier_name: Nama kasir pencatat pembayaran.
+            notes: Catatan tambahan opsional.
+
+        Returns:
+            Objek TransactionFullDetail terbaru jika berhasil, atau None jika gagal.
+        """
+        try:
+            updated_detail = self._repository.record_debt_payment(
+                invoice_number=invoice_number,
+                tendered_amount=tendered_amount,
+                payment_method=payment_method,
+                cashier_name=cashier_name,
+                notes=notes,
+            )
+        except (FileNotFoundError, sqlite3.Error, ValueError) as exc:
+            logger.exception(
+                "Gagal mencatat pembayaran hutang untuk invoice %s",
+                invoice_number,
+            )
+            self._notify_error(
+                "Gagal Mencatat Pembayaran",
+                str(exc),
+            )
+            return None
+
+        self.refresh()
+        return updated_detail
 
     def export_excel(self, output_path: Path | None = None) -> Path | None:
         """Mengekspor seluruh transaksi terfilter saat ini ke file Excel (.xlsx).

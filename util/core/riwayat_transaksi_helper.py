@@ -28,6 +28,7 @@ from core.riwayat_backend import (
     RiwayatExporter,
     RiwayatRepository,
     TransactionFullDetail,
+    format_rupiah,
 )
 from ui.dialog.dialogdetailtransaksi import TransactionDetailDialog
 from ui.riwayat_transaksi import (
@@ -154,9 +155,45 @@ class RiwayatTransaksiHelper(QObject):
                 logger.exception("Kesalahan pada callback detail_loaded")
 
         if self.auto_show_detail_dialog:
-            dialog = TransactionDetailDialog(detail=detail, parent=self.page)
+            dialog = TransactionDetailDialog(
+                detail=detail,
+                parent=self.page,
+                payment_handler=self._handle_debt_payment,
+            )
             dialog.print_requested.connect(self._handle_print_data_ready)
             dialog.exec()
+
+    def _handle_debt_payment(
+        self,
+        invoice_number: str,
+        amount: int,
+        payment_method: str,
+    ) -> Optional[TransactionFullDetail]:
+        """Memproses pembayaran hutang dari dialog detail transaksi.
+
+        Args:
+            invoice_number: Nomor faktur transaksi yang dibayar.
+            amount: Nominal pembayaran yang dimasukkan pengguna.
+            payment_method: Metode pembayaran yang dipilih.
+
+        Returns:
+            Objek TransactionFullDetail terbaru jika pembayaran berhasil dicatat.
+        """
+        updated_detail = self.backend.record_debt_payment(
+            invoice_number=invoice_number,
+            tendered_amount=amount,
+            payment_method=payment_method,
+        )
+        if updated_detail is not None and self.enable_notifications:
+            self.show_toast(
+                title="Pembayaran Dicatat",
+                message=(
+                    f"Pembayaran {format_rupiah(amount)} ({payment_method}) "
+                    f"untuk {invoice_number} berhasil disimpan."
+                ),
+                is_success=True,
+            )
+        return updated_detail
 
     def _handle_print_data_ready(self, detail: TransactionFullDetail) -> None:
         """Menangani permintaan cetak struk dari baris tabel atau dialog detail.
