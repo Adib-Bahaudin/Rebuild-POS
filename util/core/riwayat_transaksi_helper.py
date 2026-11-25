@@ -218,9 +218,6 @@ class TransactionDetailDialog(CustomDialog):
         if status_text == "PAID":
             badge_text = "LUNAS"
             badge_style = "background: rgba(34, 197, 94, 0.15); color: #4ADE80; border: 1px solid #16A34A;"
-        elif status_text == "PARTIAL":
-            badge_text = "CICILAN"
-            badge_style = "background: rgba(245, 158, 11, 0.15); color: #FBBF24; border: 1px solid #D97706;"
         else:
             badge_text = "BELUM LUNAS"
             badge_style = "background: rgba(239, 68, 68, 0.15); color: #F87171; border: 1px solid #DC2626;"
