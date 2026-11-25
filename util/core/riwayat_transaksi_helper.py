@@ -345,6 +345,13 @@ class TransactionDetailDialog(CustomDialog):
         left_layout.addWidget(bayar_label)
         left_layout.addWidget(kembalian_label)
 
+        if self.detail.payment.payment_status.strip().upper() != "PAID":
+            remaining_str = format_rupiah(self.detail.payment.remaining_amount)
+            unpaid_label = QLabel(f"Belum Terbayarkan: {remaining_str}", card)
+            unpaid_label.setObjectName("DetailUnpaidLabel")
+            unpaid_label.setStyleSheet("color: #F87171; font-size: 12px; font-weight: 600;")
+            left_layout.addWidget(unpaid_label)
+
         if self.detail.metadata.notes:
             notes_label = QLabel(f"Catatan: {self.detail.metadata.notes}", card)
             notes_label.setStyleSheet("color: #9399B2; font-size: 11px; font-style: italic;")
