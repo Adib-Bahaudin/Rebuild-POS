@@ -171,6 +171,7 @@ class RiwayatTransaksiHelper(QObject):
         invoice_number: str,
         amount: int,
         payment_method: str,
+        notes: str = "",
     ) -> Optional[TransactionFullDetail]:
         """Memproses pembayaran hutang dari dialog detail transaksi.
 
@@ -178,6 +179,7 @@ class RiwayatTransaksiHelper(QObject):
             invoice_number: Nomor faktur transaksi yang dibayar.
             amount: Nominal pembayaran yang dimasukkan pengguna.
             payment_method: Metode pembayaran yang dipilih.
+            notes: Catatan tambahan pembayaran dari pengguna.
 
         Returns:
             Objek TransactionFullDetail terbaru jika pembayaran berhasil dicatat.
@@ -187,6 +189,7 @@ class RiwayatTransaksiHelper(QObject):
             tendered_amount=amount,
             payment_method=payment_method,
             cashier_name=self.cashier_name,
+            notes=notes,
         )
         if updated_detail is not None and self.enable_notifications:
             self.show_toast(

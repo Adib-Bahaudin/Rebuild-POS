@@ -193,6 +193,7 @@ class TransactionPaymentRecord:
         change_given: Uang kembalian yang diberikan pada pembayaran ini.
         payment_method: Metode pembayaran yang digunakan.
         reference_number: Nomor referensi transfer/QRIS jika tersedia.
+        cashier_name: Nama kasir yang menerima pembayaran.
         notes: Catatan pembayaran opsional.
     """
 
@@ -203,6 +204,7 @@ class TransactionPaymentRecord:
     payment_method: str
     reference_number: str
     notes: str
+    cashier_name: str = "KASIR"
 
 
 @dataclass(frozen=True)
@@ -907,6 +909,7 @@ class RiwayatRepository:
                     change_given,
                     payment_method,
                     reference_number,
+                    cashier_name,
                     notes
                 FROM sale_payments
                 WHERE sale_id = ?
@@ -960,6 +963,7 @@ class RiwayatRepository:
                 payment_method=str(pay["payment_method"] or "Tunai"),
                 reference_number=str(pay["reference_number"] or ""),
                 notes=str(pay["notes"] or ""),
+                cashier_name=str(pay["cashier_name"] or "KASIR"),
             )
             for pay in payment_rows
         ]
@@ -1005,7 +1009,13 @@ class RiwayatRepository:
 
         clean_method = payment_method.strip() or "Tunai"
         clean_cashier = cashier_name.strip() or "KASIR"
-        clean_notes = notes.strip() or "Pembayaran hutang"
+        manual_notes = notes.strip()
+        if not manual_notes:
+            clean_notes = "Pembayaran hutang"
+        elif manual_notes.lower().startswith("pembayaran hutang"):
+            clean_notes = manual_notes
+        else:
+            clean_notes = f"Pembayaran hutang - {manual_notes}"
         payment_date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         with closing(self._connect()) as conn:

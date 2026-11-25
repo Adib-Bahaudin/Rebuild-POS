@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QTableWidget,
     QTableWidgetItem,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -46,9 +47,10 @@ class DialogBayarHutang(CustomDialog):
         self.detail: TransactionFullDetail = detail
         self._submitted_nominal: int = 0
         self._submitted_method: str = PAYMENT_METHOD_CHOICES[0]
+        self._submitted_notes: str = ""
 
         self.setWindowTitle(f"Bayar Hutang - {detail.metadata.invoice_number}")
-        self.setFixedSize(620, 520)
+        self.setFixedSize(680, 600)
         self._setup_ui()
         logger.info(
             "DialogBayarHutang dibuka untuk invoice %s (sisa=%d, riwayat=%d)",
@@ -66,6 +68,11 @@ class DialogBayarHutang(CustomDialog):
     def payment_method(self) -> str:
         """Mengembalikan metode pembayaran yang dipilih pengguna."""
         return self._submitted_method
+
+    @property
+    def notes(self) -> str:
+        """Mengembalikan catatan manual pembayaran yang dimasukkan pengguna."""
+        return self._submitted_notes
 
     def _setup_ui(self) -> None:
         """Menyusun komponen antarmuka dialog pembayaran hutang."""
@@ -216,8 +223,10 @@ class DialogBayarHutang(CustomDialog):
         """Membangun tabel daftar detail pembayaran sebelumnya."""
         table = QTableWidget(self)
         table.setObjectName("PreviousPaymentsTable")
-        table.setColumnCount(5)
-        table.setHorizontalHeaderLabels(["No", "Tanggal", "Metode", "Nominal", "Catatan"])
+        table.setColumnCount(6)
+        table.setHorizontalHeaderLabels(
+            ["No", "Tanggal", "Kasir", "Metode", "Nominal", "Catatan"]
+        )
         table.verticalHeader().setVisible(False)
         table.setShowGrid(False)
         table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
@@ -225,14 +234,16 @@ class DialogBayarHutang(CustomDialog):
 
         header = table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-        table.setColumnWidth(0, 40)
+        table.setColumnWidth(0, 38)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-        table.setColumnWidth(1, 145)
+        table.setColumnWidth(1, 138)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)
-        table.setColumnWidth(2, 90)
+        table.setColumnWidth(2, 100)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-        table.setColumnWidth(3, 120)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
+        table.setColumnWidth(3, 80)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        table.setColumnWidth(4, 110)
+        header.setSectionResizeMode(5, QHeaderView.ResizeMode.Stretch)
 
         table.setStyleSheet(
             """
@@ -264,6 +275,9 @@ class DialogBayarHutang(CustomDialog):
             col_date = QTableWidgetItem(pay.payment_date)
             col_date.setTextAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
 
+            col_cashier = QTableWidgetItem(pay.cashier_name.strip() or "KASIR")
+            col_cashier.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+
             col_method = QTableWidgetItem(pay.payment_method)
             col_method.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -276,15 +290,16 @@ class DialogBayarHutang(CustomDialog):
 
             table.setItem(idx - 1, 0, col_no)
             table.setItem(idx - 1, 1, col_date)
-            table.setItem(idx - 1, 2, col_method)
-            table.setItem(idx - 1, 3, col_amount)
-            table.setItem(idx - 1, 4, col_notes)
+            table.setItem(idx - 1, 2, col_cashier)
+            table.setItem(idx - 1, 3, col_method)
+            table.setItem(idx - 1, 4, col_amount)
+            table.setItem(idx - 1, 5, col_notes)
             table.setRowHeight(idx - 1, 30)
 
         return table
 
     def _build_input_card(self) -> QFrame:
-        """Membangun panel input nominal pembayaran dan pilihan metode bayar."""
+        """Membangun panel input nominal pembayaran, metode bayar, dan catatan."""
         card = QFrame(self)
         card.setObjectName("DebtInputCard")
         card.setStyleSheet(
@@ -296,9 +311,12 @@ class DialogBayarHutang(CustomDialog):
             }
             """
         )
-        layout = QHBoxLayout(card)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(12)
+        card_layout = QVBoxLayout(card)
+        card_layout.setContentsMargins(14, 12, 14, 12)
+        card_layout.setSpacing(10)
+
+        top_row = QHBoxLayout()
+        top_row.setSpacing(12)
 
         nominal_col = QVBoxLayout()
         nominal_col.setSpacing(6)
@@ -399,8 +417,37 @@ class DialogBayarHutang(CustomDialog):
         method_col.addWidget(method_lbl)
         method_col.addWidget(self.method_combo)
 
-        layout.addLayout(nominal_col, stretch=2)
-        layout.addLayout(method_col, stretch=1)
+        top_row.addLayout(nominal_col, stretch=2)
+        top_row.addLayout(method_col, stretch=1)
+        card_layout.addLayout(top_row)
+
+        notes_lbl = QLabel("Catatan Tambahan (Opsional)", card)
+        notes_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; font-weight: 600;")
+
+        self.notes_input = QTextEdit(card)
+        self.notes_input.setObjectName("DebtNotesInput")
+        self.notes_input.setFixedHeight(64)
+        self.notes_input.setPlaceholderText(
+            "Tambahkan catatan manual (catatan otomatis 'Pembayaran hutang' tetap dipertahankan)..."
+        )
+        self.notes_input.setStyleSheet(
+            """
+            QTextEdit {
+                background-color: #11111B;
+                border: 1px solid #313244;
+                border-radius: 6px;
+                padding: 6px 10px;
+                color: #CDD6F4;
+                font-size: 12px;
+            }
+            QTextEdit:focus {
+                border: 1px solid #3B82F6;
+            }
+            """
+        )
+
+        card_layout.addWidget(notes_lbl)
+        card_layout.addWidget(self.notes_input)
         return card
 
     def _fill_remaining_amount(self) -> None:
@@ -472,10 +519,12 @@ class DialogBayarHutang(CustomDialog):
 
         self._submitted_nominal = amount
         self._submitted_method = self.method_combo.currentText().strip() or "Tunai"
+        self._submitted_notes = self.notes_input.toPlainText().strip()
         logger.info(
-            "Pembayaran hutang disubmit dari dialog untuk invoice %s: nominal=%d, metode=%s",
+            "Pembayaran hutang disubmit dari dialog untuk invoice %s: nominal=%d, metode=%s, catatan=%r",
             self.detail.metadata.invoice_number,
             self._submitted_nominal,
             self._submitted_method,
+            self._submitted_notes,
         )
         self.accept()

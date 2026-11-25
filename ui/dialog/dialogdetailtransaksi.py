@@ -32,13 +32,13 @@ class TransactionDetailDialog(CustomDialog):
     """Dialog modal elegan untuk menampilkan rincian lengkap satu faktur transaksi."""
 
     print_requested = Signal(object)
-    debt_payment_submitted = Signal(str, int, str)
+    debt_payment_submitted = Signal(str, int, str, str)
 
     def __init__(
         self,
         detail: TransactionFullDetail,
         parent: QWidget | None = None,
-        payment_handler: Callable[[str, int, str], TransactionFullDetail | None] | None = None,
+        payment_handler: Callable[[str, int, str, str], TransactionFullDetail | None] | None = None,
     ) -> None:
         """Menginisialisasi dialog detail transaksi.
 
@@ -437,11 +437,13 @@ class TransactionDetailDialog(CustomDialog):
 
         amount = dialog.nominal
         method = dialog.payment_method
+        notes = dialog.notes
         if self._payment_handler is not None:
             updated = self._payment_handler(
                 self.detail.metadata.invoice_number,
                 amount,
                 method,
+                notes,
             )
             if updated is not None:
                 self.update_detail(updated)
@@ -450,6 +452,7 @@ class TransactionDetailDialog(CustomDialog):
             self.detail.metadata.invoice_number,
             amount,
             method,
+            notes,
         )
 
     def _on_print_clicked(self) -> None:
