@@ -188,37 +188,37 @@ class TransactionDetailDialog(CustomDialog):
             """
         )
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(12, 10, 12, 10)
+        layout.setContentsMargins(12, 5, 12, 5)
         layout.setSpacing(16)
 
         left_col = QVBoxLayout()
-        left_col.setSpacing(4)
+        left_col.setSpacing(5)
 
         invoice_label = QLabel(self.detail.metadata.invoice_number, card)
-        invoice_label.setStyleSheet("color: #60A5FA; font-size: 16px; font-weight: 700;")
+        invoice_label.setStyleSheet("color: #60A5FA; font-size: 16px; font-weight: 700; background: transparent;")
 
         date_label = QLabel(f"Waktu: {self.detail.metadata.sale_date}", card)
-        date_label.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+        date_label.setStyleSheet("color: #A6ADC8; font-size: 12px; background: transparent;")
 
         left_col.addWidget(invoice_label)
         left_col.addWidget(date_label)
         layout.addLayout(left_col, stretch=2)
 
         mid_col = QVBoxLayout()
-        mid_col.setSpacing(4)
+        mid_col.setSpacing(5)
 
         cashier_label = QLabel(f"Kasir: {self.detail.metadata.cashier_name}", card)
-        cashier_label.setStyleSheet("color: #CDD6F4; font-size: 12px;")
+        cashier_label.setStyleSheet("color: #CDD6F4; font-size: 12px; background: transparent;")
 
         customer_label = QLabel(f"Pelanggan: {self.detail.metadata.customer_name}", card)
-        customer_label.setStyleSheet("color: #CDD6F4; font-size: 12px;")
+        customer_label.setStyleSheet("color: #CDD6F4; font-size: 12px; background: transparent;")
 
         mid_col.addWidget(cashier_label)
         mid_col.addWidget(customer_label)
         layout.addLayout(mid_col, stretch=2)
 
         right_col = QVBoxLayout()
-        right_col.setSpacing(4)
+        right_col.setSpacing(5)
         right_col.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         status_text = self.detail.payment.payment_status.upper()
@@ -236,8 +236,9 @@ class TransactionDetailDialog(CustomDialog):
         badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         method_label = QLabel(f"Metode: {self.detail.payment.payment_method}", card)
-        method_label.setStyleSheet("color: #BAC2DE; font-size: 12px; font-weight: 600;")
-        method_label.setAlignment(Qt.AlignmentFlag.AlignRight)
+        method_label.setStyleSheet("color: #BAC2DE; font-size: 12px; font-weight: 600; background: transparent; border: 1px solid #BAC2DE;")
+        method_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        method_label.setFixedWidth(120)
 
         right_col.addWidget(badge)
         right_col.addWidget(method_label)
