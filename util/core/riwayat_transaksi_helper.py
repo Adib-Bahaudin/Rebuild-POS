@@ -73,6 +73,7 @@ class RiwayatTransaksiHelper(QObject):
         page_size: int = DEFAULT_PAGE_SIZE,
         enable_notifications: bool = True,
         auto_show_detail_dialog: bool = True,
+        cashier_name: Optional[str] = None,
         parent: Optional[QObject] = None,
     ) -> None:
         """Menginisialisasi helper dan menghubungkan halaman riwayat ke backend.
@@ -83,6 +84,7 @@ class RiwayatTransaksiHelper(QObject):
             page_size: Jumlah baris data per halaman tabel.
             enable_notifications: Aktifkan popup notifikasi toast otomatis.
             auto_show_detail_dialog: Tampilkan TransactionDetailDialog otomatis saat tombol Detail diklik.
+            cashier_name: Nama kasir yang sedang login saat ini.
             parent: Objek QObject induk opsional.
         """
         super().__init__(parent or page)
@@ -90,6 +92,7 @@ class RiwayatTransaksiHelper(QObject):
         self.db_path: Path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
         self.enable_notifications: bool = enable_notifications
         self.auto_show_detail_dialog: bool = auto_show_detail_dialog
+        self.cashier_name: str = (cashier_name or "").strip() or "KASIR"
 
         self.backend: RiwayatBackend = RiwayatBackend(
             page=self.page,
@@ -183,6 +186,7 @@ class RiwayatTransaksiHelper(QObject):
             invoice_number=invoice_number,
             tendered_amount=amount,
             payment_method=payment_method,
+            cashier_name=self.cashier_name,
         )
         if updated_detail is not None and self.enable_notifications:
             self.show_toast(
@@ -356,6 +360,7 @@ def bind_riwayat_to_backend(
     page_size: int = DEFAULT_PAGE_SIZE,
     enable_notifications: bool = True,
     auto_show_detail_dialog: bool = True,
+    cashier_name: Optional[str] = None,
 ) -> RiwayatTransaksiHelper:
     """Menghubungkan instance RiwayatTransaksiPage yang ada ke backend transaksi.
 
@@ -365,6 +370,7 @@ def bind_riwayat_to_backend(
         page_size: Jumlah baris data per halaman.
         enable_notifications: Status aktifkan popup notifikasi toast.
         auto_show_detail_dialog: Status tampilkan dialog modal detail otomatis saat tombol Detail diklik.
+        cashier_name: Nama kasir yang sedang login saat ini.
 
     Returns:
         Instance RiwayatTransaksiHelper yang telah terhubung.
@@ -375,6 +381,7 @@ def bind_riwayat_to_backend(
         page_size=page_size,
         enable_notifications=enable_notifications,
         auto_show_detail_dialog=auto_show_detail_dialog,
+        cashier_name=cashier_name,
     )
 
 
@@ -384,6 +391,7 @@ def create_connected_riwayat_page(
     parent: Optional[QWidget] = None,
     enable_notifications: bool = True,
     auto_show_detail_dialog: bool = True,
+    cashier_name: Optional[str] = None,
 ) -> RiwayatTransaksiPage:
     """Membuat instance RiwayatTransaksiPage baru sekaligus mengikatnya dengan backend transaksi.
 
@@ -393,6 +401,7 @@ def create_connected_riwayat_page(
         parent: Widget induk opsional.
         enable_notifications: Status aktifkan popup notifikasi toast.
         auto_show_detail_dialog: Status tampilkan dialog modal detail otomatis saat tombol Detail diklik.
+        cashier_name: Nama kasir yang sedang login saat ini.
 
     Returns:
         RiwayatTransaksiPage: Instance halaman riwayat yang telah terhubung ke database.
@@ -404,6 +413,7 @@ def create_connected_riwayat_page(
         page_size=page_size,
         enable_notifications=enable_notifications,
         auto_show_detail_dialog=auto_show_detail_dialog,
+        cashier_name=cashier_name,
     )
     return page
 
@@ -414,6 +424,7 @@ def create_connected_riwayat_window(
     parent: Optional[QWidget] = None,
     enable_notifications: bool = True,
     auto_show_detail_dialog: bool = True,
+    cashier_name: Optional[str] = None,
 ) -> RiwayatTransaksiWindow:
     """Membuat jendela standalone RiwayatTransaksiWindow yang telah terhubung ke backend.
 
@@ -423,6 +434,7 @@ def create_connected_riwayat_window(
         parent: Widget induk opsional.
         enable_notifications: Status aktifkan popup notifikasi toast.
         auto_show_detail_dialog: Status tampilkan dialog modal detail otomatis saat tombol Detail diklik.
+        cashier_name: Nama kasir yang sedang login saat ini.
 
     Returns:
         RiwayatTransaksiWindow: Jendela mandiri riwayat yang siap ditampilkan.
@@ -434,6 +446,7 @@ def create_connected_riwayat_window(
         page_size=page_size,
         enable_notifications=enable_notifications,
         auto_show_detail_dialog=auto_show_detail_dialog,
+        cashier_name=cashier_name,
     )
     window.page.on_page_entered()
     return window

@@ -161,7 +161,10 @@ def main() -> int:
             )
             dashboard_window.register_page(
                 "history",
-                lambda: create_connected_riwayat_page(db_path=DEFAULT_DB_PATH),
+                lambda: create_connected_riwayat_page(
+                    db_path=DEFAULT_DB_PATH,
+                    cashier_name=user_name,
+                ),
                 title="Riwayat Transaksi",
             )
             dashboard_window.register_page(
