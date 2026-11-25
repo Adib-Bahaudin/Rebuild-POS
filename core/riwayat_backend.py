@@ -323,8 +323,9 @@ def format_payment_method_label(
 ) -> str:
     """Memformat label kolom Metode Bayar berdasarkan metode dan status pembayaran.
 
-    Jika payment_method bernilai 'Belum Lunas', label dipetakan menjadi 'Cicilan'
-    saat status 'PARTIAL' atau 'Hutang' saat status 'UNPAID'.
+    Jika payment_method bernilai 'Belum Lunas' pada data lama, label dipetakan
+    menjadi 'Cicilan' saat status 'PARTIAL' atau 'Hutang' saat status 'UNPAID'.
+    Nilai 'Cicilan' dan 'Hutang' juga dinormalisasi agar konsisten.
 
     Args:
         payment_method: Nilai kolom payment_method pada tabel sales.
@@ -334,13 +335,19 @@ def format_payment_method_label(
         Label metode pembayaran terformat rapi untuk ditampilkan pada tabel.
     """
     method_clean = payment_method.strip()
+    method_lower = method_clean.lower()
     status_upper = payment_status.strip().upper()
 
-    if method_clean.lower() == "belum lunas":
+    if method_lower == "belum lunas":
         if status_upper == "PARTIAL":
             return "Cicilan"
         if status_upper == "UNPAID":
             return "Hutang"
+
+    if method_lower == "cicilan":
+        return "Cicilan"
+    if method_lower == "hutang":
+        return "Hutang"
 
     if not method_clean:
         return "Tunai"
@@ -571,13 +578,15 @@ class RiwayatRepository:
             payment_lower = payment_filter.lower()
             if payment_lower == "cicilan":
                 conditions.append(
-                    "LOWER(TRIM(s.payment_method)) = 'belum lunas' "
-                    "AND UPPER(TRIM(COALESCE(s.payment_status, 'PAID'))) = 'PARTIAL'"
+                    "(LOWER(TRIM(s.payment_method)) = 'cicilan' "
+                    "OR (LOWER(TRIM(s.payment_method)) = 'belum lunas' "
+                    "AND UPPER(TRIM(COALESCE(s.payment_status, 'PAID'))) = 'PARTIAL'))"
                 )
             elif payment_lower == "hutang":
                 conditions.append(
-                    "LOWER(TRIM(s.payment_method)) = 'belum lunas' "
-                    "AND UPPER(TRIM(COALESCE(s.payment_status, 'PAID'))) = 'UNPAID'"
+                    "(LOWER(TRIM(s.payment_method)) = 'hutang' "
+                    "OR (LOWER(TRIM(s.payment_method)) = 'belum lunas' "
+                    "AND UPPER(TRIM(COALESCE(s.payment_status, 'PAID'))) = 'UNPAID'))"
                 )
             else:
                 conditions.append("LOWER(TRIM(s.payment_method)) = LOWER(TRIM(?))")
@@ -922,9 +931,11 @@ class RiwayatRepository:
             tip=int(sale_row["tip"] or 0),
             total=int(sale_row["total"] or 0),
         )
+        raw_method = str(sale_row["payment_method"] or "Tunai")
+        raw_status = str(sale_row["payment_status"] or "PAID")
         payment = SalePaymentSummary(
-            payment_method=str(sale_row["payment_method"] or "Tunai"),
-            payment_status=str(sale_row["payment_status"] or "PAID"),
+            payment_method=format_payment_method_label(raw_method, raw_status),
+            payment_status=raw_status,
             amount_paid=int(sale_row["amount_paid"] or 0),
             remaining_amount=int(sale_row["remaining_amount"] or 0),
             change_amount=int(sale_row["change_amount"] or 0),

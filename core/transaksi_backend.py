@@ -749,18 +749,18 @@ class TransactionRepository:
 
         dp_amount = 0
         if effective_payment_status == "UNPAID":
-            # Skenario 1: Transaksi Belum Lunas Sama Sekali (UNPAID / Tempo)
-            # Simpan ke sales dengan amount_paid = 0, payment_method = 'Belum Lunas', due_date = '2026-12-05'
             amount_paid = 0
             change_amount = 0
-            header_payment_method = payment_method if payment_method else "Belum Lunas"
+            header_payment_method = (
+                "Hutang"
+                if payment_method.strip().lower() in ("", "belum lunas", "hutang")
+                else payment_method.strip()
+            )
             initial_amount_paid = 0
             if not due_date:
                 due_date = (sale_dt + timedelta(days=12)).strftime("%Y-%m-%d")
 
         elif effective_payment_status == "PARTIAL":
-            # Skenario 2: Transaksi dengan Uang Muka / DP (PARTIAL)
-            # Simpan header ke sales dengan total, payment_method = 'Belum Lunas', lalu insert DP ke sale_payments
             if amount_paid <= 1000:
                 raise TransactionError(
                     "Nominal pembayaran uang muka (DP) harus lebih dari Rp 1.000."
@@ -772,13 +772,16 @@ class TransactionRepository:
                 )
             dp_amount = amount_paid
             change_amount = 0
-            header_payment_method = "Belum Lunas"
+            header_payment_method = (
+                "Cicilan"
+                if payment_method.strip().lower() in ("", "belum lunas", "cicilan")
+                else payment_method.strip()
+            )
             initial_amount_paid = 0
             if not due_date:
                 due_date = (sale_dt + timedelta(days=12)).strftime("%Y-%m-%d")
 
         else:
-            # Transaksi Lunas Penuh (PAID)
             if amount_paid < total:
                 raise InsufficientPaymentError(
                     f"Nominal pembayaran (Rp {amount_paid:,}) kurang dari "
@@ -840,7 +843,12 @@ class TransactionRepository:
                 resolved_dp_method = (
                     dp_payment_method.strip()
                     if dp_payment_method is not None and dp_payment_method.strip()
-                    else ("Tunai" if payment_method == "Belum Lunas" else payment_method)
+                    else (
+                        "Tunai"
+                        if payment_method.strip().lower()
+                        in ("", "belum lunas", "cicilan", "hutang")
+                        else payment_method.strip()
+                    )
                 )
                 conn.execute(
                     """
