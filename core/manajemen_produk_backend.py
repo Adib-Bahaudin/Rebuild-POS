@@ -1080,6 +1080,41 @@ class ManajemenProdukRepository:
             fifo_layers=fifo_layers,
         )
 
+    def fetch_stock_item_options(self) -> list[tuple[int, str, str, str, float]]:
+        """Mengambil daftar barang beserta total sisa stok FIFO aktifnya."""
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    i.id,
+                    i.sku,
+                    i.name,
+                    u.symbol AS base_unit_symbol,
+                    COALESCE(
+                        (
+                            SELECT SUM(il.remaining_qty)
+                            FROM inventory_layers AS il
+                            WHERE il.item_id = i.id AND il.remaining_qty > 0
+                        ),
+                        0
+                    ) AS current_stock
+                FROM items AS i
+                INNER JOIN units AS u ON u.id = i.base_unit_id
+                WHERE i.is_active = 1
+                ORDER BY i.name ASC;
+                """
+            ).fetchall()
+        return [
+            (
+                int(row["id"]),
+                str(row["sku"] or ""),
+                str(row["name"] or ""),
+                str(row["base_unit_symbol"] or ""),
+                float(row["current_stock"] or 0.0),
+            )
+            for row in rows
+        ]
+
     def fetch_material_item_options(
         self,
         include_inactive: bool = False,

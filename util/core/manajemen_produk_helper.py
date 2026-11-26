@@ -46,6 +46,10 @@ from ui.manajemenproduk import (
     ManajemenProdukWindow,
     ProductFilterState,
 )
+from ui.dialog.StockAdjustmentDialog import (
+    StockAdjustmentDialog,
+    StockItemOption,
+)
 
 try:
     from pyqttoast import Toast, ToastPreset
@@ -160,6 +164,17 @@ class ManajemenProdukHelper(QObject):
                         include_inactive=edit_data is not None
                     )
                 ],
+            )
+        )
+
+        self.set_stock_adjustment_dialog_handler(
+            lambda parent, item_id: StockAdjustmentDialog.get_adjustment_payload(
+                parent=parent,
+                item_options=[
+                    StockItemOption(*row)
+                    for row in self.repository.fetch_stock_item_options()
+                ],
+                preselected_item_id=item_id,
             )
         )
 
