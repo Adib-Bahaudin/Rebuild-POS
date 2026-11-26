@@ -38,6 +38,7 @@ from ui.customwindowtitlebar import (
     ICON_PATHS,
 )
 from ui.loginpage import LoginPage
+from ui.manajemenproduk import ManajemenProdukPage
 from util.core.dashboard_transaksi_helper import create_connected_dashboard
 from util.core.riwayat_transaksi_helper import create_connected_riwayat_page
 from util.helper.initdatabase import InitDatabase
@@ -169,7 +170,7 @@ def main() -> int:
             )
             dashboard_window.register_page(
                 "product",
-                lambda: create_placeholder_page("Manajemen Produk"),
+                lambda: ManajemenProdukPage(),
                 title="Manajemen Produk",
             )
             dashboard_window.register_page(
