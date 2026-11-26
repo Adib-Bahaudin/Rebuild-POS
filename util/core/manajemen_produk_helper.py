@@ -39,6 +39,7 @@ from core.manajemen_produk_backend import (
 )
 from ui.customwindowtitlebar import ICON_PATHS, TitleBarIconConfig
 from ui.dialog.ItemFormDialog import ItemFormDialog
+from ui.dialog.ServiceFormDialog import MaterialItemOption, ServiceFormDialog
 from ui.manajemenproduk import (
     CategoryOption,
     ManajemenProdukPage,
@@ -148,6 +149,19 @@ class ManajemenProdukHelper(QObject):
         self._master_dialog_handler: MasterDialogHandler | None = None
 
         self.set_item_dialog_handler(ItemFormDialog.get_item_payload)
+        
+        self.set_service_dialog_handler(
+            lambda parent, edit_data: ServiceFormDialog.get_service_payload(
+                parent=parent,
+                edit_data=edit_data,
+                material_options=[
+                    MaterialItemOption(*row)
+                    for row in self.repository.fetch_material_item_options(
+                        include_inactive=edit_data is not None
+                    )
+                ],
+            )
+        )
 
         self._on_data_loaded_callbacks: list[
             Callable[[PaginatedProductsResult], None]

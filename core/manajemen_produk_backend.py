@@ -1080,6 +1080,32 @@ class ManajemenProdukRepository:
             fifo_layers=fifo_layers,
         )
 
+    def fetch_material_item_options(
+        self,
+        include_inactive: bool = False,
+    ) -> list[tuple[int, str, str, str]]:
+        """Mengambil daftar ringkas barang (id, sku, name, unit_symbol) untuk bahan baku."""
+        where_clause = "" if include_inactive else "WHERE i.is_active = 1"
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                f"""
+                SELECT i.id, i.sku, i.name, u.symbol AS base_unit_symbol
+                FROM items AS i
+                INNER JOIN units AS u ON u.id = i.base_unit_id
+                {where_clause}
+                ORDER BY i.is_active DESC, i.name ASC;
+                """
+            ).fetchall()
+        return [
+            (
+                int(row["id"]),
+                str(row["sku"] or ""),
+                str(row["name"] or ""),
+                str(row["base_unit_symbol"] or ""),
+            )
+            for row in rows
+        ]
+
     def fetch_item_edit_data(self, item_id: int) -> ItemEditData | None:
         """Mengambil data barang untuk kebutuhan pengisian dialog edit.
 
