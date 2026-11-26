@@ -300,10 +300,18 @@ class CompactMetricCard(QFrame):
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
 
+        accent_gradients = {
+            "#3B82F6": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #60A5FA, stop:1 #2563EB)",
+            "#F59E0B": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #FBBF24, stop:1 #D97706)",
+            "#22C55E": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #4ADE80, stop:1 #16A34A)",
+            "#94A3B8": "qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #CBD5E1, stop:1 #64748B)",
+        }
+        accent_bg = accent_gradients.get(self.accent_color, self.accent_color)
+
         accent_bar = QFrame(self)
         accent_bar.setFixedWidth(3)
         accent_bar.setStyleSheet(
-            f"background-color: {self.accent_color}; border: none; "
+            f"background: {accent_bg}; border: none; "
             "border-top-left-radius: 6px; border-bottom-left-radius: 6px;"
         )
 
@@ -336,31 +344,60 @@ class CompactMetricCard(QFrame):
 
     def _apply_styles(self) -> None:
         """Menerapkan gaya QSS ringkas pada kartu metrik."""
+        card_themes = {
+            "#3B82F6": (
+                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1D2844, stop:0.45 #1E2034, stop:1 #181A2A)",
+                "#33446B",
+            ),
+            "#F59E0B": (
+                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2C231B, stop:0.45 #201E30, stop:1 #191928)",
+                "#4F3E2A",
+            ),
+            "#22C55E": (
+                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #192D26, stop:0.45 #1C2132, stop:1 #171B28)",
+                "#2B4C3E",
+            ),
+            "#94A3B8": (
+                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #23263B, stop:0.45 #1E1F30, stop:1 #181927)",
+                "#393D57",
+            ),
+        }
+        card_bg, card_border = card_themes.get(
+            self.accent_color,
+            (
+                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #212338, stop:1 #1A1B2B)",
+                "#343752",
+            ),
+        )
         self.setStyleSheet(
-            """
-            QFrame#CompactMetricCard {
-                background-color: #1E1E2E;
-                border: 1px solid #313244;
+            f"""
+            QFrame#CompactMetricCard {{
+                background: {card_bg};
+                border: 1px solid {card_border};
                 border-radius: 6px;
-            }
-            QLabel#MetricTitle {
-                color: #9399B2;
+            }}
+            QLabel#MetricTitle {{
+                color: #A6ADC8;
                 font-size: 10px;
                 font-weight: 700;
                 letter-spacing: 0.4px;
                 background: transparent;
-            }
-            QLabel#MetricValue {
-                color: #CDD6F4;
+            }}
+            QLabel#MetricValue {{
+                color: #F1F5F9;
                 font-size: 17px;
                 font-weight: 700;
                 background: transparent;
-            }
-            QLabel#MetricSubtitle {
-                color: #6C7086;
+            }}
+            QLabel#MetricSubtitle {{
+                color: #8992B2;
                 font-size: 10px;
                 background: transparent;
-            }
+            }}
+            QWidget#TableCellContainer {{
+                background-color: transparent;
+                border: none;
+            }}
             """
         )
 
@@ -695,23 +732,23 @@ class ProductDetailPanel(QFrame):
         self.setStyleSheet(
             """
             QFrame#DetailPanel {
-                background-color: #1E1E2E;
-                border: 1px solid #313244;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #202236, stop:0.5 #1B1D2E, stop:1 #161726);
+                border: 1px solid #343854;
                 border-radius: 6px;
             }
             QLabel#EmptyTitle {
-                color: #CDD6F4;
+                color: #E2E8F0;
                 font-size: 13px;
                 font-weight: 700;
             }
             QLabel#EmptyHint {
-                color: #6C7086;
+                color: #838BA8;
                 font-size: 11px;
             }
             QLabel#SkuBadge {
-                background-color: #252638;
-                color: #89B4FA;
-                border: 1px solid #313244;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #222B47, stop:1 #1E293B);
+                color: #7DD3FC;
+                border: 1px solid #384B73;
                 border-radius: 4px;
                 padding: 2px 6px;
                 font-size: 11px;
@@ -724,47 +761,47 @@ class ProductDetailPanel(QFrame):
                 font-weight: 700;
             }
             QLabel#DetailTitle {
-                color: #CDD6F4;
+                color: #F1F5F9;
                 font-size: 14px;
                 font-weight: 700;
             }
             QLabel#DetailMeta {
-                color: #9399B2;
+                color: #A6B0CE;
                 font-size: 11px;
             }
             QLabel#DetailDesc {
-                color: #7F849C;
+                color: #8A93B2;
                 font-size: 11px;
             }
             QFrame#SummaryStrip {
-                background-color: #181825;
-                border: 1px solid #313244;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #151726, stop:1 #1D2238);
+                border: 1px solid #343B59;
                 border-radius: 5px;
             }
             QFrame#VerticalDivider {
-                color: #313244;
-                background-color: #313244;
+                color: #343B59;
+                background-color: #343B59;
                 max-width: 1px;
             }
             QLabel#StripCaption {
-                color: #6C7086;
+                color: #848EAD;
                 font-size: 9px;
                 font-weight: 700;
                 letter-spacing: 0.4px;
             }
             QLabel#StripValue {
-                color: #CDD6F4;
+                color: #F1F5F9;
                 font-size: 13px;
                 font-weight: 700;
             }
             QLabel#SectionHeader {
-                color: #BAC2DE;
+                color: #C4CEEC;
                 font-size: 11px;
                 font-weight: 700;
                 padding-top: 2px;
             }
             QPushButton#DetailPrimaryBtn {
-                background-color: #3B82F6;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3B82F6, stop:1 #06B6D4);
                 color: #FFFFFF;
                 border: none;
                 border-radius: 4px;
@@ -773,37 +810,37 @@ class ProductDetailPanel(QFrame):
                 font-weight: 600;
             }
             QPushButton#DetailPrimaryBtn:hover {
-                background-color: #2563EB;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #60A5FA, stop:1 #22D3EE);
             }
             QPushButton#DetailSecondaryBtn {
-                background-color: #252638;
-                color: #CDD6F4;
-                border: 1px solid #3B3D54;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #292C44, stop:1 #202235);
+                color: #E2E8F0;
+                border: 1px solid #3E4366;
                 border-radius: 4px;
                 padding: 5px 8px;
                 font-size: 11px;
                 font-weight: 600;
             }
             QPushButton#DetailSecondaryBtn:hover {
-                background-color: #313244;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #353959, stop:1 #2A2D46);
             }
             QTableWidget#MiniTable {
-                background-color: #181825;
-                alternate-background-color: #1C1C2B;
-                color: #CDD6F4;
-                border: 1px solid #313244;
+                background-color: #161724;
+                alternate-background-color: #1C1E2E;
+                color: #E2E8F0;
+                border: 1px solid #323652;
                 border-radius: 4px;
                 font-size: 11px;
             }
             QTableWidget#MiniTable::item {
                 padding: 2px 5px;
-                border-bottom: 1px solid #252638;
+                border-bottom: 1px solid #26293F;
             }
             QTableWidget#MiniTable QHeaderView::section {
-                background-color: #252638;
-                color: #9399B2;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #262940, stop:1 #1F2135);
+                color: #A6B0CE;
                 border: none;
-                border-bottom: 1px solid #313244;
+                border-bottom: 1px solid #343854;
                 padding: 2px 5px;
                 font-size: 10px;
                 font-weight: 700;
@@ -1327,29 +1364,29 @@ class ManajemenProdukPage(QWidget):
         self.setStyleSheet(
             """
             QWidget#ManajemenProdukPage {
-                background-color: #181825;
-                color: #CDD6F4;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #11111B, stop:0.5 #151624, stop:1 #18192A);
+                color: #E2E8F0;
             }
             QFrame#HeaderBar, QFrame#FilterBar, QFrame#TableCard {
-                background-color: #1E1E2E;
-                border: 1px solid #313244;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #1E1E2E, stop:0.6 #202236, stop:1 #1B2235);
+                border: 1px solid #343752;
                 border-radius: 6px;
             }
             QLabel#PageTitle {
-                color: #CDD6F4;
+                color: #F1F5F9;
                 font-size: 14px;
                 font-weight: 700;
                 padding-right: 6px;
                 background: transparent;
             }
             QFrame#TabSegmented {
-                background-color: #181825;
-                border: 1px solid #313244;
+                background-color: #131420;
+                border: 1px solid #313550;
                 border-radius: 5px;
             }
             QPushButton#SegmentBtn {
                 background-color: transparent;
-                color: #9399B2;
+                color: #9AA3C2;
                 border: none;
                 border-radius: 4px;
                 padding: 4px 10px;
@@ -1357,14 +1394,14 @@ class ManajemenProdukPage(QWidget):
                 font-weight: 600;
             }
             QPushButton#SegmentBtn:hover {
-                color: #CDD6F4;
+                color: #E2E8F0;
             }
             QPushButton#SegmentBtn:checked {
-                background-color: #3B82F6;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3B82F6, stop:1 #0EA5E9);
                 color: #FFFFFF;
             }
             QPushButton#PrimaryActionBtn {
-                background-color: #3B82F6;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #3B82F6, stop:0.55 #2563EB, stop:1 #06B6D4);
                 color: #FFFFFF;
                 border: none;
                 border-radius: 5px;
@@ -1373,113 +1410,113 @@ class ManajemenProdukPage(QWidget):
                 font-weight: 700;
             }
             QPushButton#PrimaryActionBtn:hover {
-                background-color: #2563EB;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #60A5FA, stop:0.55 #3B82F6, stop:1 #22D3EE);
             }
             QPushButton#PrimaryActionBtn:pressed {
-                background-color: #1D4ED8;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1D4ED8, stop:1 #0891B2);
             }
             QPushButton#SecondaryActionBtn {
-                background-color: #252638;
-                color: #CDD6F4;
-                border: 1px solid #3B3D54;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #2A2D45, stop:1 #202236);
+                color: #E2E8F0;
+                border: 1px solid #3E4366;
                 border-radius: 5px;
                 padding: 5px 10px;
                 font-size: 11px;
                 font-weight: 600;
             }
             QPushButton#SecondaryActionBtn:hover {
-                background-color: #313244;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #353959, stop:1 #2A2D46);
             }
             QPushButton#GhostActionBtn {
                 background-color: transparent;
-                color: #9399B2;
-                border: 1px solid #313244;
+                color: #A2ACC9;
+                border: 1px solid #363A57;
                 border-radius: 5px;
                 padding: 5px 9px;
                 font-size: 11px;
                 font-weight: 600;
             }
             QPushButton#GhostActionBtn:hover {
-                background-color: #252638;
-                color: #CDD6F4;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #262940, stop:1 #2A2F4A);
+                color: #F1F5F9;
             }
             QLineEdit#FilterInput, QComboBox#FilterCombo {
-                background-color: #181825;
-                color: #CDD6F4;
-                border: 1px solid #313244;
+                background-color: #141522;
+                color: #E2E8F0;
+                border: 1px solid #323652;
                 border-radius: 5px;
                 padding: 3px 8px;
                 font-size: 12px;
                 min-height: 22px;
             }
             QLineEdit#FilterInput:focus, QComboBox#FilterCombo:focus {
-                border: 1px solid #3B82F6;
+                border: 1px solid #38BDF8;
             }
             QComboBox#FilterCombo::drop-down {
                 border: none;
                 width: 20px;
             }
             QComboBox#FilterCombo QAbstractItemView {
-                background-color: #1E1E2E;
-                color: #CDD6F4;
-                border: 1px solid #313244;
-                selection-background-color: #3B82F6;
+                background-color: #1B1D2E;
+                color: #E2E8F0;
+                border: 1px solid #3B405E;
+                selection-background-color: #2563EB;
                 selection-color: #FFFFFF;
             }
             QSplitter#MainSplitter::handle {
                 background-color: transparent;
             }
             QTableWidget#MasterTable {
-                background-color: #1E1E2E;
-                alternate-background-color: #222335;
-                color: #CDD6F4;
+                background-color: #1B1C2C;
+                alternate-background-color: #212236;
+                color: #E2E8F0;
                 border: none;
                 font-size: 12px;
-                selection-background-color: rgba(59, 130, 246, 0.22);
+                selection-background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(59, 130, 246, 0.28), stop:1 rgba(6, 182, 212, 0.22));
                 selection-color: #FFFFFF;
             }
             QTableWidget#MasterTable::item {
                 padding: 2px 8px;
-                border-bottom: 1px solid #26273A;
+                border-bottom: 1px solid #282A40;
             }
             QTableWidget#MasterTable QHeaderView::section {
-                background-color: #252638;
-                color: #9399B2;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #272940, stop:1 #202236);
+                color: #A6B1D1;
                 border: none;
-                border-bottom: 1px solid #313244;
+                border-bottom: 1px solid #383C59;
                 padding: 4px 8px;
                 font-size: 11px;
                 font-weight: 700;
             }
             QFrame#PaginationBar {
-                background-color: #1A1B28;
-                border-top: 1px solid #313244;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #181928, stop:1 #1E2033);
+                border-top: 1px solid #323652;
                 border-bottom-left-radius: 6px;
                 border-bottom-right-radius: 6px;
             }
             QLabel#PageInfoLabel, QLabel#PageIndicatorLabel {
-                color: #9399B2;
+                color: #9AA3C2;
                 font-size: 11px;
                 background: transparent;
             }
             QPushButton#PaginationBtn {
-                background-color: #252638;
-                color: #CDD6F4;
-                border: 1px solid #313244;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #282B42, stop:1 #202235);
+                color: #E2E8F0;
+                border: 1px solid #383C59;
                 border-radius: 4px;
                 padding: 2px 8px;
                 font-size: 11px;
             }
             QPushButton#PaginationBtn:hover:enabled {
-                background-color: #313244;
+                background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #343856, stop:1 #2A2D45);
             }
             QPushButton#PaginationBtn:disabled {
                 color: #585B70;
-                background-color: #1E1E2E;
+                background: #1B1C2B;
             }
             QPushButton#RowActionEdit {
                 background-color: rgba(59, 130, 246, 0.16);
-                color: #89B4FA;
+                color: #7DD3FC;
                 border: 1px solid rgba(59, 130, 246, 0.35);
                 border-radius: 4px;
                 padding: 1px 6px;
@@ -1487,12 +1524,12 @@ class ManajemenProdukPage(QWidget):
                 font-weight: 600;
             }
             QPushButton#RowActionEdit:hover {
-                background-color: #3B82F6;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3B82F6, stop:1 #06B6D4);
                 color: #FFFFFF;
             }
             QPushButton#RowActionStock {
                 background-color: rgba(34, 197, 94, 0.14);
-                color: #4ADE80;
+                color: #34D399;
                 border: 1px solid rgba(34, 197, 94, 0.30);
                 border-radius: 4px;
                 padding: 1px 6px;
@@ -1500,7 +1537,7 @@ class ManajemenProdukPage(QWidget):
                 font-weight: 600;
             }
             QPushButton#RowActionStock:hover {
-                background-color: #22C55E;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #22C55E, stop:1 #10B981);
                 color: #0F172A;
             }
             QPushButton#RowActionArchive {
@@ -1513,7 +1550,7 @@ class ManajemenProdukPage(QWidget):
                 font-weight: 600;
             }
             QPushButton#RowActionArchive:hover {
-                background-color: #F59E0B;
+                background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #F59E0B, stop:1 #EA580C);
                 color: #0F172A;
             }
             """
@@ -1676,6 +1713,18 @@ class ManajemenProdukPage(QWidget):
         if self._current_page < self._total_pages:
             self.page_changed.emit(self._current_page + 1)
 
+    def _create_cell_container(self) -> QWidget:
+        """Membuat kontainer transparan agar menyatu dengan latar baris tabel.
+
+        Returns:
+            Widget kontainer dengan latar belakang transparan penuh.
+        """
+        container = QWidget(self)
+        container.setObjectName("TableCellContainer")
+        container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        container.setAutoFillBackground(False)
+        return container
+
     def _create_status_widget(self, is_active: bool) -> QWidget:
         """Membuat widget badge status terpusat untuk sel tabel.
 
@@ -1683,9 +1732,9 @@ class ManajemenProdukPage(QWidget):
             is_active: Menentukan apakah badge bertuliskan Aktif atau Arsip.
 
         Returns:
-            Widget kontainer berisi QLabel badge status.
+            Widget kontainer transparan berisi QLabel badge status.
         """
-        container = QWidget(self)
+        container = self._create_cell_container()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -1694,11 +1743,13 @@ class ManajemenProdukPage(QWidget):
         if is_active:
             badge.setStyleSheet(
                 "background-color: rgba(34, 197, 94, 0.16); color: #4ADE80; "
+                "border: 1px solid rgba(34, 197, 94, 0.30); "
                 "border-radius: 3px; padding: 1px 6px; font-size: 10px; font-weight: 700;"
             )
         else:
             badge.setStyleSheet(
                 "background-color: rgba(148, 163, 184, 0.16); color: #94A3B8; "
+                "border: 1px solid rgba(148, 163, 184, 0.28); "
                 "border-radius: 3px; padding: 1px 6px; font-size: 10px; font-weight: 700;"
             )
         layout.addWidget(badge)
@@ -1711,9 +1762,9 @@ class ManajemenProdukPage(QWidget):
             row: Data baris barang terkait.
 
         Returns:
-            Widget kontainer berisi tombol Edit, Stok, dan Arsip/Aktifkan.
+            Widget kontainer transparan berisi tombol Edit, Stok, dan Arsip/Aktifkan.
         """
-        container = QWidget(self)
+        container = self._create_cell_container()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setSpacing(4)
@@ -1761,9 +1812,9 @@ class ManajemenProdukPage(QWidget):
             row: Data baris jasa terkait.
 
         Returns:
-            Widget kontainer berisi tombol Edit dan Arsip/Aktifkan.
+            Widget kontainer transparan berisi tombol Edit dan Arsip/Aktifkan.
         """
-        container = QWidget(self)
+        container = self._create_cell_container()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(4, 2, 4, 2)
         layout.setSpacing(4)
@@ -1841,12 +1892,12 @@ class ManajemenProdukPage(QWidget):
         for idx, row in enumerate(rows):
             sku_item = QTableWidgetItem(row.sku)
             sku_item.setFont(mono_font)
-            sku_item.setForeground(QColor("#89B4FA"))
+            sku_item.setForeground(QColor("#7DD3FC"))
             sku_item.setData(Qt.ItemDataRole.UserRole, row.item_id)
 
             name_item = QTableWidgetItem(row.name)
             cat_item = QTableWidgetItem(row.category_name)
-            cat_item.setForeground(QColor("#9399B2"))
+            cat_item.setForeground(QColor("#9AA3C2"))
 
             price_item = QTableWidgetItem(
                 f"{row.default_price_text} ({row.unit_summary})"
@@ -1857,11 +1908,11 @@ class ManajemenProdukPage(QWidget):
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
             if row.stock_state == "empty":
-                stock_item.setForeground(QColor("#F87171"))
+                stock_item.setForeground(QColor("#FB7185"))
             elif row.stock_state == "low":
                 stock_item.setForeground(QColor("#FBBF24"))
             else:
-                stock_item.setForeground(QColor("#4ADE80"))
+                stock_item.setForeground(QColor("#34D399"))
 
             self._items_table.setItem(idx, 0, sku_item)
             self._items_table.setItem(idx, 1, name_item)
@@ -1890,7 +1941,7 @@ class ManajemenProdukPage(QWidget):
         for idx, row in enumerate(rows):
             sku_item = QTableWidgetItem(row.sku)
             sku_item.setFont(mono_font)
-            sku_item.setForeground(QColor("#89B4FA"))
+            sku_item.setForeground(QColor("#7DD3FC"))
             sku_item.setData(Qt.ItemDataRole.UserRole, row.service_id)
 
             name_item = QTableWidgetItem(row.name)
@@ -1901,7 +1952,7 @@ class ManajemenProdukPage(QWidget):
             )
 
             mat_item = QTableWidgetItem(row.material_summary)
-            mat_item.setForeground(QColor("#9399B2"))
+            mat_item.setForeground(QColor("#9AA3C2"))
 
             self._services_table.setItem(idx, 0, sku_item)
             self._services_table.setItem(idx, 1, name_item)
