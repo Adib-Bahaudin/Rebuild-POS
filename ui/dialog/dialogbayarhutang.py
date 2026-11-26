@@ -202,9 +202,9 @@ class DialogBayarHutang(CustomDialog):
         left_col = QVBoxLayout()
         left_col.setSpacing(4)
         inv_lbl = QLabel(self.detail.metadata.invoice_number, card)
-        inv_lbl.setStyleSheet("color: #60A5FA; font-size: 14px; font-weight: 700;")
+        inv_lbl.setStyleSheet("color: #60A5FA; font-size: 14px; font-weight: 700; background: transparent;")
         cust_lbl = QLabel(f"Pelanggan: {self.detail.metadata.customer_name}", card)
-        cust_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px;")
+        cust_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background: transparent;")
         left_col.addWidget(inv_lbl)
         left_col.addWidget(cust_lbl)
         layout.addLayout(left_col, stretch=1)
@@ -214,18 +214,18 @@ class DialogBayarHutang(CustomDialog):
         right_col.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
 
         total_lbl = QLabel(f"Total Tagihan: {format_rupiah(self.detail.amounts.total)}", card)
-        total_lbl.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+        total_lbl.setStyleSheet("color: #A6ADC8; font-size: 12px; background: transparent;")
         total_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         paid_lbl = QLabel(f"Sudah Dibayar: {format_rupiah(self.detail.payment.amount_paid)}", card)
-        paid_lbl.setStyleSheet("color: #4ADE80; font-size: 12px;")
+        paid_lbl.setStyleSheet("color: #4ADE80; font-size: 12px; background: transparent;")
         paid_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         rem_lbl = QLabel(
             f"Sisa Hutang: {format_rupiah(self.detail.payment.remaining_amount)}",
             card,
         )
-        rem_lbl.setStyleSheet("color: #F87171; font-size: 13px; font-weight: 700;")
+        rem_lbl.setStyleSheet("color: #F87171; font-size: 13px; font-weight: 700; background: transparent;")
         rem_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         right_col.addWidget(total_lbl)
@@ -328,8 +328,8 @@ class DialogBayarHutang(CustomDialog):
             """
         )
         card_layout = QVBoxLayout(card)
-        card_layout.setContentsMargins(14, 12, 14, 12)
-        card_layout.setSpacing(10)
+        card_layout.setContentsMargins(14, 6, 14, 6)
+        card_layout.setSpacing(5)
 
         top_row = QHBoxLayout()
         top_row.setSpacing(12)
@@ -337,7 +337,7 @@ class DialogBayarHutang(CustomDialog):
         nominal_col = QVBoxLayout()
         nominal_col.setSpacing(6)
         nominal_lbl = QLabel("Nominal Bayar (Rp)", card)
-        nominal_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; font-weight: 600;")
+        nominal_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; font-weight: 600; background: transparent;")
 
         nominal_row = QHBoxLayout()
         nominal_row.setSpacing(8)
@@ -399,7 +399,7 @@ class DialogBayarHutang(CustomDialog):
         method_col = QVBoxLayout()
         method_col.setSpacing(6)
         method_lbl = QLabel("Metode Bayar", card)
-        method_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; font-weight: 600;")
+        method_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; font-weight: 600; background: transparent;")
 
         self.method_combo = QComboBox(card)
         self.method_combo.setObjectName("DebtMethodCombo")
@@ -438,13 +438,13 @@ class DialogBayarHutang(CustomDialog):
         card_layout.addLayout(top_row)
 
         notes_lbl = QLabel("Catatan Tambahan (Opsional)", card)
-        notes_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; font-weight: 600;")
+        notes_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; font-weight: 600; background: transparent;")
 
         self.notes_input = QTextEdit(card)
         self.notes_input.setObjectName("DebtNotesInput")
         self.notes_input.setFixedHeight(64)
         self.notes_input.setPlaceholderText(
-            "Tambahkan catatan manual (catatan otomatis 'Pembayaran hutang' tetap dipertahankan)..."
+            "Tambahkan catatan manual (catatan otomatis 'Pembayaran hutang')..."
         )
         self.notes_input.setStyleSheet(
             """
@@ -492,7 +492,7 @@ class DialogBayarHutang(CustomDialog):
         amount = self._parse_nominal()
         remaining = max(0, self.detail.payment.remaining_amount)
         if amount <= 0:
-            self.feedback_label.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+            self.feedback_label.setStyleSheet("color: #A6ADC8; font-size: 12px; background: transparent;")
             self.feedback_label.setText(
                 f"Sisa tagihan saat ini: {format_rupiah(remaining)}"
             )
@@ -500,13 +500,13 @@ class DialogBayarHutang(CustomDialog):
 
         if amount >= remaining:
             change = amount - remaining
-            self.feedback_label.setStyleSheet("color: #4ADE80; font-size: 12px; font-weight: 600;")
+            self.feedback_label.setStyleSheet("color: #4ADE80; font-size: 12px; font-weight: 600; background: transparent;")
             self.feedback_label.setText(
                 f"Status setelah bayar: LUNAS (Kembalian: {format_rupiah(change)})"
             )
         else:
             left = remaining - amount
-            self.feedback_label.setStyleSheet("color: #FBBF24; font-size: 12px; font-weight: 600;")
+            self.feedback_label.setStyleSheet("color: #FBBF24; font-size: 12px; font-weight: 600; background: transparent;")
             self.feedback_label.setText(
                 f"Status setelah bayar: CICILAN (Sisa hutang: {format_rupiah(left)})"
             )
@@ -528,7 +528,7 @@ class DialogBayarHutang(CustomDialog):
                 self.detail.metadata.invoice_number,
                 self.nominal_input.text(),
             )
-            self.feedback_label.setStyleSheet("color: #F87171; font-size: 12px; font-weight: 600;")
+            self.feedback_label.setStyleSheet("color: #F87171; font-size: 12px; font-weight: 600; background: transparent;")
             self.feedback_label.setText("Masukkan nominal pembayaran lebih dari Rp 0.")
             self.nominal_input.setFocus()
             return
