@@ -394,11 +394,33 @@ class CustomDialog(QDialog):
         super().setWindowIcon(icon)
         self._update_titlebar_icon()
 
+    def _center_on_screen(self) -> None:
+        """Memposisikan dialog tepat di tengah layar aktif."""
+        screen = self.screen()
+        if screen is None:
+            parent = self.parentWidget()
+            if parent is not None:
+                screen = parent.screen()
+        if screen is None:
+            screen = QApplication.primaryScreen()
+        if screen is None:
+            return
+
+        available_geo = screen.availableGeometry()
+        dialog_geo = self.frameGeometry()
+        if dialog_geo.width() <= 0 or dialog_geo.height() <= 0:
+            self.adjustSize()
+            dialog_geo = self.frameGeometry()
+        dialog_geo.moveCenter(available_geo.center())
+        self.move(dialog_geo.topLeft())
+
     def showEvent(self, event: QShowEvent) -> None:
-        """Memastikan ikon title bar diperbarui setiap kali dialog ditampilkan.
+        """Memastikan ikon title bar diperbarui dan dialog muncul di tengah layar.
 
         Args:
             event: Event kemunculan jendela dialog.
         """
         self._update_titlebar_icon()
         super().showEvent(event)
+        if not event.spontaneous():
+            self._center_on_screen()
