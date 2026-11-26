@@ -1985,9 +1985,17 @@ class ManajemenProdukPage(QWidget):
             cat_item = QTableWidgetItem(row.category_name)
             cat_item.setForeground(QColor("#9AA3C2"))
 
-            price_item = QTableWidgetItem(
-                f"{row.default_price_text} ({row.unit_summary})"
-            )
+            unit_summary = row.unit_summary.strip()
+            if " · " in unit_summary:
+                unit_part, variant_part = unit_summary.split(" · ", 1)
+                variant_text = variant_part.lstrip("+").strip()
+                price_text = f"{row.default_price_text}/{unit_part.strip()} ({variant_text})"
+            elif unit_summary:
+                price_text = f"{row.default_price_text}/{unit_summary}"
+            else:
+                price_text = row.default_price_text
+
+            price_item = QTableWidgetItem(price_text)
 
             stock_item = QTableWidgetItem(row.stock_text)
             stock_item.setTextAlignment(
