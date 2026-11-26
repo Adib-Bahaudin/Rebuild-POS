@@ -11,8 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor, QFont
+from PySide6.QtCore import QModelIndex, QPersistentModelIndex, Qt, Signal
+from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -25,6 +25,9 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSplitter,
     QStackedWidget,
+    QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -254,6 +257,47 @@ class ProductFilterState:
     status_filter: str
 
 
+class _FullRowGradientDelegate(QStyledItemDelegate):
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionViewItem,
+        index: QModelIndex | QPersistentModelIndex,
+    ) -> None:
+        if option.state & QStyle.StateFlag.State_Selected:
+            view = option.widget
+            viewport = (
+                view.viewport()
+                if isinstance(view, QAbstractItemView)
+                else None
+            )
+            total_width = (
+                viewport.width()
+                if viewport is not None
+                else option.rect.right()
+            )
+            grad = QLinearGradient(
+                0,
+                option.rect.top(),
+                max(1, total_width),
+                option.rect.top(),
+            )
+            grad.setColorAt(0.0, QColor(59, 130, 246, 82))
+            grad.setColorAt(0.55, QColor(14, 165, 233, 66))
+            grad.setColorAt(1.0, QColor(6, 182, 212, 48))
+
+            painter.save()
+            painter.fillRect(option.rect, grad)
+            painter.restore()
+
+            clean_opt = QStyleOptionViewItem(option)
+            clean_opt.state &= ~QStyle.StateFlag.State_HasFocus
+            super().paint(painter, clean_opt, index)
+            return
+
+        super().paint(painter, option, index)
+
+
 class CompactMetricCard(QFrame):
     """Kartu indikator ringkas dengan tata letak padat untuk metrik produk.
 
@@ -316,6 +360,7 @@ class CompactMetricCard(QFrame):
         )
 
         content_widget = QWidget(self)
+        content_widget.setObjectName("MetricContent")
         content_layout = QVBoxLayout(content_widget)
         content_layout.setContentsMargins(10, 6, 10, 6)
         content_layout.setSpacing(1)
@@ -346,27 +391,27 @@ class CompactMetricCard(QFrame):
         """Menerapkan gaya QSS ringkas pada kartu metrik."""
         card_themes = {
             "#3B82F6": (
-                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1D2844, stop:0.45 #1E2034, stop:1 #181A2A)",
-                "#33446B",
+                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #1E3A5F, stop:0.55 #1B2C4B, stop:1 #162038)",
+                "#3B5B8C",
             ),
             "#F59E0B": (
-                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2C231B, stop:0.45 #201E30, stop:1 #191928)",
-                "#4F3E2A",
+                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #4A3116, stop:0.55 #35251A, stop:1 #241B1E)",
+                "#785124",
             ),
             "#22C55E": (
-                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #192D26, stop:0.45 #1C2132, stop:1 #171B28)",
-                "#2B4C3E",
+                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #144332, stop:0.55 #16332C, stop:1 #142228)",
+                "#2B6E52",
             ),
             "#94A3B8": (
-                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #23263B, stop:0.45 #1E1F30, stop:1 #181927)",
-                "#393D57",
+                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #2B304D, stop:0.55 #24273E, stop:1 #1C1E30)",
+                "#484E73",
             ),
         }
         card_bg, card_border = card_themes.get(
             self.accent_color,
             (
-                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #212338, stop:1 #1A1B2B)",
-                "#343752",
+                "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #282C47, stop:1 #1C1E30)",
+                "#3D4266",
             ),
         )
         self.setStyleSheet(
@@ -376,21 +421,25 @@ class CompactMetricCard(QFrame):
                 border: 1px solid {card_border};
                 border-radius: 6px;
             }}
+            QWidget#MetricContent {{
+                background: transparent;
+                border: none;
+            }}
             QLabel#MetricTitle {{
-                color: #A6ADC8;
+                color: #CBD5E1;
                 font-size: 10px;
                 font-weight: 700;
                 letter-spacing: 0.4px;
                 background: transparent;
             }}
             QLabel#MetricValue {{
-                color: #F1F5F9;
+                color: #F8FAFC;
                 font-size: 17px;
                 font-weight: 700;
                 background: transparent;
             }}
             QLabel#MetricSubtitle {{
-                color: #8992B2;
+                color: #A6B2CC;
                 font-size: 10px;
                 background: transparent;
             }}
@@ -740,10 +789,12 @@ class ProductDetailPanel(QFrame):
                 color: #E2E8F0;
                 font-size: 13px;
                 font-weight: 700;
+                background: transparent;
             }
             QLabel#EmptyHint {
                 color: #838BA8;
                 font-size: 11px;
+                background: transparent;
             }
             QLabel#SkuBadge {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #222B47, stop:1 #1E293B);
@@ -764,14 +815,17 @@ class ProductDetailPanel(QFrame):
                 color: #F1F5F9;
                 font-size: 14px;
                 font-weight: 700;
+                background: transparent;
             }
             QLabel#DetailMeta {
                 color: #A6B0CE;
                 font-size: 11px;
+                background: transparent;
             }
             QLabel#DetailDesc {
                 color: #8A93B2;
                 font-size: 11px;
+                background: transparent;
             }
             QFrame#SummaryStrip {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #151726, stop:1 #1D2238);
@@ -788,17 +842,20 @@ class ProductDetailPanel(QFrame):
                 font-size: 9px;
                 font-weight: 700;
                 letter-spacing: 0.4px;
+                background: transparent;
             }
             QLabel#StripValue {
                 color: #F1F5F9;
                 font-size: 13px;
                 font-weight: 700;
+                background: transparent;
             }
             QLabel#SectionHeader {
                 color: #C4CEEC;
                 font-size: 11px;
                 font-weight: 700;
                 padding-top: 2px;
+                background: transparent;
             }
             QPushButton#DetailPrimaryBtn {
                 background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 #3B82F6, stop:1 #06B6D4);
@@ -1295,6 +1352,7 @@ class ManajemenProdukPage(QWidget):
         table.setAlternatingRowColors(True)
         table.setShowGrid(False)
         table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        table.setItemDelegate(_FullRowGradientDelegate(table))
 
         v_header = table.verticalHeader()
         if v_header is not None:
@@ -1472,7 +1530,7 @@ class ManajemenProdukPage(QWidget):
                 color: #E2E8F0;
                 border: none;
                 font-size: 12px;
-                selection-background-color: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 rgba(59, 130, 246, 0.28), stop:1 rgba(6, 182, 212, 0.22));
+                selection-background-color: transparent;
                 selection-color: #FFFFFF;
             }
             QTableWidget#MasterTable::item {
