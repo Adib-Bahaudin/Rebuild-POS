@@ -16,6 +16,7 @@ from config import get_asset_path
 from ui.customsidebar import (
     Sidebar,
 )
+from util.helper.formatrupiah import format_rupiah
 
 class CardWidget(QFrame):
     """Widget dasar dengan gaya visual card.
@@ -809,9 +810,8 @@ class PaymentPanel(CardWidget):
         amount_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background-color: transparent;")
         self.amount_input = QLineEdit()
         self.amount_input.setPlaceholderText("Rp. ")
-        self.amount_input.setValidator(QIntValidator())
         self.amount_input.setStyleSheet(common_input_style)
-        self.amount_input.textChanged.connect(self.amount_changed.emit)
+        self.amount_input.textChanged.connect(self._on_amount_text_changed)
         amount_layout.addWidget(amount_lbl)
         amount_layout.addWidget(self.amount_input)
         
@@ -858,6 +858,17 @@ class PaymentPanel(CardWidget):
         layout.addLayout(amount_layout)
         layout.addLayout(cust_layout)
         layout.addLayout(note_layout)
+
+    def _on_amount_text_changed(self, text: str) -> None:
+        """Memformat input nominal bayar menjadi format mata uang Rupiah."""
+        digits = "".join(ch for ch in text if ch.isdigit())
+        formatted = format_rupiah(int(digits)) if digits else ""
+        if self.amount_input.text() != formatted:
+            self.amount_input.blockSignals(True)
+            self.amount_input.setText(formatted)
+            self.amount_input.setCursorPosition(len(formatted))
+            self.amount_input.blockSignals(False)
+        self.amount_changed.emit(formatted)
 
     def _on_method_selection_changed(self, method: str) -> None:
         """Menangani penyesuaian visual formulir saat metode pembayaran berganti.

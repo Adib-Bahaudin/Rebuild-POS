@@ -32,6 +32,7 @@ from ui.riwayat_transaksi import (
     TransactionRowData,
     TrendStatus,
 )
+from util.helper.formatrupiah import format_rupiah
 
 logger = logging.getLogger(__name__)
 
@@ -272,24 +273,6 @@ def format_integer(value: int) -> str:
         String angka dengan pemisah ribuan titik, misalnya '1.250'.
     """
     return f"{value:,}".replace(",", ".")
-
-
-def format_rupiah(amount: int, show_sign: bool = False) -> str:
-    """Memformat nominal integer menjadi string mata uang Rupiah.
-
-    Args:
-        amount: Nilai nominal dalam satuan Rupiah bulat.
-        show_sign: Jika True, nilai positif diberi tanda '+' di depan Rupiah.
-
-    Returns:
-        String nominal terformat, misalnya 'Rp 15.000', '-Rp 500', atau '+Rp 200'.
-    """
-    formatted_abs = format_integer(abs(amount))
-    if amount < 0:
-        return f"-Rp {formatted_abs}"
-    if amount > 0 and show_sign:
-        return f"+Rp {formatted_abs}"
-    return f"Rp {formatted_abs}"
 
 
 def format_display_datetime(raw_value: str) -> str:

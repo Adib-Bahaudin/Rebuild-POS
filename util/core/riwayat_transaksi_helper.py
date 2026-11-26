@@ -28,8 +28,8 @@ from core.riwayat_backend import (
     RiwayatExporter,
     RiwayatRepository,
     TransactionFullDetail,
-    format_rupiah,
 )
+from util.helper.formatrupiah import format_rupiah
 from ui.dialog.dialogdetailtransaksi import TransactionDetailDialog
 from ui.riwayat_transaksi import (
     FilterCriteria,
