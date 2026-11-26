@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from PySide6.QtCore import QModelIndex, QPersistentModelIndex, Qt, Signal
+from PySide6.QtCore import QEvent, QModelIndex, QObject, QPersistentModelIndex, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QLinearGradient, QPainter
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -1384,14 +1384,42 @@ class ManajemenProdukPage(QWidget):
         header = self._items_table.horizontalHeader()
         if header is not None:
             header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
-            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
-            header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(1, QHeaderView.ResizeMode.Interactive)
+            header.setSectionResizeMode(2, QHeaderView.ResizeMode.Interactive)
             header.setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
             header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
             header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
             header.setSectionResizeMode(6, QHeaderView.ResizeMode.Fixed)
+            self._items_table.setColumnWidth(1, 240)
+            self._items_table.setColumnWidth(2, 160)
             self._items_table.setColumnWidth(5, 68)
             self._items_table.setColumnWidth(6, 148)
+        viewport = self._items_table.viewport()
+        if viewport is not None:
+            viewport.installEventFilter(self)
+
+    def _update_items_table_column_widths(self) -> None:
+        viewport = self._items_table.viewport()
+        if viewport is None:
+            return
+        available = viewport.width()
+        other_width = sum(
+            self._items_table.columnWidth(col) for col in (0, 3, 4, 5, 6)
+        )
+        remaining = available - other_width
+        if remaining > 0:
+            name_width = int(remaining * 3 / 5)
+            cat_width = remaining - name_width
+            self._items_table.setColumnWidth(1, name_width)
+            self._items_table.setColumnWidth(2, cat_width)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if (
+            watched is self._items_table.viewport()
+            and event.type() in (QEvent.Type.Resize, QEvent.Type.Show)
+        ):
+            self._update_items_table_column_widths()
+        return super().eventFilter(watched, event)
 
     def _configure_services_table(self) -> None:
         """Mengonfigurasi struktur dan proporsi kolom tabel layanan jasa."""
@@ -1985,6 +2013,7 @@ class ManajemenProdukPage(QWidget):
             )
 
         self._items_table.blockSignals(False)
+        self._update_items_table_column_widths()
 
     def set_services(self, rows: list[ServiceRowData]) -> None:
         """Mengisi tabel layanan jasa dengan data terbaru dari backend.
