@@ -37,7 +37,7 @@ from ui.manajemenproduk import (
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_PAGE_SIZE: int = 15
+DEFAULT_PAGE_SIZE: int = 14
 DEFAULT_LOW_STOCK_THRESHOLD: float = 10.0
 SEARCH_DEBOUNCE_MS: int = 250
 
