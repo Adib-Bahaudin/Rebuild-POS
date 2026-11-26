@@ -41,6 +41,7 @@ from ui.customwindowtitlebar import ICON_PATHS, TitleBarIconConfig
 from ui.dialog.ItemFormDialog import ItemFormDialog
 from ui.dialog.ServiceFormDialog import MaterialItemOption, ServiceFormDialog
 from ui.dialog.StockCardDialog import StockCardDialog, StockCardItemInfo
+from ui.dialog.MasterCategoryUnitDialog import MasterCategoryUnitDialog
 from ui.manajemenproduk import (
     CategoryOption,
     ManajemenProdukPage,
@@ -155,6 +156,7 @@ class ManajemenProdukHelper(QObject):
 
         self.set_item_dialog_handler(ItemFormDialog.get_item_payload)
         self.set_stock_card_dialog_handler(self._open_stock_card_dialog)
+        self.set_master_dialog_handler(MasterCategoryUnitDialog.show_dialog)
         
         self.set_service_dialog_handler(
             lambda parent, edit_data: ServiceFormDialog.get_service_payload(
