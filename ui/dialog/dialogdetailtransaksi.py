@@ -330,25 +330,27 @@ class TransactionDetailDialog(CustomDialog):
                 background-color: #1E1E2E;
                 border: 1px solid #313244;
                 border-radius: 8px;
-                padding: 10px 14px;
+                padding: 5px 7px;
             }
             """
         )
         layout = QHBoxLayout(card)
-        layout.setContentsMargins(14, 10, 14, 10)
+        layout.setContentsMargins(14, 5, 14, 5)
         layout.setSpacing(20)
 
         left_layout = QVBoxLayout()
-        left_layout.setSpacing(4)
+        left_layout.setSpacing(2)
 
         paid_str = format_rupiah(self.detail.payment.amount_paid)
         change_str = format_rupiah(self.detail.payment.change_amount)
 
+        left_layout.addStretch()
+
         bayar_label = QLabel(f"Jumlah Diterima: {paid_str}", card)
-        bayar_label.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+        bayar_label.setStyleSheet("color: #A6ADC8; font-size: 12px; background: transparent;")
 
         kembalian_label = QLabel(f"Kembalian: {change_str}", card)
-        kembalian_label.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+        kembalian_label.setStyleSheet("color: #A6ADC8; font-size: 12px; background: transparent;")
 
         left_layout.addWidget(bayar_label)
         left_layout.addWidget(kembalian_label)
@@ -357,7 +359,7 @@ class TransactionDetailDialog(CustomDialog):
             remaining_str = format_rupiah(self.detail.payment.remaining_amount)
             unpaid_label = QLabel(f"Belum Terbayarkan: {remaining_str}", card)
             unpaid_label.setObjectName("DetailUnpaidLabel")
-            unpaid_label.setStyleSheet("color: #F87171; font-size: 12px; font-weight: 600;")
+            unpaid_label.setStyleSheet("color: #F87171; font-size: 12px; font-weight: 600; background: transparent;")
             left_layout.addWidget(unpaid_label)
 
         if self.detail.metadata.notes:
@@ -370,6 +372,7 @@ class TransactionDetailDialog(CustomDialog):
         right_layout = QVBoxLayout()
         right_layout.setSpacing(4)
         right_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+        right_layout.addStretch()
 
         subtotal_str = format_rupiah(self.detail.amounts.subtotal)
         discount_str = format_rupiah(self.detail.amounts.discount)
@@ -378,30 +381,30 @@ class TransactionDetailDialog(CustomDialog):
         total_str = format_rupiah(self.detail.amounts.total)
 
         sub_label = QLabel(f"Subtotal: {subtotal_str}", card)
-        sub_label.setStyleSheet("color: #CDD6F4; font-size: 12px;")
+        sub_label.setStyleSheet("color: #CDD6F4; font-size: 12px; background: transparent;")
         sub_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         right_layout.addWidget(sub_label)
 
         if self.detail.amounts.discount > 0:
             disc_label = QLabel(f"Diskon: -{discount_str}", card)
-            disc_label.setStyleSheet("color: #F87171; font-size: 12px;")
+            disc_label.setStyleSheet("color: #F87171; font-size: 12px; background: transparent;")
             disc_label.setAlignment(Qt.AlignmentFlag.AlignRight)
             right_layout.addWidget(disc_label)
 
         if self.detail.amounts.tip > 0:
             tip_label = QLabel(f"Tip: +{tip_str}", card)
-            tip_label.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+            tip_label.setStyleSheet("color: #A6ADC8; font-size: 12px; background: transparent;")
             tip_label.setAlignment(Qt.AlignmentFlag.AlignRight)
             right_layout.addWidget(tip_label)
 
         if self.detail.amounts.rounding != 0:
             round_label = QLabel(f"Pembulatan: {rounding_str}", card)
-            round_label.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+            round_label.setStyleSheet("color: #A6ADC8; font-size: 12px; background: transparent;")
             round_label.setAlignment(Qt.AlignmentFlag.AlignRight)
             right_layout.addWidget(round_label)
 
         total_label = QLabel(f"TOTAL: {total_str}", card)
-        total_label.setStyleSheet("color: #4ADE80; font-size: 16px; font-weight: 700;")
+        total_label.setStyleSheet("color: #4ADE80; font-size: 16px; font-weight: 700; background: transparent;")
         total_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         right_layout.addWidget(total_label)
