@@ -109,6 +109,40 @@ class TransactionDetailDialog(CustomDialog):
         self.pay_debt_btn.clicked.connect(self._on_pay_debt_clicked)
         self.pay_debt_btn.setVisible(self._is_unpaid())
 
+        self.view_payments_btn = QPushButton("Lihat Pembayaran", self)
+        self.view_payments_btn.setObjectName("ViewPaymentsButton")
+        self.view_payments_btn.setFixedHeight(36)
+        self.view_payments_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.view_payments_btn.setStyleSheet(
+            """
+            QPushButton {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 #10B981,
+                    stop: 1 #059669
+                );
+                color: #FFFFFF;
+                border: none;
+                border-radius: 6px;
+                padding: 0px 18px;
+                font-size: 13px;
+                font-weight: 600;
+            }
+            QPushButton:hover {
+                background: qlineargradient(
+                    x1: 0, y1: 0, x2: 1, y2: 0,
+                    stop: 0 #34D399,
+                    stop: 1 #10B981
+                );
+            }
+            QPushButton:pressed {
+                background-color: #047857;
+            }
+            """
+        )
+        self.view_payments_btn.clicked.connect(self._on_view_payments_clicked)
+        self.view_payments_btn.setVisible(self._can_view_payments())
+
         print_btn = QPushButton("Cetak Struk", self)
         print_btn.setFixedHeight(36)
         print_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -168,6 +202,7 @@ class TransactionDetailDialog(CustomDialog):
         close_btn.clicked.connect(self.accept)
 
         footer_layout.addWidget(self.pay_debt_btn)
+        footer_layout.addWidget(self.view_payments_btn)
         footer_layout.addStretch()
         footer_layout.addWidget(print_btn)
         footer_layout.addWidget(close_btn)
@@ -416,6 +451,14 @@ class TransactionDetailDialog(CustomDialog):
         """Memeriksa apakah status pembayaran transaksi belum berstatus PAID."""
         return self.detail.payment.payment_status.strip().upper() != "PAID"
 
+    def _can_view_payments(self) -> bool:
+        """Memeriksa apakah transaksi Hutang/Cicilan sudah berstatus PAID."""
+        is_paid = not self._is_unpaid()
+        is_debt_method = (
+            self.detail.payment.payment_method.strip().lower() in ("hutang", "cicilan")
+        )
+        return is_paid and is_debt_method
+
     def update_detail(self, detail: TransactionFullDetail) -> None:
         """Memperbarui tampilan dialog dengan data transaksi terbaru."""
         self.detail = detail
@@ -431,6 +474,12 @@ class TransactionDetailDialog(CustomDialog):
         self._totals_card = new_totals
 
         self.pay_debt_btn.setVisible(self._is_unpaid())
+        self.view_payments_btn.setVisible(self._can_view_payments())
+
+    def _on_view_payments_clicked(self) -> None:
+        """Membuka dialog riwayat pembayaran dalam mode baca-saja."""
+        dialog = DialogBayarHutang(detail=self.detail, parent=self, read_only=True)
+        dialog.exec()
 
     def _on_pay_debt_clicked(self) -> None:
         """Membuka dialog pembayaran hutang dan memproses pembayaran jika disetujui."""

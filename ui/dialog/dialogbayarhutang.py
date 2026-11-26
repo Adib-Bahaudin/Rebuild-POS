@@ -36,25 +36,35 @@ class DialogBayarHutang(CustomDialog):
         self,
         detail: TransactionFullDetail,
         parent: QWidget | None = None,
+        read_only: bool = False,
     ) -> None:
-        """Menginisialisasi dialog pembayaran hutang transaksi.
+        """Menginisialisasi dialog pembayaran hutang atau tampilan riwayat pembayaran.
 
         Args:
             detail: Objek TransactionFullDetail yang memuat rincian transaksi dan pembayaran.
             parent: Widget induk opsional.
+            read_only: Jika True, hanya menampilkan ringkasan dan tabel riwayat pembayaran
+                tanpa form input pembayaran baru.
         """
         super().__init__(parent=parent)
         self.detail: TransactionFullDetail = detail
+        self._read_only: bool = read_only
         self._submitted_nominal: int = 0
         self._submitted_method: str = PAYMENT_METHOD_CHOICES[0]
         self._submitted_notes: str = ""
 
-        self.setWindowTitle(f"Bayar Hutang - {detail.metadata.invoice_number}")
-        self.setFixedSize(680, 600)
+        if self._read_only:
+            self.setWindowTitle(f"Riwayat Pembayaran - {detail.metadata.invoice_number}")
+            self.setFixedSize(680, 420)
+        else:
+            self.setWindowTitle(f"Bayar Hutang - {detail.metadata.invoice_number}")
+            self.setFixedSize(680, 600)
+
         self._setup_ui()
         logger.info(
-            "DialogBayarHutang dibuka untuk invoice %s (sisa=%d, riwayat=%d)",
+            "DialogBayarHutang dibuka untuk invoice %s (read_only=%s, sisa=%d, riwayat=%d)",
             detail.metadata.invoice_number,
+            self._read_only,
             detail.payment.remaining_amount,
             len(detail.payments),
         )
@@ -82,7 +92,8 @@ class DialogBayarHutang(CustomDialog):
 
         main_layout.addWidget(self._build_summary_card())
 
-        history_label = QLabel("Riwayat Pembayaran Sebelumnya", self)
+        history_title = "Riwayat Pembayaran" if self._read_only else "Riwayat Pembayaran Sebelumnya"
+        history_label = QLabel(history_title, self)
         history_label.setStyleSheet(
             "color: #CDD6F4; font-size: 13px; font-weight: 600; background: transparent;"
         )
@@ -91,18 +102,20 @@ class DialogBayarHutang(CustomDialog):
         self.payments_table = self._build_payments_table()
         main_layout.addWidget(self.payments_table, stretch=1)
 
-        main_layout.addWidget(self._build_input_card())
+        if not self._read_only:
+            main_layout.addWidget(self._build_input_card())
 
-        self.feedback_label = QLabel(self)
-        self.feedback_label.setStyleSheet("color: #A6ADC8; font-size: 12px;")
-        main_layout.addWidget(self.feedback_label)
-        self._update_preview()
+            self.feedback_label = QLabel(self)
+            self.feedback_label.setStyleSheet("color: #A6ADC8; font-size: 12px;")
+            main_layout.addWidget(self.feedback_label)
+            self._update_preview()
 
         footer_layout = QHBoxLayout()
         footer_layout.setContentsMargins(0, 4, 0, 0)
         footer_layout.setSpacing(10)
 
-        cancel_btn = QPushButton("Batal", self)
+        cancel_label = "Tutup" if self._read_only else "Batal"
+        cancel_btn = QPushButton(cancel_label, self)
         cancel_btn.setFixedHeight(36)
         cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         cancel_btn.setStyleSheet(
@@ -162,7 +175,10 @@ class DialogBayarHutang(CustomDialog):
 
         footer_layout.addStretch()
         footer_layout.addWidget(cancel_btn)
-        footer_layout.addWidget(self.submit_btn)
+        if not self._read_only:
+            footer_layout.addWidget(self.submit_btn)
+        else:
+            self.submit_btn.hide()
         main_layout.addLayout(footer_layout)
 
     def _build_summary_card(self) -> QFrame:
