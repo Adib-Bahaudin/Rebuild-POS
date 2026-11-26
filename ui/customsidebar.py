@@ -114,7 +114,7 @@ class SidebarButton(QPushButton):
             parent: Widget induk opsional.
         """
         super().__init__(parent)
-        self.setFixedSize(48, 48)
+        self.setFixedSize(40, 40)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.is_active = is_active
 
@@ -206,7 +206,7 @@ class Sidebar(QFrame):
             parent: Widget induk opsional.
         """
         super().__init__(parent)
-        self.setFixedWidth(64)
+        self.setFixedWidth(55)
         self.setStyleSheet(
             """
             Sidebar {
@@ -216,8 +216,8 @@ class Sidebar(QFrame):
             QPushButton {
                 background-color: transparent;
                 border: none;
-                padding: 12px 0;
-                border-radius: 8px;
+                padding: 10px 0;
+                border-radius: 6px;
             }
             QPushButton:hover {
                 background-color: #313244;
@@ -225,14 +225,14 @@ class Sidebar(QFrame):
             QPushButton[active="true"] {
                 background-color: rgba(46, 204, 113, 0.15);
                 border-left: 3px solid #2ECC71;
-                border-radius: 8px;
+                border-radius: 6px;
             }
             """
         )
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 16, 8, 16)
-        layout.setSpacing(12)
+        layout.setContentsMargins(6, 13, 6, 13)
+        layout.setSpacing(6)
 
         validated_icons = validate_sidebar_icons(SIDEBAR_ICONS_CONFIG)
         self.nav_buttons: Dict[str, SidebarButton] = {}
