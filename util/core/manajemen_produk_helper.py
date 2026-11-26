@@ -40,6 +40,7 @@ from core.manajemen_produk_backend import (
 from ui.customwindowtitlebar import ICON_PATHS, TitleBarIconConfig
 from ui.dialog.ItemFormDialog import ItemFormDialog
 from ui.dialog.ServiceFormDialog import MaterialItemOption, ServiceFormDialog
+from ui.dialog.StockCardDialog import StockCardDialog, StockCardItemInfo
 from ui.manajemenproduk import (
     CategoryOption,
     ManajemenProdukPage,
@@ -153,6 +154,7 @@ class ManajemenProdukHelper(QObject):
         self._master_dialog_handler: MasterDialogHandler | None = None
 
         self.set_item_dialog_handler(ItemFormDialog.get_item_payload)
+        self.set_stock_card_dialog_handler(self._open_stock_card_dialog)
         
         self.set_service_dialog_handler(
             lambda parent, edit_data: ServiceFormDialog.get_service_payload(
@@ -395,6 +397,30 @@ class ManajemenProdukHelper(QObject):
             return
 
         self._master_dialog_handler(self.page, self.backend)
+
+    def _open_stock_card_dialog(
+        self,
+        parent: QWidget,
+        item_id: int,
+        records: list[StockMovementRecord],
+    ) -> None:
+        """Membuka StockCardDialog lengkap dengan informasi header barang."""
+        detail = self.repository.fetch_item_detail(item_id)
+        item_info: StockCardItemInfo | None = None
+        if detail is not None:
+            symbol = detail.base_unit_name.split("(")[-1].rstrip(")").strip()
+            item_info = StockCardItemInfo(
+                item_id=detail.item_id,
+                sku=detail.sku,
+                name=detail.name,
+                base_unit_symbol=symbol,
+                current_stock_text=detail.total_stock_text,
+            )
+        StockCardDialog.show_stock_card(
+            parent=parent,
+            records=records,
+            item_info=item_info,
+        )
 
     def _handle_action_succeeded(self, title: str, message: str) -> None:
         """Menangani notifikasi keberhasilan operasi simpan atau ubah data.
