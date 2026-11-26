@@ -38,6 +38,7 @@ from core.manajemen_produk_backend import (
     UnitRecord,
 )
 from ui.customwindowtitlebar import ICON_PATHS, TitleBarIconConfig
+from ui.dialog.ItemFormDialog import ItemFormDialog
 from ui.manajemenproduk import (
     CategoryOption,
     ManajemenProdukPage,
@@ -145,6 +146,8 @@ class ManajemenProdukHelper(QObject):
         self._stock_adjustment_handler: StockAdjustmentDialogHandler | None = None
         self._stock_card_handler: StockCardDialogHandler | None = None
         self._master_dialog_handler: MasterDialogHandler | None = None
+
+        self.set_item_dialog_handler(ItemFormDialog.get_item_payload)
 
         self._on_data_loaded_callbacks: list[
             Callable[[PaginatedProductsResult], None]
