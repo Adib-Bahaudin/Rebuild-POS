@@ -115,8 +115,8 @@ class ItemFormDialog(CustomDialog):
         self._add_unit_btn = QPushButton("+ Tambah Satuan", self)
 
         self._opening_stock_frame = QFrame(self)
-        self._opening_qty_spin = QDoubleSpinBox(self)
-        self._opening_cost_spin = QDoubleSpinBox(self)
+        self._opening_qty_spin = QDoubleSpinBox(self._opening_stock_frame)
+        self._opening_cost_spin = QDoubleSpinBox(self._opening_stock_frame)
 
         self._error_label = QLabel("", self)
         self._cancel_btn = QPushButton("Batal", self)
@@ -142,6 +142,8 @@ class ItemFormDialog(CustomDialog):
 
         if self._edit_data is None:
             root_layout.addWidget(self._build_opening_stock_section())
+        else:
+            self._opening_stock_frame.hide()
 
         self._error_label.setObjectName("FormErrorLabel")
         self._error_label.setWordWrap(True)
