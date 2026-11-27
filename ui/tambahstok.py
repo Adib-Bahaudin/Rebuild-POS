@@ -16,6 +16,7 @@ from PySide6.QtCore import (
     QDate,
     QDateTime,
     QLocale,
+    QRect,
     QSize,
     QStringListModel,
     Qt,
@@ -23,22 +24,30 @@ from PySide6.QtCore import (
     Signal,
 )
 from PySide6.QtGui import (
+    QBrush,
+    QColor,
     QFocusEvent,
-    QIcon,
     QKeyEvent,
     QKeySequence,
+    QLinearGradient,
+    QPainter,
+    QPainterPath,
+    QPaintEvent,
+    QPen,
     QShortcut,
     QWheelEvent,
 )
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
+    QCalendarWidget,
     QComboBox,
     QCompleter,
     QDateEdit,
     QDateTimeEdit,
     QDoubleSpinBox,
     QFrame,
+    QGraphicsDropShadowEffect,
     QGridLayout,
     QHBoxLayout,
     QHeaderView,
@@ -235,7 +244,7 @@ SVG_SEARCH: str = (
 )
 
 SVG_PLUS: str = (
-    "<svg viewBox='0 0 24 24' fill='none' stroke='{color}' stroke-width='2.2' "
+    "<svg viewBox='0 0 24 24' fill='none' stroke='{color}' stroke-width='2.4' "
     "stroke-linecap='round' stroke-linejoin='round'>"
     "<line x1='12' y1='5' x2='12' y2='19'/>"
     "<line x1='5' y1='12' x2='19' y2='12'/>"
@@ -290,7 +299,7 @@ SVG_TAG: str = (
 )
 
 SVG_CHECK: str = (
-    "<svg viewBox='0 0 24 24' fill='none' stroke='{color}' stroke-width='2.2' "
+    "<svg viewBox='0 0 24 24' fill='none' stroke='{color}' stroke-width='2.4' "
     "stroke-linecap='round' stroke-linejoin='round'>"
     "<polyline points='20 6 9 17 4 12'/>"
     "</svg>"
@@ -335,6 +344,284 @@ SVG_WALLET: str = (
     "<path d='M16 12h4'/>"
     "</svg>"
 )
+
+
+def _draw_calendar_glyph(painter: QPainter, center_x: float, center_y: float, color: QColor) -> None:
+    """Menggambar ikon kalender vektor minimalis dengan anti-aliasing pada sisi kanan widget.
+
+    Args:
+        painter: Instance QPainter aktif milik widget target.
+        center_x: Koordinat horizontal titik tengah ikon.
+        center_y: Koordinat vertikal titik tengah ikon.
+        color: Warna garis vektor ikon kalender.
+    """
+    pen = QPen(
+        color,
+        1.5,
+        Qt.PenStyle.SolidLine,
+        Qt.PenCapStyle.RoundCap,
+        Qt.PenJoinStyle.RoundJoin,
+    )
+    painter.setPen(pen)
+    painter.setBrush(Qt.BrushStyle.NoBrush)
+
+    left = center_x - 5.5
+    top = center_y - 4.5
+    width = 11.0
+    height = 10.0
+
+    painter.drawRoundedRect(
+        int(round(left)),
+        int(round(top)),
+        int(round(width)),
+        int(round(height)),
+        2.0,
+        2.0,
+    )
+    painter.drawLine(
+        int(round(left + 1.0)),
+        int(round(top + 3.5)),
+        int(round(left + width - 1.0)),
+        int(round(top + 3.5)),
+    )
+    painter.drawLine(
+        int(round(left + 3.0)),
+        int(round(top - 1.5)),
+        int(round(left + 3.0)),
+        int(round(top + 1.0)),
+    )
+    painter.drawLine(
+        int(round(left + width - 3.0)),
+        int(round(top - 1.5)),
+        int(round(left + width - 3.0)),
+        int(round(top + 1.0)),
+    )
+
+
+def _configure_popup_calendar(calendar: QCalendarWidget | None) -> None:
+    """Mengonfigurasi tampilan popup kalender agar bersih tanpa header nomor minggu.
+
+    Args:
+        calendar: Instance QCalendarWidget milik QDateEdit atau QDateTimeEdit.
+    """
+    if calendar is None:
+        return
+    calendar.setGridVisible(False)
+    calendar.setVerticalHeaderFormat(QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader)
+    calendar.setNavigationBarVisible(True)
+
+
+class StyledComboBox(QComboBox):
+    """Dropdown kustom dengan indikator chevron vektor anti-aliased pengganti panah bawaan."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        """Menginisialisasi StyledComboBox dengan kursor interaktif.
+
+        Args:
+            parent: Widget induk opsional.
+        """
+        super().__init__(parent)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        """Menggambar kotak combo beserta ikon chevron modern pada area kanan.
+
+        Args:
+            event: Objek QPaintEvent dari siklus render Qt.
+        """
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        if not self.isEnabled():
+            arrow_color = QColor("#475569")
+        elif self.hasFocus():
+            arrow_color = QColor("#22D3EE")
+        else:
+            arrow_color = QColor("#94A3B8")
+
+        pen = QPen(
+            arrow_color,
+            1.8,
+            Qt.PenStyle.SolidLine,
+            Qt.PenCapStyle.RoundCap,
+            Qt.PenJoinStyle.RoundJoin,
+        )
+        painter.setPen(pen)
+
+        center_x = float(self.width() - 14)
+        center_y = float(self.height()) / 2.0
+        chevron = QPainterPath()
+        chevron.moveTo(center_x - 4.0, center_y - 2.0)
+        chevron.lineTo(center_x, center_y + 2.5)
+        chevron.lineTo(center_x + 4.0, center_y - 2.0)
+        painter.drawPath(chevron)
+        painter.end()
+
+
+class StyledDateEdit(QDateEdit):
+    """Input tanggal kustom dengan ikon kalender vektor dan popup kalender tema gelap."""
+
+    def __init__(self, date: QDate, parent: QWidget | None = None) -> None:
+        """Menginisialisasi StyledDateEdit dengan popup kalender terkonfigurasi.
+
+        Args:
+            date: Tanggal awal yang ditampilkan.
+            parent: Widget induk opsional.
+        """
+        super().__init__(date, parent)
+        self.setCalendarPopup(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        _configure_popup_calendar(self.calendarWidget())
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        """Menggambar input tanggal beserta ikon kalender vektor di sisi kanan.
+
+        Args:
+            event: Objek QPaintEvent dari siklus render Qt.
+        """
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        if not self.isEnabled():
+            icon_color = QColor("#475569")
+        elif self.hasFocus():
+            icon_color = QColor("#22D3EE")
+        else:
+            icon_color = QColor("#60A5FA")
+
+        _draw_calendar_glyph(
+            painter,
+            float(self.width() - 15),
+            float(self.height()) / 2.0,
+            icon_color,
+        )
+        painter.end()
+
+
+class StyledDateTimeEdit(QDateTimeEdit):
+    """Input tanggal-waktu kustom dengan ikon kalender vektor dan popup kalender tema gelap."""
+
+    def __init__(self, date_time: QDateTime, parent: QWidget | None = None) -> None:
+        """Menginisialisasi StyledDateTimeEdit dengan popup kalender terkonfigurasi.
+
+        Args:
+            date_time: Tanggal dan waktu awal yang ditampilkan.
+            parent: Widget induk opsional.
+        """
+        super().__init__(date_time, parent)
+        self.setCalendarPopup(True)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        _configure_popup_calendar(self.calendarWidget())
+
+    def paintEvent(self, event: QPaintEvent) -> None:
+        """Menggambar input tanggal-waktu beserta ikon kalender vektor di sisi kanan.
+
+        Args:
+            event: Objek QPaintEvent dari siklus render Qt.
+        """
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+
+        if not self.isEnabled():
+            icon_color = QColor("#475569")
+        elif self.hasFocus():
+            icon_color = QColor("#22D3EE")
+        else:
+            icon_color = QColor("#60A5FA")
+
+        _draw_calendar_glyph(
+            painter,
+            float(self.width() - 15),
+            float(self.height()) / 2.0,
+            icon_color,
+        )
+        painter.end()
+
+
+class ColoredHeaderView(QHeaderView):
+    """Header tabel horizontal kustom dengan pewarnaan teks dan aksen per kolom."""
+
+    def __init__(
+        self,
+        column_colors: dict[int, str],
+        column_alignments: dict[int, Qt.AlignmentFlag] | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
+        """Menginisialisasi ColoredHeaderView dengan peta warna setiap kolom.
+
+        Args:
+            column_colors: Peta indeks kolom ke kode warna heksadesimal.
+            column_alignments: Peta opsional perataan teks tiap indeks kolom.
+            parent: Widget induk opsional.
+        """
+        super().__init__(Qt.Orientation.Horizontal, parent)
+        self._column_colors = column_colors
+        self._column_alignments = column_alignments if column_alignments is not None else {}
+        self.setHighlightSections(False)
+        self.setDefaultAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.setFixedHeight(38)
+
+    def paintSection(self, painter: QPainter, rect: QRect, logicalIndex: int) -> None:
+        """Menggambar tiap segmen header dengan gradasi gelap dan aksen warna kolom.
+
+        Args:
+            painter: Instance QPainter yang disediakan oleh QHeaderView.
+            rect: Area persegi segmen header yang akan digambar.
+            logicalIndex: Indeks logis kolom tabel.
+        """
+        painter.save()
+
+        bg_gradient = QLinearGradient(
+            float(rect.left()),
+            float(rect.top()),
+            float(rect.left()),
+            float(rect.bottom()),
+        )
+        bg_gradient.setColorAt(0.0, QColor("#1B223C"))
+        bg_gradient.setColorAt(1.0, QColor("#13182B"))
+        painter.fillRect(rect, bg_gradient)
+
+        painter.setPen(QPen(QColor("#263052"), 1.0))
+        painter.drawLine(rect.bottomLeft(), rect.bottomRight())
+
+        accent_hex = self._column_colors.get(logicalIndex, "#CBD5E1")
+        bar_width = max(0, rect.width() - 18)
+        if bar_width > 0:
+            accent_bar = QColor(accent_hex)
+            accent_bar.setAlpha(110)
+            painter.fillRect(
+                QRect(rect.left() + 9, rect.bottom() - 2, bar_width, 2),
+                accent_bar,
+            )
+
+        header_text = ""
+        model = self.model()
+        if model is not None:
+            raw_title = model.headerData(
+                logicalIndex,
+                self.orientation(),
+                Qt.ItemDataRole.DisplayRole,
+            )
+            if raw_title is not None:
+                header_text = str(raw_title)
+
+        font = painter.font()
+        font.setPointSize(9)
+        font.setBold(True)
+        painter.setFont(font)
+        painter.setPen(QColor(accent_hex))
+
+        alignment = self._column_alignments.get(logicalIndex, Qt.AlignmentFlag.AlignCenter)
+        text_rect = rect.adjusted(8, 0, -8, -2)
+        painter.drawText(
+            text_rect,
+            int(alignment | Qt.AlignmentFlag.AlignVCenter),
+            header_text,
+        )
+        painter.restore()
 
 
 class QuickSearchLineEdit(QLineEdit):
@@ -477,7 +764,7 @@ class KeyboardDoubleSpinBox(QDoubleSpinBox):
         super().keyPressEvent(event)
 
 
-class KeyboardUnitComboBox(QComboBox):
+class KeyboardUnitComboBox(StyledComboBox):
     """Dropdown pilihan satuan beli di dalam sel tabel yang ramah keyboard.
 
     Attributes:
@@ -493,7 +780,6 @@ class KeyboardUnitComboBox(QComboBox):
             parent: Widget induk opsional.
         """
         super().__init__(parent)
-        self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         """Mengabaikan gulir mouse bila dropdown tidak sedang difokuskan.
@@ -604,18 +890,31 @@ class ItemInfoCellWidget(QWidget):
         super().__init__(parent)
         self.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(6, 4, 6, 4)
-        layout.setSpacing(1)
+        layout.setContentsMargins(8, 5, 8, 5)
+        layout.setSpacing(3)
 
         name_label = QLabel(name, self)
         name_label.setObjectName("cellItemName")
 
-        meta_text = f"{sku}  •  Stok: {format_quantity(current_stock)} {base_unit_symbol}"
-        meta_label = QLabel(meta_text, self)
-        meta_label.setObjectName("cellItemMeta")
+        meta_row = QHBoxLayout()
+        meta_row.setContentsMargins(0, 0, 0, 0)
+        meta_row.setSpacing(6)
+
+        sku_label = QLabel(sku, self)
+        sku_label.setObjectName("cellSkuTag")
+
+        stock_label = QLabel(
+            f"Stok: {format_quantity(current_stock)} {base_unit_symbol}",
+            self,
+        )
+        stock_label.setObjectName("cellStockTag")
+
+        meta_row.addWidget(sku_label)
+        meta_row.addWidget(stock_label)
+        meta_row.addStretch(1)
 
         layout.addWidget(name_label)
-        layout.addWidget(meta_label)
+        layout.addLayout(meta_row)
 
 
 class SubtotalCellWidget(QWidget):
@@ -635,7 +934,7 @@ class SubtotalCellWidget(QWidget):
         super().__init__(parent)
         self.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(4, 3, 4, 3)
+        layout.setContentsMargins(4, 4, 4, 4)
         layout.setSpacing(2)
 
         self.subtotal_spin = KeyboardDoubleSpinBox(
@@ -646,7 +945,7 @@ class SubtotalCellWidget(QWidget):
             parent=self,
         )
         self.subtotal_spin.setObjectName("gridSpinBox")
-        self.subtotal_spin.setFixedHeight(26)
+        self.subtotal_spin.setFixedHeight(28)
 
         self.hpp_label = QLabel("HPP: Rp 0 / unit", self)
         self.hpp_label.setObjectName("cellHppPreview")
@@ -693,9 +992,9 @@ class RowActionCellWidget(QWidget):
 
         price_button = QPushButton(self)
         price_button.setObjectName("iconActionNeutral")
-        price_button.setIcon(build_svg_icon(SVG_TAG, "#89B4FA", 15))
+        price_button.setIcon(build_svg_icon(SVG_TAG, "#38BDF8", 15))
         price_button.setIconSize(QSize(15, 15))
-        price_button.setFixedSize(28, 28)
+        price_button.setFixedSize(30, 30)
         attach_tooltip(
             price_button,
             "Cek / Ubah Harga Jual Barang",
@@ -707,9 +1006,9 @@ class RowActionCellWidget(QWidget):
 
         delete_button = QPushButton(self)
         delete_button.setObjectName("iconActionDanger")
-        delete_button.setIcon(build_svg_icon(SVG_TRASH, "#F38BA8", 15))
+        delete_button.setIcon(build_svg_icon(SVG_TRASH, "#FB7185", 15))
         delete_button.setIconSize(QSize(15, 15))
-        delete_button.setFixedSize(28, 28)
+        delete_button.setFixedSize(30, 30)
         attach_tooltip(
             delete_button,
             "Hapus Baris (Ctrl+Del)",
@@ -756,7 +1055,7 @@ class HistoryActionCellWidget(QWidget):
 
         detail_btn = QPushButton("Detail", self)
         detail_btn.setObjectName("tablePillNeutral")
-        detail_btn.setIcon(build_svg_icon(SVG_EYE, "#CDD6F4", 13))
+        detail_btn.setIcon(build_svg_icon(SVG_EYE, "#38BDF8", 13))
         detail_btn.setIconSize(QSize(13, 13))
         detail_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         detail_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
@@ -764,7 +1063,9 @@ class HistoryActionCellWidget(QWidget):
 
         pay_btn = QPushButton("Bayar", self)
         pay_btn.setObjectName("tablePillSuccess")
-        pay_btn.setIcon(build_svg_icon(SVG_WALLET, "#A6E3A1", 13))
+        pay_btn.setIcon(
+            build_svg_icon(SVG_WALLET, "#34D399" if can_pay else "#475569", 13)
+        )
         pay_btn.setIconSize(QSize(13, 13))
         pay_btn.setEnabled(can_pay)
         pay_btn.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -773,7 +1074,7 @@ class HistoryActionCellWidget(QWidget):
 
         repeat_btn = QPushButton("Ulang", self)
         repeat_btn.setObjectName("tablePillAccent")
-        repeat_btn.setIcon(build_svg_icon(SVG_REPEAT, "#89B4FA", 13))
+        repeat_btn.setIcon(build_svg_icon(SVG_REPEAT, "#C084FC", 13))
         repeat_btn.setIconSize(QSize(13, 13))
         attach_tooltip(
             repeat_btn,
@@ -874,34 +1175,102 @@ class TambahStokPage(QWidget):
         """Menyusun tata letak utama halaman berupa tab kerja."""
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(14, 12, 14, 12)
-        root_layout.setSpacing(8)
+        root_layout.setSpacing(10)
 
         self.tab_widget = QTabWidget(self)
         self.tab_widget.setObjectName("mainTabs")
         self.tab_widget.setDocumentMode(False)
+        self.tab_widget.setIconSize(QSize(16, 16))
 
         tab_bar = self.tab_widget.tabBar()
         if tab_bar is not None:
             tab_bar.setDrawBase(False)
+            tab_bar.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self._purchase_tab = QWidget(self.tab_widget)
+        self._purchase_tab.setObjectName("tabContentContainer")
         self._history_tab = QWidget(self.tab_widget)
+        self._history_tab.setObjectName("tabContentContainer")
 
         self._build_purchase_tab()
         self._build_history_tab()
 
         self.tab_widget.addTab(
             self._purchase_tab,
-            build_svg_icon(SVG_LAYERS, "#89B4FA", 15),
+            build_svg_icon(SVG_LAYERS, "#FFFFFF", 16),
             "Belanja / Kulakan (Grid Cepat)",
         )
         self.tab_widget.addTab(
             self._history_tab,
-            build_svg_icon(SVG_WALLET, "#A6E3A1", 15),
+            build_svg_icon(SVG_WALLET, "#34D399", 16),
             "Riwayat && Hutang Supplier",
         )
 
         root_layout.addWidget(self.tab_widget, 1)
+
+        completer_popup = self._search_completer.popup()
+        if completer_popup is not None:
+            completer_popup.setObjectName("searchCompleterPopup")
+            completer_popup.setStyleSheet(
+                """
+                QListView#searchCompleterPopup {
+                    background-color: #13192D;
+                    color: #E2E8F0;
+                    border: 1.5px solid #06B6D4;
+                    border-radius: 8px;
+                    padding: 4px;
+                    outline: none;
+                    font-size: 12px;
+                }
+                QListView#searchCompleterPopup::item {
+                    padding: 7px 10px;
+                    border-radius: 6px;
+                }
+                QListView#searchCompleterPopup::item:selected {
+                    background-color: rgba(14, 165, 233, 0.25);
+                    color: #67E8F9;
+                }
+                QListView#searchCompleterPopup::item:hover {
+                    background-color: rgba(56, 189, 248, 0.14);
+                }
+                """
+            )
+
+    def _update_tab_icons(self, active_index: int) -> None:
+        """Menyesuaikan warna ikon tab agar tetap kontras saat aktif maupun pasif.
+
+        Args:
+            active_index: Indeks tab yang sedang aktif.
+        """
+        purchase_color = "#FFFFFF" if active_index == 0 else "#38BDF8"
+        history_color = "#FFFFFF" if active_index == 1 else "#34D399"
+        self.tab_widget.setTabIcon(0, build_svg_icon(SVG_LAYERS, purchase_color, 16))
+        self.tab_widget.setTabIcon(1, build_svg_icon(SVG_WALLET, history_color, 16))
+
+    @staticmethod
+    def _apply_glow_effect(
+        widget: QWidget,
+        color_hex: str,
+        alpha: int = 85,
+        blur_radius: float = 18.0,
+        offset_y: float = 3.0,
+    ) -> None:
+        """Menambahkan efek pendar lembut pada elemen fokus utama.
+
+        Args:
+            widget: Widget target yang akan diberi efek bayangan berpendar.
+            color_hex: Kode warna heksadesimal pendar.
+            alpha: Tingkat transparansi warna pendar (0-255).
+            blur_radius: Radius keburaman bayangan.
+            offset_y: Pergeseran vertikal bayangan.
+        """
+        shadow = QGraphicsDropShadowEffect(widget)
+        glow_color = QColor(color_hex)
+        glow_color.setAlpha(alpha)
+        shadow.setColor(glow_color)
+        shadow.setBlurRadius(blur_radius)
+        shadow.setOffset(0.0, offset_y)
+        widget.setGraphicsEffect(shadow)
 
     def _build_purchase_tab(self) -> None:
         """Menyusun komponen Tab 1: Header Nota, Bar Input Cepat, Grid, dan Footer."""
@@ -923,8 +1292,8 @@ class TambahStokPage(QWidget):
         card = QFrame(self._purchase_tab)
         card.setObjectName("sectionCard")
         grid = QGridLayout(card)
-        grid.setContentsMargins(12, 10, 12, 10)
-        grid.setHorizontalSpacing(12)
+        grid.setContentsMargins(14, 10, 14, 12)
+        grid.setHorizontalSpacing(14)
         grid.setVerticalSpacing(6)
 
         supplier_label = QLabel("Supplier", card)
@@ -938,12 +1307,13 @@ class TambahStokPage(QWidget):
 
         supplier_row = QHBoxLayout()
         supplier_row.setContentsMargins(0, 0, 0, 0)
-        supplier_row.setSpacing(6)
+        supplier_row.setSpacing(8)
 
-        self.supplier_combo = QComboBox(card)
+        self.supplier_combo = StyledComboBox(card)
         self.supplier_combo.setObjectName("headerCombo")
         self.supplier_combo.setEditable(True)
         self.supplier_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.supplier_combo.setFixedHeight(34)
         self.supplier_combo.addItem("-- Tanpa Supplier (Belanja Umum) --", None)
         supplier_line = self.supplier_combo.lineEdit()
         if supplier_line is not None:
@@ -954,10 +1324,10 @@ class TambahStokPage(QWidget):
             supplier_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
 
         self.add_supplier_btn = QPushButton(card)
-        self.add_supplier_btn.setObjectName("compactAccentButton")
-        self.add_supplier_btn.setIcon(build_svg_icon(SVG_PLUS, "#89B4FA", 14))
-        self.add_supplier_btn.setIconSize(QSize(14, 14))
-        self.add_supplier_btn.setFixedSize(32, 32)
+        self.add_supplier_btn.setObjectName("addSupplierButton")
+        self.add_supplier_btn.setIcon(build_svg_icon(SVG_PLUS, "#FFFFFF", 15))
+        self.add_supplier_btn.setIconSize(QSize(15, 15))
+        self.add_supplier_btn.setFixedSize(34, 34)
         attach_tooltip(
             self.add_supplier_btn,
             "Tambah Supplier Baru",
@@ -970,18 +1340,19 @@ class TambahStokPage(QWidget):
 
         invoice_row = QHBoxLayout()
         invoice_row.setContentsMargins(0, 0, 0, 0)
-        invoice_row.setSpacing(6)
+        invoice_row.setSpacing(8)
 
         self.invoice_input = QLineEdit(card)
         self.invoice_input.setObjectName("headerInput")
+        self.invoice_input.setFixedHeight(34)
         self.invoice_input.setPlaceholderText("Contoh: INV-20261127-001")
         self.invoice_input.setText(self._build_default_invoice_number())
 
         self.auto_invoice_btn = QPushButton("Auto", card)
-        self.auto_invoice_btn.setObjectName("compactSecondaryButton")
-        self.auto_invoice_btn.setIcon(build_svg_icon(SVG_SPARKLE, "#94E2D5", 13))
-        self.auto_invoice_btn.setIconSize(QSize(13, 13))
-        self.auto_invoice_btn.setFixedHeight(32)
+        self.auto_invoice_btn.setObjectName("autoInvoiceButton")
+        self.auto_invoice_btn.setIcon(build_svg_icon(SVG_SPARKLE, "#FFFFFF", 14))
+        self.auto_invoice_btn.setIconSize(QSize(14, 14))
+        self.auto_invoice_btn.setFixedHeight(34)
         attach_tooltip(
             self.auto_invoice_btn,
             "Buat Nomor Nota Otomatis",
@@ -992,14 +1363,14 @@ class TambahStokPage(QWidget):
         invoice_row.addWidget(self.invoice_input, 1)
         invoice_row.addWidget(self.auto_invoice_btn)
 
-        self.purchase_date_edit = QDateTimeEdit(QDateTime.currentDateTime(), card)
+        self.purchase_date_edit = StyledDateTimeEdit(QDateTime.currentDateTime(), card)
         self.purchase_date_edit.setObjectName("headerDate")
         self.purchase_date_edit.setDisplayFormat("yyyy-MM-dd HH:mm")
-        self.purchase_date_edit.setCalendarPopup(True)
-        self.purchase_date_edit.setFixedHeight(32)
+        self.purchase_date_edit.setFixedHeight(34)
 
         self.notes_input = QLineEdit(card)
         self.notes_input.setObjectName("headerInput")
+        self.notes_input.setFixedHeight(34)
         self.notes_input.setPlaceholderText("Catatan kulakan, kurir, atau promo (opsional)...")
 
         grid.addWidget(supplier_label, 0, 0)
@@ -1027,17 +1398,18 @@ class TambahStokPage(QWidget):
         bar = QFrame(self._purchase_tab)
         bar.setObjectName("quickAddCard")
         outer = QVBoxLayout(bar)
-        outer.setContentsMargins(12, 9, 12, 8)
-        outer.setSpacing(6)
+        outer.setContentsMargins(14, 10, 14, 9)
+        outer.setSpacing(8)
 
         top_row = QHBoxLayout()
         top_row.setContentsMargins(0, 0, 0, 0)
         top_row.setSpacing(8)
 
-        search_icon_label = QLabel(bar)
-        search_icon_label.setPixmap(build_svg_icon(SVG_SEARCH, "#89B4FA", 18).pixmap(18, 18))
-        search_icon_label.setFixedSize(22, 22)
-        search_icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        search_icon_box = QLabel(bar)
+        search_icon_box.setObjectName("searchIconBadge")
+        search_icon_box.setPixmap(build_svg_icon(SVG_SEARCH, "#38BDF8", 17).pixmap(17, 17))
+        search_icon_box.setFixedSize(34, 36)
+        search_icon_box.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.quick_search_input = QuickSearchLineEdit(bar)
         self.quick_search_input.setObjectName("quickSearchInput")
@@ -1048,41 +1420,41 @@ class TambahStokPage(QWidget):
         self.quick_search_input.setCompleter(self._search_completer)
 
         self.quick_add_btn = QPushButton("Tambah", bar)
-        self.quick_add_btn.setObjectName("primarySmallButton")
-        self.quick_add_btn.setIcon(build_svg_icon(SVG_PLUS, "#11111B", 14))
+        self.quick_add_btn.setObjectName("btnQuickAdd")
+        self.quick_add_btn.setIcon(build_svg_icon(SVG_PLUS, "#FFFFFF", 14))
         self.quick_add_btn.setIconSize(QSize(14, 14))
         self.quick_add_btn.setFixedHeight(36)
         self.quick_add_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.bulk_picker_btn = QPushButton("Pilih Banyak (F4)", bar)
-        self.bulk_picker_btn.setObjectName("toolbarButton")
-        self.bulk_picker_btn.setIcon(build_svg_icon(SVG_LAYERS, "#94E2D5", 14))
+        self.bulk_picker_btn.setObjectName("btnBulkPicker")
+        self.bulk_picker_btn.setIcon(build_svg_icon(SVG_LAYERS, "#FFFFFF", 14))
         self.bulk_picker_btn.setIconSize(QSize(14, 14))
         self.bulk_picker_btn.setFixedHeight(36)
         self.bulk_picker_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.repeat_order_btn = QPushButton("Ulang Nota", bar)
-        self.repeat_order_btn.setObjectName("toolbarButton")
-        self.repeat_order_btn.setIcon(build_svg_icon(SVG_REPEAT, "#CBA6F7", 14))
+        self.repeat_order_btn.setObjectName("btnRepeatOrder")
+        self.repeat_order_btn.setIcon(build_svg_icon(SVG_REPEAT, "#FFFFFF", 14))
         self.repeat_order_btn.setIconSize(QSize(14, 14))
         self.repeat_order_btn.setFixedHeight(36)
         self.repeat_order_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.import_csv_btn = QPushButton("Import CSV", bar)
-        self.import_csv_btn.setObjectName("toolbarButton")
-        self.import_csv_btn.setIcon(build_svg_icon(SVG_UPLOAD, "#F9E2AF", 14))
+        self.import_csv_btn.setObjectName("btnImportCsv")
+        self.import_csv_btn.setIcon(build_svg_icon(SVG_UPLOAD, "#FFFFFF", 14))
         self.import_csv_btn.setIconSize(QSize(14, 14))
         self.import_csv_btn.setFixedHeight(36)
         self.import_csv_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.clear_cart_btn = QPushButton("Kosongkan", bar)
-        self.clear_cart_btn.setObjectName("dangerGhostButton")
-        self.clear_cart_btn.setIcon(build_svg_icon(SVG_TRASH, "#F38BA8", 14))
+        self.clear_cart_btn.setObjectName("btnClearCart")
+        self.clear_cart_btn.setIcon(build_svg_icon(SVG_TRASH, "#FFFFFF", 14))
         self.clear_cart_btn.setIconSize(QSize(14, 14))
         self.clear_cart_btn.setFixedHeight(36)
         self.clear_cart_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
-        top_row.addWidget(search_icon_label)
+        top_row.addWidget(search_icon_box)
         top_row.addWidget(self.quick_search_input, 1)
         top_row.addWidget(self.quick_add_btn)
         top_row.addWidget(self.bulk_picker_btn)
@@ -1091,8 +1463,8 @@ class TambahStokPage(QWidget):
         top_row.addWidget(self.clear_cart_btn)
 
         hint_row = QHBoxLayout()
-        hint_row.setContentsMargins(2, 0, 2, 0)
-        hint_row.setSpacing(14)
+        hint_row.setContentsMargins(0, 0, 0, 0)
+        hint_row.setSpacing(8)
 
         hints = [
             "F1: Cari Barang",
@@ -1121,6 +1493,32 @@ class TambahStokPage(QWidget):
         """
         self.cart_table = QTableWidget(0, 8, self._purchase_tab)
         self.cart_table.setObjectName("cartTable")
+
+        cart_header = ColoredHeaderView(
+            column_colors={
+                self.COL_NO: "#94A3B8",
+                self.COL_ITEM: "#FBBF24",
+                self.COL_UNIT: "#FDE047",
+                self.COL_QTY: "#34D399",
+                self.COL_BASE_QTY: "#38BDF8",
+                self.COL_UNIT_COST: "#60A5FA",
+                self.COL_SUBTOTAL: "#C084FC",
+                self.COL_ACTION: "#FB7185",
+            },
+            column_alignments={
+                self.COL_NO: Qt.AlignmentFlag.AlignCenter,
+                self.COL_ITEM: Qt.AlignmentFlag.AlignLeft,
+                self.COL_UNIT: Qt.AlignmentFlag.AlignCenter,
+                self.COL_QTY: Qt.AlignmentFlag.AlignCenter,
+                self.COL_BASE_QTY: Qt.AlignmentFlag.AlignRight,
+                self.COL_UNIT_COST: Qt.AlignmentFlag.AlignRight,
+                self.COL_SUBTOTAL: Qt.AlignmentFlag.AlignRight,
+                self.COL_ACTION: Qt.AlignmentFlag.AlignCenter,
+            },
+            parent=self.cart_table,
+        )
+        self.cart_table.setHorizontalHeader(cart_header)
+
         self.cart_table.setHorizontalHeaderLabels(
             [
                 "#",
@@ -1143,27 +1541,24 @@ class TambahStokPage(QWidget):
         v_header = self.cart_table.verticalHeader()
         if v_header is not None:
             v_header.setVisible(False)
-            v_header.setDefaultSectionSize(52)
+            v_header.setDefaultSectionSize(56)
 
-        h_header = self.cart_table.horizontalHeader()
-        if h_header is not None:
-            h_header.setHighlightSections(False)
-            h_header.setSectionResizeMode(self.COL_NO, QHeaderView.ResizeMode.Fixed)
-            h_header.setSectionResizeMode(self.COL_ITEM, QHeaderView.ResizeMode.Stretch)
-            h_header.setSectionResizeMode(self.COL_UNIT, QHeaderView.ResizeMode.Fixed)
-            h_header.setSectionResizeMode(self.COL_QTY, QHeaderView.ResizeMode.Fixed)
-            h_header.setSectionResizeMode(self.COL_BASE_QTY, QHeaderView.ResizeMode.Fixed)
-            h_header.setSectionResizeMode(self.COL_UNIT_COST, QHeaderView.ResizeMode.Fixed)
-            h_header.setSectionResizeMode(self.COL_SUBTOTAL, QHeaderView.ResizeMode.Fixed)
-            h_header.setSectionResizeMode(self.COL_ACTION, QHeaderView.ResizeMode.Fixed)
+        cart_header.setSectionResizeMode(self.COL_NO, QHeaderView.ResizeMode.Fixed)
+        cart_header.setSectionResizeMode(self.COL_ITEM, QHeaderView.ResizeMode.Stretch)
+        cart_header.setSectionResizeMode(self.COL_UNIT, QHeaderView.ResizeMode.Fixed)
+        cart_header.setSectionResizeMode(self.COL_QTY, QHeaderView.ResizeMode.Fixed)
+        cart_header.setSectionResizeMode(self.COL_BASE_QTY, QHeaderView.ResizeMode.Fixed)
+        cart_header.setSectionResizeMode(self.COL_UNIT_COST, QHeaderView.ResizeMode.Fixed)
+        cart_header.setSectionResizeMode(self.COL_SUBTOTAL, QHeaderView.ResizeMode.Fixed)
+        cart_header.setSectionResizeMode(self.COL_ACTION, QHeaderView.ResizeMode.Fixed)
 
-        self.cart_table.setColumnWidth(self.COL_NO, 38)
-        self.cart_table.setColumnWidth(self.COL_UNIT, 148)
-        self.cart_table.setColumnWidth(self.COL_QTY, 102)
-        self.cart_table.setColumnWidth(self.COL_BASE_QTY, 128)
-        self.cart_table.setColumnWidth(self.COL_UNIT_COST, 152)
-        self.cart_table.setColumnWidth(self.COL_SUBTOTAL, 174)
-        self.cart_table.setColumnWidth(self.COL_ACTION, 82)
+        self.cart_table.setColumnWidth(self.COL_NO, 40)
+        self.cart_table.setColumnWidth(self.COL_UNIT, 154)
+        self.cart_table.setColumnWidth(self.COL_QTY, 104)
+        self.cart_table.setColumnWidth(self.COL_BASE_QTY, 132)
+        self.cart_table.setColumnWidth(self.COL_UNIT_COST, 156)
+        self.cart_table.setColumnWidth(self.COL_SUBTOTAL, 180)
+        self.cart_table.setColumnWidth(self.COL_ACTION, 84)
         return self.cart_table
 
     def _create_footer_panel(self) -> QFrame:
@@ -1175,34 +1570,34 @@ class TambahStokPage(QWidget):
         footer = QFrame(self._purchase_tab)
         footer.setObjectName("sectionCard")
         outer = QVBoxLayout(footer)
-        outer.setContentsMargins(12, 10, 12, 10)
-        outer.setSpacing(10)
+        outer.setContentsMargins(14, 12, 14, 12)
+        outer.setSpacing(12)
 
         content_row = QHBoxLayout()
         content_row.setContentsMargins(0, 0, 0, 0)
-        content_row.setSpacing(16)
+        content_row.setSpacing(14)
 
         summary_card = QFrame(footer)
-        summary_card.setObjectName("subCard")
+        summary_card.setObjectName("grandTotalCard")
         summary_grid = QGridLayout(summary_card)
-        summary_grid.setContentsMargins(12, 10, 12, 10)
+        summary_grid.setContentsMargins(16, 12, 16, 12)
         summary_grid.setHorizontalSpacing(12)
-        summary_grid.setVerticalSpacing(6)
+        summary_grid.setVerticalSpacing(8)
 
-        self.item_count_label = QLabel("0 Jenis Barang  •  0 Total Qty Masuk", summary_card)
+        self.item_count_label = QLabel("0 Jenis Barang  •  0 Total Qty Beli", summary_card)
         self.item_count_label.setObjectName("summaryMetaLabel")
 
         subtotal_title = QLabel("Subtotal Belanja", summary_card)
-        subtotal_title.setObjectName("fieldLabel")
+        subtotal_title.setObjectName("summaryFieldLabel")
         self.subtotal_value_label = QLabel("Rp 0", summary_card)
         self.subtotal_value_label.setObjectName("summaryValueLabel")
         self.subtotal_value_label.setAlignment(Qt.AlignmentFlag.AlignRight)
 
         discount_title = QLabel("Diskon Nota", summary_card)
-        discount_title.setObjectName("fieldLabel")
+        discount_title.setObjectName("summaryFieldLabel")
         self.discount_spin = CurrencySpinBox(parent=summary_card)
-        self.discount_spin.setObjectName("footerSpinBox")
-        self.discount_spin.setFixedHeight(30)
+        self.discount_spin.setObjectName("summarySpinBox")
+        self.discount_spin.setFixedHeight(32)
 
         grand_title = QLabel("GRAND TOTAL", summary_card)
         grand_title.setObjectName("grandTotalTitle")
@@ -1219,20 +1614,21 @@ class TambahStokPage(QWidget):
         summary_grid.addWidget(self.grand_total_label, 3, 1)
         summary_grid.setColumnStretch(0, 1)
         summary_grid.setColumnStretch(1, 1)
+        self._apply_glow_effect(summary_card, "#14B8A6", alpha=60, blur_radius=18.0, offset_y=2.0)
 
         payment_card = QFrame(footer)
-        payment_card.setObjectName("subCard")
+        payment_card.setObjectName("paymentCard")
         pay_grid = QGridLayout(payment_card)
-        pay_grid.setContentsMargins(12, 10, 12, 10)
-        pay_grid.setHorizontalSpacing(12)
-        pay_grid.setVerticalSpacing(6)
+        pay_grid.setContentsMargins(16, 12, 16, 12)
+        pay_grid.setHorizontalSpacing(14)
+        pay_grid.setVerticalSpacing(7)
 
         method_label = QLabel("Metode Pembayaran", payment_card)
         method_label.setObjectName("fieldLabel")
-        self.payment_method_combo = QComboBox(payment_card)
+        self.payment_method_combo = StyledComboBox(payment_card)
         self.payment_method_combo.setObjectName("headerCombo")
         self.payment_method_combo.addItems(list(self.PAYMENT_METHODS))
-        self.payment_method_combo.setFixedHeight(30)
+        self.payment_method_combo.setFixedHeight(32)
 
         quick_pay_row = QHBoxLayout()
         quick_pay_row.setContentsMargins(0, 0, 0, 0)
@@ -1240,17 +1636,17 @@ class TambahStokPage(QWidget):
 
         self.btn_pay_full = QPushButton("Lunas (F8)", payment_card)
         self.btn_pay_full.setObjectName("quickPaySuccess")
-        self.btn_pay_full.setFixedHeight(28)
+        self.btn_pay_full.setFixedHeight(30)
         self.btn_pay_full.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.btn_pay_partial = QPushButton("DP / Cicil", payment_card)
         self.btn_pay_partial.setObjectName("quickPayWarning")
-        self.btn_pay_partial.setFixedHeight(28)
+        self.btn_pay_partial.setFixedHeight(30)
         self.btn_pay_partial.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.btn_pay_unpaid = QPushButton("Tempo", payment_card)
         self.btn_pay_unpaid.setObjectName("quickPayDanger")
-        self.btn_pay_unpaid.setFixedHeight(28)
+        self.btn_pay_unpaid.setFixedHeight(30)
         self.btn_pay_unpaid.setCursor(Qt.CursorShape.PointingHandCursor)
 
         quick_pay_row.addWidget(self.btn_pay_full)
@@ -1261,7 +1657,7 @@ class TambahStokPage(QWidget):
         paid_label.setObjectName("fieldLabel")
         self.amount_paid_spin = CurrencySpinBox(parent=payment_card)
         self.amount_paid_spin.setObjectName("footerSpinBox")
-        self.amount_paid_spin.setFixedHeight(30)
+        self.amount_paid_spin.setFixedHeight(32)
 
         remaining_label = QLabel("Sisa Hutang / Status", payment_card)
         remaining_label.setObjectName("fieldLabel")
@@ -1279,17 +1675,16 @@ class TambahStokPage(QWidget):
 
         due_label = QLabel("Jatuh Tempo", payment_card)
         due_label.setObjectName("fieldLabel")
-        self.due_date_edit = QDateEdit(QDate.currentDate().addDays(14), payment_card)
+        self.due_date_edit = StyledDateEdit(QDate.currentDate().addDays(14), payment_card)
         self.due_date_edit.setObjectName("headerDate")
         self.due_date_edit.setDisplayFormat("yyyy-MM-dd")
-        self.due_date_edit.setCalendarPopup(True)
-        self.due_date_edit.setFixedHeight(30)
+        self.due_date_edit.setFixedHeight(32)
 
         ref_label = QLabel("No. Referensi", payment_card)
         ref_label.setObjectName("fieldLabel")
         self.reference_input = QLineEdit(payment_card)
         self.reference_input.setObjectName("headerInput")
-        self.reference_input.setFixedHeight(30)
+        self.reference_input.setFixedHeight(32)
         self.reference_input.setPlaceholderText("No. bukti transfer / QRIS...")
 
         pay_grid.addWidget(method_label, 0, 0)
@@ -1319,26 +1714,27 @@ class TambahStokPage(QWidget):
         action_row.setSpacing(10)
 
         self.reset_form_btn = QPushButton("Reset Form (Ctrl+R)", footer)
-        self.reset_form_btn.setObjectName("toolbarButton")
-        self.reset_form_btn.setIcon(build_svg_icon(SVG_REFRESH, "#A6ADC8", 14))
-        self.reset_form_btn.setIconSize(QSize(14, 14))
-        self.reset_form_btn.setFixedHeight(38)
+        self.reset_form_btn.setObjectName("resetFormButton")
+        self.reset_form_btn.setIcon(build_svg_icon(SVG_REFRESH, "#FB7185", 15))
+        self.reset_form_btn.setIconSize(QSize(15, 15))
+        self.reset_form_btn.setFixedHeight(40)
         self.reset_form_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.save_draft_btn = QPushButton("Simpan Draft (F9)", footer)
         self.save_draft_btn.setObjectName("secondaryActionButton")
-        self.save_draft_btn.setIcon(build_svg_icon(SVG_SAVE, "#CDD6F4", 15))
+        self.save_draft_btn.setIcon(build_svg_icon(SVG_SAVE, "#E0E7FF", 15))
         self.save_draft_btn.setIconSize(QSize(15, 15))
-        self.save_draft_btn.setFixedHeight(38)
+        self.save_draft_btn.setFixedHeight(40)
         self.save_draft_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.submit_btn = QPushButton("Simpan & Tambah Stok (F10)", footer)
         self.submit_btn.setObjectName("primaryActionButton")
-        self.submit_btn.setIcon(build_svg_icon(SVG_CHECK, "#11111B", 16))
-        self.submit_btn.setIconSize(QSize(16, 16))
-        self.submit_btn.setFixedHeight(38)
-        self.submit_btn.setMinimumWidth(230)
+        self.submit_btn.setIcon(build_svg_icon(SVG_CHECK, "#022C22", 17))
+        self.submit_btn.setIconSize(QSize(17, 17))
+        self.submit_btn.setFixedHeight(40)
+        self.submit_btn.setMinimumWidth(245)
         self.submit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._apply_glow_effect(self.submit_btn, "#10B981", alpha=95, blur_radius=18.0, offset_y=2.0)
 
         action_row.addWidget(self.reset_form_btn)
         action_row.addStretch(1)
@@ -1357,68 +1753,75 @@ class TambahStokPage(QWidget):
 
         kpi_row = QHBoxLayout()
         kpi_row.setContentsMargins(0, 0, 0, 0)
-        kpi_row.setSpacing(10)
+        kpi_row.setSpacing(12)
 
         self.kpi_total_notes_label = self._create_kpi_card(
-            kpi_row,
-            "Total Nota Kulakan",
-            "0 Nota",
-            "#89B4FA",
+            parent_layout=kpi_row,
+            title="Total Nota Kulakan",
+            initial_value="0 Nota",
+            accent_color="#38BDF8",
+            bg_start="#0F2547",
+            bg_end="#11172B",
+            svg_template=SVG_LAYERS,
         )
         self.kpi_total_spend_label = self._create_kpi_card(
-            kpi_row,
-            "Total Nilai Pembelian",
-            "Rp 0",
-            "#A6E3A1",
+            parent_layout=kpi_row,
+            title="Total Nilai Pembelian",
+            initial_value="Rp 0",
+            accent_color="#34D399",
+            bg_start="#063B32",
+            bg_end="#11172B",
+            svg_template=SVG_CHECK,
         )
         self.kpi_total_debt_label = self._create_kpi_card(
-            kpi_row,
-            "Total Sisa Hutang Supplier",
-            "Rp 0",
-            "#F38BA8",
+            parent_layout=kpi_row,
+            title="Total Sisa Hutang Supplier",
+            initial_value="Rp 0",
+            accent_color="#FB7185",
+            bg_start="#401228",
+            bg_end="#11172B",
+            svg_template=SVG_WALLET,
         )
         layout.addLayout(kpi_row)
 
         filter_card = QFrame(self._history_tab)
         filter_card.setObjectName("sectionCard")
         filter_layout = QHBoxLayout(filter_card)
-        filter_layout.setContentsMargins(12, 8, 12, 8)
-        filter_layout.setSpacing(8)
+        filter_layout.setContentsMargins(14, 10, 14, 10)
+        filter_layout.setSpacing(10)
 
         self.history_search_input = QLineEdit(filter_card)
         self.history_search_input.setObjectName("headerInput")
         self.history_search_input.setPlaceholderText("Cari nomor faktur atau nama supplier...")
-        self.history_search_input.setFixedHeight(32)
+        self.history_search_input.setFixedHeight(34)
 
-        self.history_status_combo = QComboBox(filter_card)
+        self.history_status_combo = StyledComboBox(filter_card)
         self.history_status_combo.setObjectName("headerCombo")
-        self.history_status_combo.setFixedHeight(32)
-        self.history_status_combo.setMinimumWidth(155)
+        self.history_status_combo.setFixedHeight(34)
+        self.history_status_combo.setMinimumWidth(170)
         self.history_status_combo.addItem("Semua Status", "ALL")
         self.history_status_combo.addItem("Belum Lunas (UNPAID)", "UNPAID")
         self.history_status_combo.addItem("Cicilan (PARTIAL)", "PARTIAL")
         self.history_status_combo.addItem("Lunas (PAID)", "PAID")
 
-        self.history_date_from = QDateEdit(QDate.currentDate().addMonths(-1), filter_card)
+        self.history_date_from = StyledDateEdit(QDate.currentDate().addMonths(-1), filter_card)
         self.history_date_from.setObjectName("headerDate")
         self.history_date_from.setDisplayFormat("yyyy-MM-dd")
-        self.history_date_from.setCalendarPopup(True)
-        self.history_date_from.setFixedHeight(32)
+        self.history_date_from.setFixedHeight(34)
 
         date_sep_label = QLabel("s/d", filter_card)
         date_sep_label.setObjectName("fieldLabel")
 
-        self.history_date_to = QDateEdit(QDate.currentDate(), filter_card)
+        self.history_date_to = StyledDateEdit(QDate.currentDate(), filter_card)
         self.history_date_to.setObjectName("headerDate")
         self.history_date_to.setDisplayFormat("yyyy-MM-dd")
-        self.history_date_to.setCalendarPopup(True)
-        self.history_date_to.setFixedHeight(32)
+        self.history_date_to.setFixedHeight(34)
 
         self.history_refresh_btn = QPushButton("Muat Ulang", filter_card)
-        self.history_refresh_btn.setObjectName("toolbarButton")
-        self.history_refresh_btn.setIcon(build_svg_icon(SVG_REFRESH, "#89B4FA", 14))
+        self.history_refresh_btn.setObjectName("btnQuickAdd")
+        self.history_refresh_btn.setIcon(build_svg_icon(SVG_REFRESH, "#FFFFFF", 14))
         self.history_refresh_btn.setIconSize(QSize(14, 14))
-        self.history_refresh_btn.setFixedHeight(32)
+        self.history_refresh_btn.setFixedHeight(34)
         self.history_refresh_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         filter_layout.addWidget(self.history_search_input, 1)
@@ -1432,6 +1835,34 @@ class TambahStokPage(QWidget):
 
         self.history_table = QTableWidget(0, 9, self._history_tab)
         self.history_table.setObjectName("cartTable")
+
+        history_header = ColoredHeaderView(
+            column_colors={
+                0: "#94A3B8",
+                1: "#38BDF8",
+                2: "#FBBF24",
+                3: "#E2E8F0",
+                4: "#34D399",
+                5: "#FB7185",
+                6: "#C084FC",
+                7: "#FDE047",
+                8: "#60A5FA",
+            },
+            column_alignments={
+                0: Qt.AlignmentFlag.AlignLeft,
+                1: Qt.AlignmentFlag.AlignLeft,
+                2: Qt.AlignmentFlag.AlignLeft,
+                3: Qt.AlignmentFlag.AlignRight,
+                4: Qt.AlignmentFlag.AlignRight,
+                5: Qt.AlignmentFlag.AlignRight,
+                6: Qt.AlignmentFlag.AlignCenter,
+                7: Qt.AlignmentFlag.AlignCenter,
+                8: Qt.AlignmentFlag.AlignCenter,
+            },
+            parent=self.history_table,
+        )
+        self.history_table.setHorizontalHeader(history_header)
+
         self.history_table.setHorizontalHeaderLabels(
             [
                 "Tanggal",
@@ -1458,29 +1889,26 @@ class TambahStokPage(QWidget):
         hv_header = self.history_table.verticalHeader()
         if hv_header is not None:
             hv_header.setVisible(False)
-            hv_header.setDefaultSectionSize(44)
+            hv_header.setDefaultSectionSize(46)
 
-        hh_header = self.history_table.horizontalHeader()
-        if hh_header is not None:
-            hh_header.setHighlightSections(False)
-            hh_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
-            hh_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
-            hh_header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
-            hh_header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
-            hh_header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
-            hh_header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
-            hh_header.setSectionResizeMode(6, QHeaderView.ResizeMode.Fixed)
-            hh_header.setSectionResizeMode(7, QHeaderView.ResizeMode.Fixed)
-            hh_header.setSectionResizeMode(8, QHeaderView.ResizeMode.Fixed)
+        history_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)
+        history_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        history_header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        history_header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)
+        history_header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)
+        history_header.setSectionResizeMode(5, QHeaderView.ResizeMode.Fixed)
+        history_header.setSectionResizeMode(6, QHeaderView.ResizeMode.Fixed)
+        history_header.setSectionResizeMode(7, QHeaderView.ResizeMode.Fixed)
+        history_header.setSectionResizeMode(8, QHeaderView.ResizeMode.Fixed)
 
-        self.history_table.setColumnWidth(0, 132)
-        self.history_table.setColumnWidth(1, 152)
-        self.history_table.setColumnWidth(3, 122)
-        self.history_table.setColumnWidth(4, 122)
-        self.history_table.setColumnWidth(5, 122)
-        self.history_table.setColumnWidth(6, 108)
-        self.history_table.setColumnWidth(7, 105)
-        self.history_table.setColumnWidth(8, 215)
+        self.history_table.setColumnWidth(0, 134)
+        self.history_table.setColumnWidth(1, 154)
+        self.history_table.setColumnWidth(3, 124)
+        self.history_table.setColumnWidth(4, 124)
+        self.history_table.setColumnWidth(5, 124)
+        self.history_table.setColumnWidth(6, 114)
+        self.history_table.setColumnWidth(7, 108)
+        self.history_table.setColumnWidth(8, 224)
 
         layout.addWidget(self.history_table, 1)
 
@@ -1490,14 +1918,20 @@ class TambahStokPage(QWidget):
         title: str,
         initial_value: str,
         accent_color: str,
+        bg_start: str,
+        bg_end: str,
+        svg_template: str,
     ) -> QLabel:
-        """Membuat kartu KPI ringkas untuk bagian atas tab riwayat kulakan.
+        """Membuat kartu KPI bergradasi modern untuk bagian atas tab riwayat kulakan.
 
         Args:
             parent_layout: Layout horizontal tempat kartu akan ditempatkan.
             title: Label judul metrik KPI.
             initial_value: Nilai tampilan awal KPI.
-            accent_color: Warna garis aksen kiri dan nilai KPI.
+            accent_color: Warna garis aksen, ikon, dan nilai KPI.
+            bg_start: Warna awal gradasi latar kartu.
+            bg_end: Warna akhir gradasi latar kartu.
+            svg_template: Template string SVG untuk ikon metrik.
 
         Returns:
             Widget QLabel nilai KPI yang dapat diperbarui secara dinamis.
@@ -1507,38 +1941,68 @@ class TambahStokPage(QWidget):
         card.setStyleSheet(
             f"""
             QFrame#kpiCard {{
-                background-color: #1E1E2E;
-                border: 1px solid #313244;
-                border-left: 3px solid {accent_color};
-                border-radius: 8px;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 {bg_start}, stop:1 {bg_end}
+                );
+                border: 1px solid {accent_color};
+                border-left: 4px solid {accent_color};
+                border-radius: 10px;
             }}
             """
         )
-        vbox = QVBoxLayout(card)
-        vbox.setContentsMargins(12, 8, 12, 8)
-        vbox.setSpacing(2)
+        row = QHBoxLayout(card)
+        row.setContentsMargins(14, 10, 14, 10)
+        row.setSpacing(12)
+
+        icon_holder = QLabel(card)
+        icon_holder.setFixedSize(38, 38)
+        icon_holder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        icon_holder.setPixmap(build_svg_icon(svg_template, accent_color, 20).pixmap(20, 20))
+        icon_holder.setStyleSheet(
+            f"""
+            background-color: rgba(15, 23, 42, 0.55);
+            border: 1px solid {accent_color};
+            border-radius: 9px;
+            """
+        )
+
+        text_col = QVBoxLayout()
+        text_col.setContentsMargins(0, 0, 0, 0)
+        text_col.setSpacing(2)
 
         title_lbl = QLabel(title, card)
-        title_lbl.setObjectName("fieldLabel")
+        title_lbl.setStyleSheet(
+            "color: #CBD5E1; font-size: 11px; font-weight: 600; background: transparent;"
+        )
 
         value_lbl = QLabel(initial_value, card)
         value_lbl.setStyleSheet(
-            f"color: {accent_color}; font-size: 16px; font-weight: 700; background: transparent;"
+            f"color: {accent_color}; font-size: 18px; font-weight: 800; background: transparent;"
         )
 
-        vbox.addWidget(title_lbl)
-        vbox.addWidget(value_lbl)
+        text_col.addWidget(title_lbl)
+        text_col.addWidget(value_lbl)
+
+        row.addWidget(icon_holder)
+        row.addLayout(text_col, 1)
         parent_layout.addWidget(card, 1)
         return value_lbl
 
     def _apply_styles(self) -> None:
-        """Menerapkan stylesheet QSS tema gelap modern ke seluruh komponen halaman."""
+        """Menerapkan stylesheet QSS tema Deep Midnight Indigo yang berwarna ke halaman."""
         self.setStyleSheet(
             """
             QWidget#TambahStokPage {
-                background-color: #11111B;
-                color: #CDD6F4;
+                background: qlineargradient(
+                    spread:pad, x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #111424, stop:1 #0B0C16
+                );
+                color: #E2E8F0;
                 font-family: "Segoe UI", "Inter", sans-serif;
+            }
+            QWidget#tabContentContainer {
+                background: transparent;
             }
             QTabWidget#mainTabs::pane {
                 border: none;
@@ -1554,124 +2018,178 @@ class TambahStokPage(QWidget):
                 border: none;
             }
             QTabWidget#mainTabs QTabBar::tab {
-                background-color: #181825;
-                color: #A6ADC8;
-                border: 1px solid #313244;
+                background-color: #14182B;
+                color: #94A3B8;
+                border: 1px solid #263052;
                 border-bottom: none;
-                border-top-left-radius: 8px;
-                border-top-right-radius: 8px;
-                padding: 8px 18px;
-                margin-right: 4px;
+                border-top-left-radius: 9px;
+                border-top-right-radius: 9px;
+                padding: 9px 20px;
+                margin-right: 6px;
                 font-size: 13px;
-                font-weight: 600;
+                font-weight: 700;
             }
             QTabWidget#mainTabs QTabBar::tab:selected {
-                background-color: #1E1E2E;
-                color: #CDD6F4;
-                border-color: #45475A;
-                border-bottom: 2px solid #89B4FA;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #06B6D4, stop:1 #2563EB
+                );
+                color: #FFFFFF;
+                border: 1px solid #38BDF8;
+                border-bottom: 3px solid #67E8F9;
             }
             QTabWidget#mainTabs QTabBar::tab:hover:!selected {
-                background-color: #232336;
-                color: #CDD6F4;
+                background-color: #1B2340;
+                color: #E2E8F0;
+                border-color: #3B4C7A;
             }
-            QFrame#sectionCard, QFrame#quickAddCard {
-                background-color: #1E1E2E;
-                border: 1px solid #313244;
-                border-radius: 10px;
+            QFrame#sectionCard {
+                background-color: #14192D;
+                border: 1px solid #263052;
+                border-radius: 12px;
             }
             QFrame#quickAddCard {
-                border-color: #3B4261;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #151C34, stop:0.5 #141A30, stop:1 #181C35
+                );
+                border: 1.5px solid #2B4C7E;
+                border-radius: 12px;
             }
-            QFrame#subCard {
-                background-color: #161622;
-                border: 1px solid #2A2A40;
-                border-radius: 8px;
+            QFrame#grandTotalCard {
+                background: qlineargradient(
+                    spread:pad, x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #064E3B, stop:0.55 #0D353A, stop:1 #0F172A
+                );
+                border: 1.5px solid #14B8A6;
+                border-radius: 10px;
+            }
+            QFrame#paymentCard {
+                background-color: #101528;
+                border: 1px solid #263052;
+                border-radius: 10px;
             }
             QLabel#fieldLabel {
-                color: #A6ADC8;
+                color: #CBD5E1;
                 font-size: 11px;
-                font-weight: 600;
+                font-weight: 700;
                 background: transparent;
             }
-            QLabel#shortcutHint {
-                color: #7F849C;
-                font-size: 11px;
-                font-weight: 500;
-                background: transparent;
-            }
-            QLabel#summaryMetaLabel {
-                color: #94E2D5;
+            QLabel#summaryFieldLabel {
+                color: #CCFBF1;
                 font-size: 12px;
                 font-weight: 600;
                 background: transparent;
             }
-            QLabel#summaryValueLabel {
-                color: #CDD6F4;
-                font-size: 14px;
-                font-weight: 600;
-                background: transparent;
+            QLabel#searchIconBadge {
+                background-color: #0D1326;
+                border: 1px solid #2B4C7E;
+                border-radius: 8px;
             }
-            QLabel#grandTotalTitle {
-                color: #CDD6F4;
-                font-size: 13px;
+            QLabel#shortcutHint {
+                color: #93C5FD;
+                background-color: rgba(30, 41, 74, 0.72);
+                border: 1px solid #26345C;
+                border-radius: 5px;
+                padding: 2px 7px;
+                font-size: 10px;
+                font-weight: 600;
+            }
+            QLabel#summaryMetaLabel {
+                color: #5EEAD4;
+                font-size: 12px;
                 font-weight: 700;
                 background: transparent;
             }
+            QLabel#summaryValueLabel {
+                color: #F8FAFC;
+                font-size: 15px;
+                font-weight: 700;
+                background: transparent;
+            }
+            QLabel#grandTotalTitle {
+                color: #FFFFFF;
+                font-size: 13px;
+                font-weight: 800;
+                letter-spacing: 0.5px;
+                background: transparent;
+            }
             QLabel#grandTotalValue {
-                color: #A6E3A1;
-                font-size: 20px;
+                color: #34D399;
+                font-size: 24px;
                 font-weight: 800;
                 background: transparent;
             }
             QLabel#remainingValueLabel {
-                color: #F9E2AF;
-                font-size: 14px;
-                font-weight: 700;
+                color: #FBBF24;
+                font-size: 16px;
+                font-weight: 800;
                 background: transparent;
             }
             QLabel#statusBadgePaid {
-                background-color: rgba(166, 227, 161, 0.16);
-                color: #A6E3A1;
-                border: 1px solid rgba(166, 227, 161, 0.45);
-                border-radius: 10px;
-                padding: 3px 10px;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #4ADE80, stop:1 #22C55E
+                );
+                color: #052E16;
+                border: 1px solid #86EFAC;
+                border-radius: 11px;
+                padding: 4px 12px;
                 font-size: 11px;
-                font-weight: 700;
+                font-weight: 800;
             }
             QLabel#statusBadgePartial {
-                background-color: rgba(249, 226, 175, 0.16);
-                color: #F9E2AF;
-                border: 1px solid rgba(249, 226, 175, 0.45);
-                border-radius: 10px;
-                padding: 3px 10px;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #FBBF24, stop:1 #F59E0B
+                );
+                color: #451A03;
+                border: 1px solid #FDE68A;
+                border-radius: 11px;
+                padding: 4px 12px;
                 font-size: 11px;
-                font-weight: 700;
+                font-weight: 800;
             }
             QLabel#statusBadgeUnpaid {
-                background-color: rgba(243, 139, 168, 0.16);
-                color: #F38BA8;
-                border: 1px solid rgba(243, 139, 168, 0.45);
-                border-radius: 10px;
-                padding: 3px 10px;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #FB7185, stop:1 #F43F5E
+                );
+                color: #FFFFFF;
+                border: 1px solid #FDA4AF;
+                border-radius: 11px;
+                padding: 4px 12px;
                 font-size: 11px;
-                font-weight: 700;
+                font-weight: 800;
             }
             QLabel#cellItemName {
-                color: #CDD6F4;
+                color: #F8FAFC;
                 font-size: 13px;
-                font-weight: 600;
+                font-weight: 700;
                 background: transparent;
             }
-            QLabel#cellItemMeta {
-                color: #7F849C;
-                font-size: 11px;
-                background: transparent;
+            QLabel#cellSkuTag {
+                color: #38BDF8;
+                background-color: rgba(56, 189, 248, 0.12);
+                border: 1px solid rgba(56, 189, 248, 0.3);
+                border-radius: 4px;
+                padding: 1px 6px;
+                font-size: 10px;
+                font-weight: 700;
+            }
+            QLabel#cellStockTag {
+                color: #34D399;
+                background-color: rgba(52, 211, 153, 0.12);
+                border: 1px solid rgba(52, 211, 153, 0.3);
+                border-radius: 4px;
+                padding: 1px 6px;
+                font-size: 10px;
+                font-weight: 700;
             }
             QLabel#cellHppPreview {
-                color: #94E2D5;
+                color: #34D399;
                 font-size: 10px;
-                font-weight: 600;
+                font-weight: 700;
                 background: transparent;
             }
             QLineEdit#headerInput,
@@ -1679,265 +2197,517 @@ class TambahStokPage(QWidget):
             QComboBox#headerCombo,
             QDateEdit#headerDate,
             QDateTimeEdit#headerDate,
-            QSpinBox#footerSpinBox {
-                background-color: #161622;
-                color: #CDD6F4;
-                border: 1px solid #313244;
-                border-radius: 7px;
+            QSpinBox#footerSpinBox,
+            QSpinBox#summarySpinBox {
+                background-color: #0D1224;
+                color: #F1F5F9;
+                border: 1.5px solid #263254;
+                border-radius: 8px;
                 padding: 4px 10px;
                 font-size: 12px;
-                selection-background-color: #3B82F6;
+                font-weight: 500;
+                selection-background-color: #0EA5E9;
+                selection-color: #FFFFFF;
+            }
+            QComboBox#headerCombo,
+            QDateEdit#headerDate,
+            QDateTimeEdit#headerDate {
+                padding-right: 28px;
+            }
+            QSpinBox#summarySpinBox {
+                background-color: rgba(11, 18, 33, 0.85);
+                border: 1.5px solid #115E59;
+                color: #F8FAFC;
+                font-weight: 700;
             }
             QLineEdit#quickSearchInput {
-                background-color: #11111B;
-                border: 1px solid #45475A;
+                background-color: #0B1020;
+                border: 1.5px solid #2D4A7C;
                 font-size: 13px;
                 font-weight: 500;
+                padding: 4px 12px;
+            }
+            QLineEdit#headerInput:hover,
+            QLineEdit#quickSearchInput:hover,
+            QComboBox#headerCombo:hover,
+            QDateEdit#headerDate:hover,
+            QDateTimeEdit#headerDate:hover,
+            QSpinBox#footerSpinBox:hover {
+                border-color: #3B82F6;
             }
             QLineEdit#headerInput:focus,
             QLineEdit#quickSearchInput:focus,
             QComboBox#headerCombo:focus,
             QDateEdit#headerDate:focus,
             QDateTimeEdit#headerDate:focus,
-            QSpinBox#footerSpinBox:focus {
-                border: 1px solid #89B4FA;
-                background-color: #141421;
+            QSpinBox#footerSpinBox:focus,
+            QSpinBox#summarySpinBox:focus {
+                border: 2px solid #06B6D4;
+                background-color: #0F172E;
             }
             QLineEdit#headerInput:disabled,
             QDateEdit#headerDate:disabled {
-                background-color: #13131E;
-                color: #585B70;
-                border-color: #252538;
+                background-color: #0C101E;
+                color: #475569;
+                border-color: #1D253E;
             }
             QComboBox#headerCombo::drop-down,
             QComboBox#gridCombo::drop-down,
             QDateEdit#headerDate::drop-down,
             QDateTimeEdit#headerDate::drop-down {
+                subcontrol-origin: padding;
+                subcontrol-position: top right;
                 border: none;
-                width: 22px;
+                width: 28px;
                 background: transparent;
             }
+            QComboBox#headerCombo::down-arrow,
+            QComboBox#gridCombo::down-arrow,
+            QDateEdit#headerDate::down-arrow,
+            QDateTimeEdit#headerDate::down-arrow {
+                image: none;
+                width: 0px;
+                height: 0px;
+            }
             QComboBox QAbstractItemView {
-                background-color: #1E1E2E;
-                color: #CDD6F4;
-                border: 1px solid #45475A;
-                border-radius: 6px;
-                selection-background-color: #313244;
-                selection-color: #89B4FA;
+                background-color: #13192D;
+                color: #E2E8F0;
+                border: 1.5px solid #06B6D4;
+                border-radius: 8px;
+                selection-background-color: rgba(14, 165, 233, 0.25);
+                selection-color: #67E8F9;
                 padding: 4px;
                 outline: none;
+            }
+            QCalendarWidget QWidget {
+                alternate-background-color: #141A30;
+                background-color: #0F1426;
+                color: #E2E8F0;
+            }
+            QCalendarWidget QWidget#qt_calendar_navigationbar {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:0,
+                    stop:0 #0E7490, stop:1 #1D4ED8
+                );
+                padding: 4px;
+            }
+            QCalendarWidget QToolButton {
+                color: #FFFFFF;
+                background: transparent;
+                border: none;
+                border-radius: 6px;
+                padding: 4px 8px;
+                font-weight: 700;
+            }
+            QCalendarWidget QToolButton:hover {
+                background-color: rgba(255, 255, 255, 0.16);
+            }
+            QCalendarWidget QMenu {
+                background-color: #14192D;
+                color: #E2E8F0;
+                border: 1px solid #38BDF8;
+            }
+            QCalendarWidget QSpinBox {
+                background-color: #0F172A;
+                color: #FFFFFF;
+                border: 1px solid #38BDF8;
+                border-radius: 4px;
+                padding: 2px 6px;
+            }
+            QCalendarWidget QAbstractItemView:enabled {
+                background-color: #0F1426;
+                color: #E2E8F0;
+                selection-background-color: #06B6D4;
+                selection-color: #022C22;
+                outline: none;
+            }
+            QCalendarWidget QAbstractItemView:disabled {
+                color: #475569;
             }
             QDoubleSpinBox#gridSpinBox,
             QComboBox#gridCombo {
-                background-color: #141421;
-                color: #CDD6F4;
-                border: 1px solid #2F3147;
-                border-radius: 6px;
+                background-color: #0D1326;
+                color: #F8FAFC;
+                border: 1.5px solid #263254;
+                border-radius: 7px;
                 padding: 2px 8px;
                 font-size: 12px;
-                font-weight: 600;
-                selection-background-color: #3B82F6;
+                font-weight: 700;
+                selection-background-color: #0EA5E9;
+            }
+            QComboBox#gridCombo {
+                padding-right: 26px;
             }
             QDoubleSpinBox#gridSpinBox:focus,
             QComboBox#gridCombo:focus {
-                border: 1px solid #89B4FA;
-                background-color: #181A2C;
+                border: 1.5px solid #22D3EE;
+                background-color: #131C36;
             }
             QTableWidget#cartTable {
-                background-color: #161622;
-                alternate-background-color: #1A1A29;
-                color: #CDD6F4;
-                border: 1px solid #313244;
-                border-radius: 10px;
+                background-color: #0F1324;
+                alternate-background-color: #13182E;
+                color: #E2E8F0;
+                border: 1px solid #263052;
+                border-radius: 12px;
                 outline: none;
-                selection-background-color: #25283D;
-                selection-color: #CDD6F4;
+                selection-background-color: rgba(14, 165, 233, 0.16);
+                selection-color: #F8FAFC;
             }
             QTableWidget#cartTable::item {
-                border-bottom: 1px solid #242538;
-                padding: 4px;
+                border-bottom: 1px solid #1E2746;
+                padding: 4px 6px;
             }
-            QTableWidget#cartTable QHeaderView::section {
-                background-color: #1E1E2E;
-                color: #A6ADC8;
-                border: none;
-                border-bottom: 1px solid #313244;
-                padding: 8px 8px;
-                font-size: 11px;
-                font-weight: 700;
-            }
-            QPushButton#primaryActionButton {
-                background-color: #A6E3A1;
-                color: #11111B;
-                border: none;
+            QPushButton#addSupplierButton {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #38BDF8, stop:1 #0284C7
+                );
+                border: 1px solid #7DD3FC;
                 border-radius: 8px;
-                padding: 6px 18px;
-                font-size: 13px;
+            }
+            QPushButton#addSupplierButton:hover {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #7DD3FC, stop:1 #0EA5E9
+                );
+            }
+            QPushButton#addSupplierButton:pressed {
+                background-color: #0369A1;
+            }
+            QPushButton#autoInvoiceButton {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #A855F7, stop:1 #6D28D9
+                );
+                color: #FFFFFF;
+                border: 1px solid #C084FC;
+                border-radius: 8px;
+                padding: 0px 12px;
+                font-size: 12px;
                 font-weight: 700;
             }
-            QPushButton#primaryActionButton:hover {
-                background-color: #B8EBB3;
+            QPushButton#autoInvoiceButton:hover {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:1, y2:1,
+                    stop:0 #C084FC, stop:1 #7C3AED
+                );
             }
-            QPushButton#primaryActionButton:pressed {
-                background-color: #8DD587;
+            QPushButton#autoInvoiceButton:pressed {
+                background-color: #5B21B6;
             }
-            QPushButton#primarySmallButton {
-                background-color: #89B4FA;
-                color: #11111B;
-                border: none;
-                border-radius: 7px;
+            QPushButton#btnQuickAdd {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #3B82F6, stop:1 #1D4ED8
+                );
+                color: #FFFFFF;
+                border: 1px solid #60A5FA;
+                border-radius: 8px;
                 padding: 0px 14px;
                 font-size: 12px;
                 font-weight: 700;
             }
-            QPushButton#primarySmallButton:hover {
-                background-color: #A0C4FF;
+            QPushButton#btnQuickAdd:hover {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #60A5FA, stop:1 #2563EB
+                );
             }
-            QPushButton#secondaryActionButton {
-                background-color: #2A2A40;
-                color: #CDD6F4;
-                border: 1px solid #45475A;
+            QPushButton#btnQuickAdd:pressed {
+                background-color: #1E40AF;
+            }
+            QPushButton#btnBulkPicker {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #14B8A6, stop:1 #0F766E
+                );
+                color: #FFFFFF;
+                border: 1px solid #5EEAD4;
                 border-radius: 8px;
-                padding: 6px 16px;
-                font-size: 13px;
-                font-weight: 600;
-            }
-            QPushButton#secondaryActionButton:hover {
-                background-color: #34344E;
-                border-color: #585B70;
-            }
-            QPushButton#toolbarButton,
-            QPushButton#compactSecondaryButton,
-            QPushButton#compactAccentButton {
-                background-color: #161622;
-                color: #CDD6F4;
-                border: 1px solid #313244;
-                border-radius: 7px;
-                padding: 0px 12px;
+                padding: 0px 14px;
                 font-size: 12px;
-                font-weight: 600;
+                font-weight: 700;
             }
-            QPushButton#toolbarButton:hover,
-            QPushButton#compactSecondaryButton:hover,
-            QPushButton#compactAccentButton:hover {
-                background-color: #24263B;
-                border-color: #89B4FA;
+            QPushButton#btnBulkPicker:hover {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #2DD4BF, stop:1 #0D9488
+                );
             }
-            QPushButton#dangerGhostButton {
-                background-color: transparent;
-                color: #F38BA8;
-                border: 1px solid rgba(243, 139, 168, 0.35);
-                border-radius: 7px;
-                padding: 0px 12px;
+            QPushButton#btnBulkPicker:pressed {
+                background-color: #115E59;
+            }
+            QPushButton#btnRepeatOrder {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #FB923C, stop:1 #EA580C
+                );
+                color: #FFFFFF;
+                border: 1px solid #FDBA74;
+                border-radius: 8px;
+                padding: 0px 14px;
                 font-size: 12px;
-                font-weight: 600;
+                font-weight: 700;
             }
-            QPushButton#dangerGhostButton:hover {
-                background-color: rgba(243, 139, 168, 0.12);
-                border-color: #F38BA8;
+            QPushButton#btnRepeatOrder:hover {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #FDBA74, stop:1 #F97316
+                );
+            }
+            QPushButton#btnRepeatOrder:pressed {
+                background-color: #C2410C;
+            }
+            QPushButton#btnImportCsv {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #EAB308, stop:1 #B45309
+                );
+                color: #FFFFFF;
+                border: 1px solid #FDE047;
+                border-radius: 8px;
+                padding: 0px 14px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            QPushButton#btnImportCsv:hover {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #FACC15, stop:1 #CA8A04
+                );
+            }
+            QPushButton#btnImportCsv:pressed {
+                background-color: #A16207;
+            }
+            QPushButton#btnClearCart {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #FB7185, stop:1 #E11D48
+                );
+                color: #FFFFFF;
+                border: 1px solid #FDA4AF;
+                border-radius: 8px;
+                padding: 0px 14px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            QPushButton#btnClearCart:hover {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #FDA4AF, stop:1 #F43F5E
+                );
+            }
+            QPushButton#btnClearCart:pressed {
+                background-color: #BE123C;
             }
             QPushButton#quickPaySuccess {
-                background-color: rgba(166, 227, 161, 0.14);
-                color: #A6E3A1;
-                border: 1px solid rgba(166, 227, 161, 0.35);
-                border-radius: 6px;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #10B981, stop:1 #059669
+                );
+                color: #FFFFFF;
+                border: 1px solid #34D399;
+                border-radius: 7px;
                 font-size: 11px;
-                font-weight: 700;
+                font-weight: 800;
             }
             QPushButton#quickPaySuccess:hover {
-                background-color: rgba(166, 227, 161, 0.26);
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #34D399, stop:1 #10B981
+                );
             }
             QPushButton#quickPayWarning {
-                background-color: rgba(249, 226, 175, 0.14);
-                color: #F9E2AF;
-                border: 1px solid rgba(249, 226, 175, 0.35);
-                border-radius: 6px;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #FBBF24, stop:1 #D97706
+                );
+                color: #1E1B4B;
+                border: 1px solid #FDE68A;
+                border-radius: 7px;
                 font-size: 11px;
-                font-weight: 700;
+                font-weight: 800;
             }
             QPushButton#quickPayWarning:hover {
-                background-color: rgba(249, 226, 175, 0.26);
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #FDE047, stop:1 #F59E0B
+                );
             }
             QPushButton#quickPayDanger {
-                background-color: rgba(243, 139, 168, 0.14);
-                color: #F38BA8;
-                border: 1px solid rgba(243, 139, 168, 0.35);
-                border-radius: 6px;
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #F43F5E, stop:1 #BE123C
+                );
+                color: #FFFFFF;
+                border: 1px solid #FB7185;
+                border-radius: 7px;
                 font-size: 11px;
-                font-weight: 700;
+                font-weight: 800;
             }
             QPushButton#quickPayDanger:hover {
-                background-color: rgba(243, 139, 168, 0.26);
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #FB7185, stop:1 #E11D48
+                );
             }
-            QPushButton#iconActionNeutral,
-            QPushButton#iconActionDanger {
-                background-color: transparent;
-                border: 1px solid transparent;
-                border-radius: 6px;
+            QPushButton#resetFormButton {
+                background-color: #151B31;
+                color: #E2E8F0;
+                border: 1.5px solid #334168;
+                border-radius: 9px;
+                padding: 0px 16px;
+                font-size: 12px;
+                font-weight: 700;
+            }
+            QPushButton#resetFormButton:hover {
+                background-color: rgba(244, 63, 94, 0.14);
+                border-color: #FB7185;
+                color: #FFFFFF;
+            }
+            QPushButton#secondaryActionButton {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #3730A3, stop:1 #1E1B4B
+                );
+                color: #E0E7FF;
+                border: 1.5px solid #6366F1;
+                border-radius: 9px;
+                padding: 0px 18px;
+                font-size: 13px;
+                font-weight: 700;
+            }
+            QPushButton#secondaryActionButton:hover {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #4F46E5, stop:1 #312E81
+                );
+                border-color: #818CF8;
+                color: #FFFFFF;
+            }
+            QPushButton#primaryActionButton {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #4ADE80, stop:1 #10B981
+                );
+                color: #022C22;
+                border: 1.5px solid #86EFAC;
+                border-radius: 9px;
+                padding: 0px 22px;
+                font-size: 13px;
+                font-weight: 800;
+            }
+            QPushButton#primaryActionButton:hover {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #86EFAC, stop:1 #34D399
+                );
+            }
+            QPushButton#primaryActionButton:pressed {
+                background: qlineargradient(
+                    x1:0, y1:0, x2:0, y2:1,
+                    stop:0 #10B981, stop:1 #059669
+                );
+            }
+            QPushButton#iconActionNeutral {
+                background-color: rgba(56, 189, 248, 0.12);
+                border: 1px solid rgba(56, 189, 248, 0.35);
+                border-radius: 7px;
             }
             QPushButton#iconActionNeutral:hover {
-                background-color: rgba(137, 180, 250, 0.15);
-                border-color: rgba(137, 180, 250, 0.4);
+                background-color: rgba(56, 189, 248, 0.28);
+                border-color: #38BDF8;
+            }
+            QPushButton#iconActionDanger {
+                background-color: rgba(251, 113, 133, 0.12);
+                border: 1px solid rgba(251, 113, 133, 0.35);
+                border-radius: 7px;
             }
             QPushButton#iconActionDanger:hover {
-                background-color: rgba(243, 139, 168, 0.15);
-                border-color: rgba(243, 139, 168, 0.4);
+                background-color: rgba(251, 113, 133, 0.28);
+                border-color: #FB7185;
             }
             QPushButton#tablePillNeutral,
             QPushButton#tablePillSuccess,
             QPushButton#tablePillAccent {
-                background-color: transparent;
-                border-radius: 6px;
-                padding: 4px 8px;
+                border-radius: 7px;
+                padding: 4px 10px;
                 font-size: 11px;
-                font-weight: 600;
+                font-weight: 700;
             }
             QPushButton#tablePillNeutral {
-                color: #CDD6F4;
-                border: 1px solid #45475A;
+                background-color: rgba(56, 189, 248, 0.12);
+                color: #7DD3FC;
+                border: 1px solid rgba(56, 189, 248, 0.4);
             }
             QPushButton#tablePillNeutral:hover {
-                background-color: rgba(205, 214, 244, 0.1);
+                background-color: rgba(56, 189, 248, 0.26);
+                color: #FFFFFF;
             }
             QPushButton#tablePillSuccess {
-                color: #A6E3A1;
-                border: 1px solid rgba(166, 227, 161, 0.45);
+                background-color: rgba(52, 211, 153, 0.14);
+                color: #6EE7B7;
+                border: 1px solid rgba(52, 211, 153, 0.45);
             }
             QPushButton#tablePillSuccess:hover {
-                background-color: rgba(166, 227, 161, 0.14);
+                background-color: rgba(52, 211, 153, 0.28);
+                color: #FFFFFF;
             }
             QPushButton#tablePillSuccess:disabled {
-                color: #585B70;
-                border-color: #2A2A40;
+                background-color: rgba(30, 41, 59, 0.4);
+                color: #475569;
+                border-color: #1E293B;
             }
             QPushButton#tablePillAccent {
-                color: #89B4FA;
-                border: 1px solid rgba(137, 180, 250, 0.45);
+                background-color: rgba(192, 132, 252, 0.14);
+                color: #D8B4FE;
+                border: 1px solid rgba(192, 132, 252, 0.45);
             }
             QPushButton#tablePillAccent:hover {
-                background-color: rgba(137, 180, 250, 0.14);
+                background-color: rgba(192, 132, 252, 0.28);
+                color: #FFFFFF;
             }
             QScrollBar:vertical {
-                background: #141421;
-                width: 8px;
+                background: #0D1224;
+                width: 9px;
                 border-radius: 4px;
+                margin: 2px 0px;
             }
             QScrollBar::handle:vertical {
-                background: #313244;
-                min-height: 24px;
+                background: #2C3B63;
+                min-height: 28px;
                 border-radius: 4px;
             }
             QScrollBar::handle:vertical:hover {
-                background: #45475A;
+                background: #38BDF8;
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
+            }
+            QScrollBar:horizontal {
+                background: #0D1224;
+                height: 9px;
+                border-radius: 4px;
+                margin: 0px 2px;
+            }
+            QScrollBar::handle:horizontal {
+                background: #2C3B63;
+                min-width: 28px;
+                border-radius: 4px;
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: #38BDF8;
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+                width: 0px;
             }
             """
         )
 
     def _connect_signals(self) -> None:
         """Menghubungkan seluruh sinyal interaksi UI ke handler internal dan sinyal keluar."""
+        self.tab_widget.currentChanged.connect(self._update_tab_icons)
+
         self.add_supplier_btn.clicked.connect(self.add_supplier_requested.emit)
         self.auto_invoice_btn.clicked.connect(self._handle_auto_invoice_click)
 
@@ -2277,6 +3047,7 @@ class TambahStokPage(QWidget):
 
         no_item = QTableWidgetItem(str(row + 1))
         no_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        no_item.setForeground(QBrush(QColor("#94A3B8")))
         self.cart_table.setItem(row, self.COL_NO, no_item)
 
         info_widget = ItemInfoCellWidget(
@@ -2290,7 +3061,7 @@ class TambahStokPage(QWidget):
 
         unit_combo = KeyboardUnitComboBox(self.cart_table)
         unit_combo.setObjectName("gridCombo")
-        unit_combo.setFixedHeight(32)
+        unit_combo.setFixedHeight(34)
         selected_unit_index = 0
         for idx, unit in enumerate(units):
             conv_text = format_quantity(unit["conversion_qty"])
@@ -2308,7 +3079,7 @@ class TambahStokPage(QWidget):
             parent=self.cart_table,
         )
         qty_spin.setObjectName("gridSpinBox")
-        qty_spin.setFixedHeight(32)
+        qty_spin.setFixedHeight(34)
         qty_spin.setValue(max(0.01, quantity))
         self.cart_table.setCellWidget(row, self.COL_QTY, qty_spin)
 
@@ -2316,6 +3087,10 @@ class TambahStokPage(QWidget):
         base_qty_item.setTextAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
+        base_qty_item.setForeground(QBrush(QColor("#38BDF8")))
+        base_font = base_qty_item.font()
+        base_font.setBold(True)
+        base_qty_item.setFont(base_font)
         self.cart_table.setItem(row, self.COL_BASE_QTY, base_qty_item)
 
         initial_cost = (
@@ -2331,7 +3106,7 @@ class TambahStokPage(QWidget):
             parent=self.cart_table,
         )
         cost_spin.setObjectName("gridSpinBox")
-        cost_spin.setFixedHeight(32)
+        cost_spin.setFixedHeight(34)
         cost_spin.setValue(max(0.0, initial_cost))
         self.cart_table.setCellWidget(row, self.COL_UNIT_COST, cost_spin)
 
@@ -3077,27 +3852,49 @@ class TambahStokPage(QWidget):
             total_debt += entry["remaining_amount"]
 
             date_item = QTableWidgetItem(entry["purchase_date"])
+            date_item.setForeground(QBrush(QColor("#94A3B8")))
+
             inv_item = QTableWidgetItem(entry["invoice_number"])
+            inv_item.setForeground(QBrush(QColor("#38BDF8")))
+            inv_font = inv_item.font()
+            inv_font.setBold(True)
+            inv_item.setFont(inv_font)
+
             sup_item = QTableWidgetItem(entry["supplier_name"])
+            sup_item.setForeground(QBrush(QColor("#F8FAFC")))
 
             total_item = QTableWidgetItem(format_rupiah(entry["total"]))
             total_item.setTextAlignment(
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
+            total_item.setForeground(QBrush(QColor("#F8FAFC")))
+            total_font = total_item.font()
+            total_font.setBold(True)
+            total_item.setFont(total_font)
 
             paid_item = QTableWidgetItem(format_rupiah(entry["amount_paid"]))
             paid_item.setTextAlignment(
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
+            paid_item.setForeground(QBrush(QColor("#34D399")))
 
             rem_item = QTableWidgetItem(format_rupiah(entry["remaining_amount"]))
             rem_item.setTextAlignment(
                 Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
             )
+            rem_color = "#FB7185" if entry["remaining_amount"] > 0 else "#64748B"
+            rem_item.setForeground(QBrush(QColor(rem_color)))
+            if entry["remaining_amount"] > 0:
+                rem_font = rem_item.font()
+                rem_font.setBold(True)
+                rem_item.setFont(rem_font)
 
             due_text = entry["due_date"] if entry["due_date"] else "-"
             due_item = QTableWidgetItem(due_text)
             due_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            due_item.setForeground(
+                QBrush(QColor("#FBBF24" if entry["due_date"] else "#64748B"))
+            )
 
             self.history_table.setItem(row_idx, 0, date_item)
             self.history_table.setItem(row_idx, 1, inv_item)
