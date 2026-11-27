@@ -41,7 +41,7 @@ from ui.customwindowtitlebar import ICON_PATHS, TitleBarIconConfig
 from ui.dialog.dialogtambahedititem import ItemFormDialog
 from ui.dialog.ServiceFormDialog import MaterialItemOption, ServiceFormDialog
 from ui.dialog.StockCardDialog import StockCardDialog, StockCardItemInfo
-from ui.dialog.MasterCategoryUnitDialog import MasterCategoryUnitDialog
+from ui.dialog.dialogeditkategoriunit import MasterCategoryUnitDialog
 from ui.manajemenproduk import (
     CategoryOption,
     ManajemenProdukPage,
