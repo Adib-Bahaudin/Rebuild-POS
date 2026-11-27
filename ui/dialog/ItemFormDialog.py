@@ -548,7 +548,7 @@ class ItemFormDialog(CustomDialog):
             f"Edit Barang - {edit_data.sku}" if edit_data is not None else "Tambah Barang Baru"
         )
         self.setMinimumWidth(740)
-        self.resize(780, 640 if not is_edit else 560)
+        self.resize(780, 560 if not is_edit else 470)
 
         self._sku_input = QLineEdit(self)
         self._name_input = QLineEdit(self)
@@ -585,8 +585,8 @@ class ItemFormDialog(CustomDialog):
     def _setup_ui(self) -> None:
         """Menyusun tata letak formulir yang padat, rapi, dan proporsional."""
         root_layout = QVBoxLayout()
-        root_layout.setContentsMargins(14, 12, 14, 12)
-        root_layout.setSpacing(10)
+        root_layout.setContentsMargins(10, 6, 10, 8)
+        root_layout.setSpacing(5)
 
         root_layout.addWidget(self._build_header_banner())
         root_layout.addWidget(self._build_basic_info_section())
@@ -615,14 +615,14 @@ class ItemFormDialog(CustomDialog):
         banner = QFrame(self)
         banner.setObjectName("HeaderBanner")
         layout = QHBoxLayout(banner)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(10, 6, 10, 6)
+        layout.setSpacing(10)
 
         badge = QLabel(banner)
         badge.setObjectName("HeaderBadgeEdit" if is_edit else "HeaderBadge")
-        badge.setFixedSize(44, 44)
+        badge.setFixedSize(32, 32)
         badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        badge.setPixmap(_svg_pixmap("edit_box" if is_edit else "package", 22, "#FFFFFF", 2.1))
+        badge.setPixmap(_svg_pixmap("edit_box" if is_edit else "package", 16, "#FFFFFF", 2.1))
 
         text_col = QVBoxLayout()
         text_col.setContentsMargins(0, 0, 0, 0)
@@ -648,7 +648,7 @@ class ItemFormDialog(CustomDialog):
         layout.addWidget(chip, 0, Qt.AlignmentFlag.AlignTop)
         return banner
 
-    def _make_icon_badge(self, parent: QWidget, icon: str, accent: str, size: int = 28) -> QLabel:
+    def _make_icon_badge(self, parent: QWidget, icon: str, accent: str, size: int = 24) -> QLabel:
         """Membuat lencana ikon persegi membulat dengan warna aksen.
 
         Args:
@@ -693,7 +693,7 @@ class ItemFormDialog(CustomDialog):
         """
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
-        row.setSpacing(10)
+        row.setSpacing(8)
 
         text_col = QVBoxLayout()
         text_col.setContentsMargins(0, 0, 0, 0)
@@ -718,8 +718,8 @@ class ItemFormDialog(CustomDialog):
         card = QFrame(self)
         card.setObjectName("FormSectionCard")
         outer = QVBoxLayout(card)
-        outer.setContentsMargins(14, 12, 14, 14)
-        outer.setSpacing(10)
+        outer.setContentsMargins(10, 6, 10, 8)
+        outer.setSpacing(4)
         outer.addLayout(
             self._build_section_header(
                 card, "tag", _C.BLUE, "Informasi Barang", "Identitas utama barang di katalog"
@@ -728,8 +728,8 @@ class ItemFormDialog(CustomDialog):
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(12)
-        grid.setVerticalSpacing(4)
+        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(2)
 
         self._sku_input.setObjectName("FormInput")
         self._sku_input.setPlaceholderText("Contoh: KRT-A4-70")
@@ -768,13 +768,13 @@ class ItemFormDialog(CustomDialog):
         grid.addWidget(self._make_field_label("Nama Barang *"), 0, 1)
         grid.addWidget(self._sku_input, 1, 0)
         grid.addWidget(self._name_input, 1, 1)
-        grid.setRowMinimumHeight(2, 6)
+        grid.setRowMinimumHeight(2, 3)
 
         grid.addWidget(self._make_field_label("Kategori *"), 3, 0)
         grid.addWidget(self._make_field_label("Satuan Dasar *"), 3, 1)
         grid.addWidget(self._category_combo, 4, 0)
         grid.addWidget(self._base_unit_combo, 4, 1)
-        grid.setRowMinimumHeight(5, 6)
+        grid.setRowMinimumHeight(5, 3)
 
         grid.addWidget(self._make_field_label("Deskripsi"), 6, 1)
         grid.addWidget(self._make_field_label("Status"), 6, 0)
@@ -795,8 +795,8 @@ class ItemFormDialog(CustomDialog):
         card = QFrame(self)
         card.setObjectName("FormSectionCard")
         layout = QVBoxLayout(card)
-        layout.setContentsMargins(14, 12, 14, 14)
-        layout.setSpacing(10)
+        layout.setContentsMargins(10, 6, 10, 8)
+        layout.setSpacing(4)
 
         header_row = self._build_section_header(
             card,
@@ -830,18 +830,18 @@ class ItemFormDialog(CustomDialog):
         self._units_table.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
         self._units_table.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self._units_table.setShowGrid(False)
-        self._units_table.setMinimumHeight(160)
+        self._units_table.setMinimumHeight(102)
         self._units_table.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
         self._units_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         v_header = self._units_table.verticalHeader()
         if v_header is not None:
             v_header.setVisible(False)
-            v_header.setDefaultSectionSize(40)
+            v_header.setDefaultSectionSize(32)
 
         h_header = self._units_table.horizontalHeader()
         if h_header is not None:
-            h_header.setFixedHeight(30)
+            h_header.setFixedHeight(24)
             h_header.setHighlightSections(False)
             h_header.setDefaultAlignment(
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
@@ -874,8 +874,8 @@ class ItemFormDialog(CustomDialog):
         """
         self._opening_stock_frame.setObjectName("FormSectionCard")
         outer = QVBoxLayout(self._opening_stock_frame)
-        outer.setContentsMargins(14, 12, 14, 14)
-        outer.setSpacing(10)
+        outer.setContentsMargins(10, 6, 10, 8)
+        outer.setSpacing(4)
         outer.addLayout(
             self._build_section_header(
                 self._opening_stock_frame,
@@ -888,8 +888,8 @@ class ItemFormDialog(CustomDialog):
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 0, 0, 0)
-        grid.setHorizontalSpacing(12)
-        grid.setVerticalSpacing(4)
+        grid.setHorizontalSpacing(10)
+        grid.setVerticalSpacing(2)
 
         self._opening_qty_spin.setLocale(_ID_LOCALE)
         self._opening_qty_spin.setObjectName("FormSpin")
@@ -1043,7 +1043,7 @@ class ItemFormDialog(CustomDialog):
             }
             QLabel#HeaderTitle {
                 color: #FFFFFF;
-                font-size: 15px;
+                font-size: 14px;
                 font-weight: 700;
                 background: transparent;
             }
@@ -1106,7 +1106,7 @@ class ItemFormDialog(CustomDialog):
                 background-color: @BASE@;
                 border: 1px solid @BORDER@;
                 border-radius: 7px;
-                min-height: 30px;
+                min-height: 26px;
             }
             QCheckBox#FormCheckbox {
                 font-size: 12px;
@@ -1120,7 +1120,7 @@ class ItemFormDialog(CustomDialog):
                 border: 1px solid rgba(239, 68, 68, 0.30);
                 border-left: 3px solid #EF4444;
                 border-radius: 7px;
-                padding: 7px 10px;
+                padding: 5px 10px;
                 font-size: 11px;
                 font-weight: 600;
             }
@@ -1133,9 +1133,9 @@ class ItemFormDialog(CustomDialog):
                 color: @TEXT@;
                 border: 1px solid @BORDER@;
                 border-radius: 7px;
-                padding: 5px 9px;
+                padding: 3px 8px;
                 font-size: 12px;
-                min-height: 20px;
+                min-height: 18px;
                 selection-background-color: #3B82F6;
                 selection-color: #FFFFFF;
             }
@@ -1167,8 +1167,8 @@ class ItemFormDialog(CustomDialog):
                 color: @TEXT@;
                 border: 1px solid transparent;
                 border-radius: 6px;
-                padding: 3px 8px;
-                margin: 4px 3px;
+                padding: 2px 6px;
+                margin: 2px 3px;
                 font-size: 12px;
                 selection-background-color: #3B82F6;
                 selection-color: #FFFFFF;
@@ -1325,7 +1325,7 @@ class ItemFormDialog(CustomDialog):
                 color: @TEXT@;
                 border: 1px solid #3B3D54;
                 border-radius: 8px;
-                padding: 8px 16px;
+                padding: 6px 14px;
                 font-size: 12px;
                 font-weight: 600;
             }
@@ -1339,7 +1339,7 @@ class ItemFormDialog(CustomDialog):
                 color: #FFFFFF;
                 border: none;
                 border-radius: 8px;
-                padding: 8px 18px;
+                padding: 6px 16px;
                 font-size: 12px;
                 font-weight: 700;
             }
@@ -1357,7 +1357,7 @@ class ItemFormDialog(CustomDialog):
                 background-color: @GREEN_A@;
                 border: 1px solid @GREEN_B@;
                 border-radius: 7px;
-                min-height: 30px;
+                min-height: 26px;
             }
             QLabel#EstimateValue {
                 color: @GREEN@;
