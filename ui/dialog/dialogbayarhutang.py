@@ -47,9 +47,6 @@ PAYMENT_METHOD_CHOICES: tuple[str, ...] = ("Tunai", "QRIS", "Transfer")
 logger = logging.getLogger(__name__)
 
 
-# ---------------------------------------------------------------------------
-# Palet warna
-# ---------------------------------------------------------------------------
 class _C:
     """Konstanta palet warna dialog (turunan Catppuccin Mocha, lebih vivid)."""
 
@@ -86,9 +83,6 @@ def _rgba(hex_color: str, alpha: float) -> str:
     return f"rgba({color.red()}, {color.green()}, {color.blue()}, {alpha:.2f})"
 
 
-# ---------------------------------------------------------------------------
-# Ikon SVG inline
-# ---------------------------------------------------------------------------
 _SVG_TEMPLATE = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
     'stroke="{color}" stroke-width="{stroke}" stroke-linecap="round" '
@@ -191,9 +185,6 @@ def _svg_icon(name: str, color: str, size: int = 16) -> QIcon:
     return QIcon(_svg_pixmap(name, size, color))
 
 
-# ---------------------------------------------------------------------------
-# Widget kustom
-# ---------------------------------------------------------------------------
 class _HoverIconButton(QPushButton):
     """Tombol berikon yang menukar warna ikon saat kursor berada di atasnya."""
 
@@ -671,9 +662,6 @@ class DialogBayarHutang(CustomDialog):
         """Mengembalikan catatan manual pembayaran yang dimasukkan pengguna."""
         return self._submitted_notes
 
-    # ------------------------------------------------------------------
-    # Penyusunan UI
-    # ------------------------------------------------------------------
     def _setup_ui(self) -> None:
         """Menyusun komponen antarmuka dialog pembayaran hutang."""
         main_layout = QVBoxLayout(self.content_widget)
@@ -1145,9 +1133,6 @@ class DialogBayarHutang(CustomDialog):
         card_layout.addWidget(self.notes_input)
         return card
 
-    # ------------------------------------------------------------------
-    # Helper tampilan (murni visual)
-    # ------------------------------------------------------------------
     def _sync_method_segments(self, index: int) -> None:
         """Menyelaraskan tombol segmen metode dengan pilihan combobox.
 
@@ -1179,19 +1164,11 @@ class DialogBayarHutang(CustomDialog):
             widget.style().polish(widget)
         self.feedback_label.setText(text)
 
-    # ------------------------------------------------------------------
-    # Logika (tidak berubah)
-    # ------------------------------------------------------------------
     def _fill_remaining_amount(self) -> None:
         """Mengisi input nominal dengan seluruh sisa hutang transaksi."""
         remaining = max(0, self.detail.payment.remaining_amount)
         if remaining > 0:
             self.nominal_input.setText(str(remaining))
-            logger.debug(
-                "Nominal diisi otomatis sesuai sisa hutang (%d) untuk invoice %s",
-                remaining,
-                self.detail.metadata.invoice_number,
-            )
 
     def _parse_nominal(self) -> int:
         """Mengurai angka nominal dari QLineEdit secara aman."""

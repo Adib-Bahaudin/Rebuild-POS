@@ -423,6 +423,7 @@ class ManajemenProdukHelper(QObject):
             title: Judul notifikasi keberhasilan.
             message: Rincian pesan keberhasilan.
         """
+        logger.info("Perubahan database manajemen produk: %s - %s", title, message)
         self.action_succeeded.emit(title, message)
         if self.enable_notifications:
             self.show_toast(title=title, message=message, is_success=True)

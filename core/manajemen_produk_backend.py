@@ -2402,6 +2402,11 @@ class ManajemenProdukBackend(QObject):
             return
 
         status_text = "diaktifkan kembali" if target_active else "diarsipkan"
+        logger.info(
+            "Database berubah: status barang ID %d diubah menjadi %s",
+            item_id,
+            "aktif" if target_active else "arsip",
+        )
         self.action_succeeded.emit(
             "Status Diperbarui",
             f"Barang berhasil {status_text}.",
@@ -2427,6 +2432,11 @@ class ManajemenProdukBackend(QObject):
             return
 
         status_text = "diaktifkan kembali" if target_active else "diarsipkan"
+        logger.info(
+            "Database berubah: status jasa ID %d diubah menjadi %s",
+            service_id,
+            "aktif" if target_active else "arsip",
+        )
         self.action_succeeded.emit(
             "Status Diperbarui",
             f"Layanan jasa berhasil {status_text}.",
@@ -2450,6 +2460,12 @@ class ManajemenProdukBackend(QObject):
             return None
 
         self._selected_item_id = item_id
+        logger.info(
+            "Database berubah: barang baru ditambahkan (ID=%d, SKU='%s', Nama='%s')",
+            item_id,
+            payload.sku.strip(),
+            payload.name.strip(),
+        )
         self.action_succeeded.emit(
             "Barang Ditambahkan",
             f"Barang '{payload.name.strip()}' berhasil disimpan.",
@@ -2475,6 +2491,12 @@ class ManajemenProdukBackend(QObject):
             return False
 
         self._selected_item_id = item_id
+        logger.info(
+            "Database berubah: barang diperbarui (ID=%d, SKU='%s', Nama='%s')",
+            item_id,
+            payload.sku.strip(),
+            payload.name.strip(),
+        )
         self.action_succeeded.emit(
             "Barang Diperbarui",
             f"Perubahan pada '{payload.name.strip()}' berhasil disimpan.",
@@ -2499,6 +2521,12 @@ class ManajemenProdukBackend(QObject):
             return None
 
         self._selected_service_id = service_id
+        logger.info(
+            "Database berubah: jasa baru ditambahkan (ID=%d, SKU='%s', Nama='%s')",
+            service_id,
+            payload.sku.strip(),
+            payload.name.strip(),
+        )
         self.action_succeeded.emit(
             "Jasa Ditambahkan",
             f"Layanan '{payload.name.strip()}' berhasil disimpan.",
@@ -2524,6 +2552,12 @@ class ManajemenProdukBackend(QObject):
             return False
 
         self._selected_service_id = service_id
+        logger.info(
+            "Database berubah: jasa diperbarui (ID=%d, SKU='%s', Nama='%s')",
+            service_id,
+            payload.sku.strip(),
+            payload.name.strip(),
+        )
         self.action_succeeded.emit(
             "Jasa Diperbarui",
             f"Perubahan pada '{payload.name.strip()}' berhasil disimpan.",
@@ -2548,6 +2582,13 @@ class ManajemenProdukBackend(QObject):
             return False
 
         self._selected_item_id = payload.item_id
+        logger.info(
+            "Database berubah: penyesuaian stok dicatat (item_id=%d, tipe=%s, qty=%s, modal=%s)",
+            payload.item_id,
+            payload.adjustment_type,
+            payload.quantity,
+            payload.unit_cost,
+        )
         self.action_succeeded.emit(
             "Stok Diperbarui",
             "Penyesuaian stok FIFO berhasil dicatat ke database.",
@@ -2585,6 +2626,14 @@ class ManajemenProdukBackend(QObject):
             self._notify_error("Gagal Menyimpan Kategori", str(exc))
             return None
 
+        logger.info(
+            "Database berubah: kategori %s (ID=%d, Nama='%s', ParentID=%s, Aktif=%s)",
+            "diperbarui" if category_id is not None else "ditambahkan",
+            saved_id,
+            name.strip(),
+            parent_id,
+            is_active,
+        )
         self.action_succeeded.emit(
             "Kategori Tersimpan",
             f"Kategori '{name.strip()}' berhasil disimpan.",
@@ -2619,6 +2668,13 @@ class ManajemenProdukBackend(QObject):
             self._notify_error("Gagal Menyimpan Satuan", str(exc))
             return None
 
+        logger.info(
+            "Database berubah: satuan %s (ID=%d, Nama='%s', Simbol='%s')",
+            "diperbarui" if unit_id is not None else "ditambahkan",
+            saved_id,
+            name.strip(),
+            symbol.strip(),
+        )
         self.action_succeeded.emit(
             "Satuan Tersimpan",
             f"Satuan '{name.strip()} ({symbol.strip()})' berhasil disimpan.",

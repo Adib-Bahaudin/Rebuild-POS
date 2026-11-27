@@ -9,6 +9,7 @@ basis data secara langsung.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import logging
 from typing import Literal
 
 from PySide6.QtCore import QEvent, QModelIndex, QObject, QPersistentModelIndex, Qt, Signal
@@ -38,6 +39,8 @@ from ui.customwindowtitlebar import (
     FramelessMainWindow,
     TitleBarIconConfig,
 )
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -1886,7 +1889,7 @@ class ManajemenProdukPage(QWidget):
         btn_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_toggle.clicked.connect(
             lambda _checked=False, item_id=row.item_id, target=not row.is_active: (
-                self.toggle_item_status_requested.emit(item_id, target)
+                self._emit_toggle_item_status(item_id, target)
             )
         )
 
@@ -1926,13 +1929,41 @@ class ManajemenProdukPage(QWidget):
         btn_toggle.setCursor(Qt.CursorShape.PointingHandCursor)
         btn_toggle.clicked.connect(
             lambda _checked=False, sid=row.service_id, target=not row.is_active: (
-                self.toggle_service_status_requested.emit(sid, target)
+                self._emit_toggle_service_status(sid, target)
             )
         )
 
         layout.addWidget(btn_edit)
         layout.addWidget(btn_toggle)
         return container
+
+    def _emit_toggle_item_status(self, item_id: int, target_active: bool) -> None:
+        """Mencatat log permintaan perubahan status barang lalu memancarkan sinyal.
+
+        Args:
+            item_id: Identitas unik barang.
+            target_active: Status aktif tujuan.
+        """
+        logger.info(
+            "UI meminta perubahan status barang di database: ID=%d, aktif=%s",
+            item_id,
+            target_active,
+        )
+        self.toggle_item_status_requested.emit(item_id, target_active)
+
+    def _emit_toggle_service_status(self, service_id: int, target_active: bool) -> None:
+        """Mencatat log permintaan perubahan status jasa lalu memancarkan sinyal.
+
+        Args:
+            service_id: Identitas unik jasa.
+            target_active: Status aktif tujuan.
+        """
+        logger.info(
+            "UI meminta perubahan status jasa di database: ID=%d, aktif=%s",
+            service_id,
+            target_active,
+        )
+        self.toggle_service_status_requested.emit(service_id, target_active)
 
     def set_metrics(self, metrics: ProductMetricsData) -> None:
         """Memperbarui nilai seluruh kartu metrik pada bagian atas halaman.
@@ -2028,6 +2059,7 @@ class ManajemenProdukPage(QWidget):
 
         self._items_table.blockSignals(False)
         self._update_items_table_column_widths()
+        logger.debug("Tabel barang UI diperbarui: %d baris dimuat", len(rows))
 
     def set_services(self, rows: list[ServiceRowData]) -> None:
         """Mengisi tabel layanan jasa dengan data terbaru dari backend.
@@ -2069,6 +2101,7 @@ class ManajemenProdukPage(QWidget):
             )
 
         self._services_table.blockSignals(False)
+        logger.debug("Tabel jasa UI diperbarui: %d baris dimuat", len(rows))
 
     def set_item_detail(self, detail: ItemFullDetail) -> None:
         """Meneruskan detail lengkap barang ke panel samping kanan.

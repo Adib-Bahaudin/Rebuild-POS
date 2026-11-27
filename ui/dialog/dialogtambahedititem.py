@@ -71,9 +71,6 @@ from util.customdialog import CustomDialog
 from util.helper.dialog_form_helper import show_inline_error
 
 
-# ---------------------------------------------------------------------------
-# Palet warna
-# ---------------------------------------------------------------------------
 class _C:
     """Konstanta palet warna dialog (turunan Catppuccin Mocha, lebih vivid)."""
 
@@ -129,9 +126,6 @@ def _mix(c1: QColor, c2: QColor, t: float) -> QColor:
     )
 
 
-# ---------------------------------------------------------------------------
-# Ikon SVG inline
-# ---------------------------------------------------------------------------
 _SVG_TEMPLATE = (
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" '
     'stroke="{color}" stroke-width="{stroke}" stroke-linecap="round" '
@@ -272,9 +266,6 @@ def _svg_file(name: str, color: str) -> str | None:
         return None
 
 
-# ---------------------------------------------------------------------------
-# Widget kustom
-# ---------------------------------------------------------------------------
 class _ToggleSwitch(QCheckBox):
     """Checkbox berbentuk sakelar toggle beranimasi (API tetap QCheckBox)."""
 
@@ -483,9 +474,6 @@ class _HoverIconButton(QPushButton):
         super().leaveEvent(event)
 
 
-# ---------------------------------------------------------------------------
-# Struktur baris tabel
-# ---------------------------------------------------------------------------
 @dataclass
 class _UnitRowWidgets:
     """Menyimpan referensi widget kontrol untuk satu baris variasi satuan jual.
@@ -579,9 +567,6 @@ class ItemFormDialog(CustomDialog):
         self._load_initial_data()
         self._connect_signals()
 
-    # ------------------------------------------------------------------
-    # Penyusunan UI
-    # ------------------------------------------------------------------
     def _setup_ui(self) -> None:
         """Menyusun tata letak formulir yang padat, rapi, dan proporsional."""
         root_layout = QVBoxLayout()
@@ -1408,9 +1393,6 @@ class ItemFormDialog(CustomDialog):
             qss = qss.replace(key, value)
         self.content_widget.setStyleSheet(qss)
 
-    # ------------------------------------------------------------------
-    # Data awal
-    # ------------------------------------------------------------------
     def _populate_master_combos(self) -> None:
         """Mengisi daftar pilihan kategori dan satuan dasar ke dalam combobox."""
         self._category_combo.clear()
@@ -1483,9 +1465,6 @@ class ItemFormDialog(CustomDialog):
         self._opening_qty_spin.valueChanged.connect(self._update_opening_estimate)
         self._opening_cost_spin.valueChanged.connect(self._update_opening_estimate)
 
-    # ------------------------------------------------------------------
-    # Baris satuan
-    # ------------------------------------------------------------------
     def _handle_add_empty_unit_row(self) -> None:
         """Menambahkan satu baris variasi satuan baru ke tabel multi-satuan."""
         raw_base_unit = self._base_unit_combo.currentData()
@@ -1630,18 +1609,12 @@ class ItemFormDialog(CustomDialog):
             row.remove_btn.setEnabled(can_remove)
         self._units_count_chip.setText(f"{len(self._unit_rows)} varian")
 
-    # ------------------------------------------------------------------
-    # Tampilan tambahan (murni visual)
-    # ------------------------------------------------------------------
     def _update_opening_estimate(self) -> None:
         """Memperbarui label estimasi nilai stok awal (qty x harga modal)."""
         total = float(self._opening_qty_spin.value()) * float(self._opening_cost_spin.value())
         formatted = f"{total:,.0f}".replace(",", ".")
         self._opening_value_label.setText(f"Rp {formatted}")
 
-    # ------------------------------------------------------------------
-    # Validasi & hasil
-    # ------------------------------------------------------------------
     def _show_error(self, message: str) -> None:
         """Menampilkan pesan kesalahan validasi secara inline di dalam dialog.
 
