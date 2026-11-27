@@ -52,15 +52,7 @@ from ui.dialog.StockAdjustmentDialog import (
     StockAdjustmentDialog,
     StockItemOption,
 )
-
-try:
-    from pyqttoast import Toast, ToastPreset
-
-    _HAS_TOAST = True
-except ImportError:
-    Toast = None
-    ToastPreset = None
-    _HAS_TOAST = False
+from util.helper.toast_helper import show_toast as display_toast
 
 logger = logging.getLogger(__name__)
 
@@ -473,20 +465,14 @@ class ManajemenProdukHelper(QObject):
             message: Isi pesan notifikasi.
             is_success: True untuk preset sukses, False untuk preset kesalahan.
         """
-        if not _HAS_TOAST or Toast is None or ToastPreset is None:
-            return
-
-        try:
-            toast = Toast(self.page)
-            toast.setDuration(4000)
-            toast.setBorderRadius(6)
-            toast.setTitle(title)
-            toast.setText(message)
-            preset = ToastPreset.SUCCESS if is_success else ToastPreset.ERROR
-            toast.applyPreset(preset)
-            toast.show()
-        except Exception:
-            logger.debug("Gagal menampilkan Toast pada halaman Manajemen Produk")
+        display_toast(
+            parent=self.page,
+            title=title,
+            message=message,
+            is_success=is_success,
+            duration_ms=4000,
+            border_radius=6,
+        )
 
     def refresh(self) -> PaginatedProductsResult | None:
         """Memuat ulang seluruh data kategori, metrik, tabel, dan panel detail.

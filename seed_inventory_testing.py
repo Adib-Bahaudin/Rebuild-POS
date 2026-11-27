@@ -15,6 +15,7 @@ from typing import Any, Optional
 
 from config import DEFAULT_DB_PATH
 from init.inittransaksidatabase import TransaksiDatabaseInitializer
+from util.helper.db_connection import create_sqlite_connection
 
 
 CATEGORIES_DATA: list[str] = [
@@ -848,9 +849,12 @@ class InventoryTestingSeeder:
         Returns:
             Objek koneksi sqlite3.
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("PRAGMA foreign_keys = ON;")
-        return conn
+        return create_sqlite_connection(
+            self.db_path,
+            require_exists=False,
+            row_factory=False,
+            foreign_keys=True,
+        )
 
     def _seed_categories(self, conn: sqlite3.Connection) -> dict[str, int]:
         """Menyisipkan daftar kategori barang dan mengembalikan pemetaan nama ke ID.

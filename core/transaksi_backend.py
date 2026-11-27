@@ -25,6 +25,8 @@ if TYPE_CHECKING:
 
 
 from config import DEFAULT_DB_PATH
+from util.helper.db_connection import create_sqlite_connection
+from util.helper.formatrupiah import format_rupiah
 
 logger = logging.getLogger(__name__)
 
@@ -43,10 +45,6 @@ class InsufficientPaymentError(TransactionError):
 
 class InsufficientStockError(TransactionError):
     """Pengecualian saat stok layer FIFO tidak mencukupi kebutuhan transaksi."""
-
-
-class ItemNotFoundError(TransactionError):
-    """Pengecualian saat produk atau jasa tidak ditemukan pada database."""
 
 
 @dataclass(frozen=True)
@@ -224,14 +222,31 @@ class TransactionRepository:
         Raises:
             FileNotFoundError: Jika file database tidak ditemukan di disk.
         """
+        return create_sqlite_connection(self.db_path)
+
+    def fetch_active_categories(self) -> list[str]:
+        """Membaca daftar nama kategori aktif dari database secara urut alfabet.
+
+        Returns:
+            Daftar nama kategori aktif, atau list kosong jika tabel belum tersedia.
+        """
         if not self.db_path.exists() or not self.db_path.is_file():
-            raise FileNotFoundError(
-                f"File database tidak ditemukan di: {self.db_path.resolve()}"
-            )
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON;")
-        return conn
+            return []
+
+        try:
+            with self._connect() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT name
+                    FROM categories
+                    WHERE is_active = 1
+                    ORDER BY name COLLATE NOCASE ASC;
+                    """
+                )
+                return [str(row[0]) for row in cursor.fetchall() if row[0]]
+        except sqlite3.Error:
+            logger.debug("Tabel categories belum tersedia atau gagal dibaca pada %s", self.db_path)
+            return []
 
     def _require_lastrowid(self, cursor: sqlite3.Cursor, table_name: str) -> int:
         """Memastikan nilai lastrowid dari cursor INSERT bertipe integer valid.
@@ -767,8 +782,8 @@ class TransactionRepository:
                 )
             if total > 0 and amount_paid >= total:
                 raise TransactionError(
-                    f"Nominal DP (Rp {amount_paid:,}) tidak boleh melebihi atau sama dengan "
-                    f"total tagihan (Rp {total:,}). Silakan gunakan metode bayar lunas.".replace(",", ".")
+                    f"Nominal DP ({format_rupiah(amount_paid)}) tidak boleh melebihi atau sama dengan "
+                    f"total tagihan ({format_rupiah(total)}). Silakan gunakan metode bayar lunas."
                 )
             dp_amount = amount_paid
             change_amount = 0
@@ -784,8 +799,8 @@ class TransactionRepository:
         else:
             if amount_paid < total:
                 raise InsufficientPaymentError(
-                    f"Nominal pembayaran (Rp {amount_paid:,}) kurang dari "
-                    f"total tagihan (Rp {total:,}).".replace(",", ".")
+                    f"Nominal pembayaran ({format_rupiah(amount_paid)}) kurang dari "
+                    f"total tagihan ({format_rupiah(total)})."
                 )
             change_amount = amount_paid - total
             header_payment_method = payment_method
@@ -1240,7 +1255,7 @@ class TransactionController(QObject):
             0,
             lambda: self.dashboard.search_panel.set_helper_text(
                 f"Ditambahkan: {product.display_name} "
-                f"(Rp {product.selling_price:,})".replace(",", "."),
+                f"({format_rupiah(product.selling_price)})",
                 is_error=False,
             ),
         )
@@ -1341,7 +1356,7 @@ class TransactionController(QObject):
         self.dashboard.search_panel.clear_search()
         self.dashboard.search_panel.set_helper_text(
             f"Ditambahkan: {selected_product.display_name} "
-            f"(Rp {selected_product.selling_price:,})".replace(",", "."),
+            f"({format_rupiah(selected_product.selling_price)})",
             is_error=False,
         )
 
@@ -1371,7 +1386,7 @@ class TransactionController(QObject):
         options = [
             (
                 f"[{prod.sku}] {prod.display_name} - "
-                f"Rp {prod.selling_price:,}".replace(",", ".")
+                f"{format_rupiah(prod.selling_price)}"
                 + (
                     f" (Stok: {prod.available_stock:g})"
                     if prod.line_type == "ITEM"
@@ -1382,12 +1397,12 @@ class TransactionController(QObject):
         ]
 
         chosen_text, accepted = CustomInputDialog.getItem(
-            self._get_dialog_parent(),
-            "Pilih Produk / Jasa",
-            "Ditemukan beberapa hasil yang cocok:",
-            options,
-            0,
-            False,
+            parent=self._get_dialog_parent(),
+            title="Pilih Produk / Jasa",
+            label="Ditemukan beberapa hasil yang cocok:",
+            items=options,
+            current=0,
+            editable=False,
         )
         if not accepted:
             return None

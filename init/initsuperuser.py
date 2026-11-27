@@ -31,7 +31,7 @@ class SuperUserInitializer:
         db_path (Path): Lokasi path file database SQLite.
     """
 
-    def __init__(self, db_path: Optional[str | Path] = None):
+    def __init__(self, db_path: Optional[str | Path] = None) -> None:
         """Inisialisasi instance SuperUserInitializer.
 
         Args:

@@ -21,6 +21,8 @@ from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtWidgets import QMessageBox
 
 from config import DEFAULT_DB_PATH
+from util.helper.db_connection import create_sqlite_connection
+from util.helper.formatrupiah import format_ribuan
 from ui.manajemenproduk import (
     CategoryOption,
     InventoryLayerDetail,
@@ -303,7 +305,7 @@ def format_integer(value: int) -> str:
     Returns:
         String angka dengan pemisah ribuan titik.
     """
-    return f"{value:,}".replace(",", ".")
+    return format_ribuan(value)
 
 
 def format_rupiah(amount: int | float) -> str:
@@ -394,14 +396,7 @@ class ManajemenProdukRepository:
         Raises:
             FileNotFoundError: Jika file database belum ditemukan pada disk.
         """
-        if not self.db_path.exists() or not self.db_path.is_file():
-            raise FileNotFoundError(
-                f"File database tidak ditemukan di: {self.db_path.resolve()}"
-            )
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON;")
-        return conn
+        return create_sqlite_connection(self.db_path)
 
     @staticmethod
     def _require_lastrowid(cursor: sqlite3.Cursor, table_name: str) -> int:

@@ -25,7 +25,6 @@ from PySide6.QtWidgets import QApplication
 from config import (
     APP_NAME,
     DEFAULT_DB_PATH,
-    IS_DEV,
     IS_PRODUCTION,
     ORGANIZATION_NAME,
     get_asset_path,
@@ -42,17 +41,9 @@ from util.core.manajemen_produk_helper import create_connected_manajemen_produk_
 from util.core.dashboard_transaksi_helper import create_connected_dashboard
 from util.core.riwayat_transaksi_helper import create_connected_riwayat_page
 from util.helper.initdatabase import InitDatabase
+from util.helper.toast_helper import show_toast
 from util.ui.MainShell import MainShell, create_placeholder_page
 from util.ui.scrollbar_manager import GlobalScrollBarManager
-
-try:
-    from pyqttoast import Toast, ToastPreset
-
-    _HAS_TOAST = True
-except ImportError:
-    Toast = None
-    ToastPreset = None
-    _HAS_TOAST = False
 
 logger = logging.getLogger(__name__)
 
@@ -222,14 +213,14 @@ def main() -> int:
         else:
             logger.warning("Login gagal: %s", result.message)
 
-            if _HAS_TOAST and Toast is not None and ToastPreset is not None:
-                toast = Toast(window)
-                toast.setDuration(4000)
-                toast.setBorderRadius(5)
-                toast.setTitle("Login Gagal")
-                toast.setText(result.message)
-                toast.applyPreset(ToastPreset.ERROR)
-                toast.show()
+            show_toast(
+                parent=window,
+                title="Login Gagal",
+                message=result.message,
+                is_success=False,
+                duration_ms=4000,
+                border_radius=5,
+            )
 
     def on_create_key_attempt() -> None:
         """Menerima sinyal permintaan pembuatan key baru dari UI."""

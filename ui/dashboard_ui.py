@@ -1,6 +1,15 @@
+"""Modul antarmuka kasir utama (DashboardPOS) berbasis PySide6.
+
+Modul ini menyediakan komponen UI murni untuk layar kasir POS yang mencakup
+header kasir, panel pencarian produk, tabel keranjang belanja, ringkasan
+pembayaran, panel input pembayaran, dan tombol aksi transaksi.
+"""
+
+from __future__ import annotations
+
 from PySide6.QtCore import Qt, QSize, Signal, QEvent, QObject, QTimer
 from PySide6.QtGui import (
-    QCursor, QIntValidator, QKeyEvent, 
+    QCursor, QKeyEvent, 
     QKeySequence, QShortcut, QShowEvent
 )
 from PySide6.QtSvgWidgets import QSvgWidget
@@ -25,7 +34,7 @@ class CardWidget(QFrame):
     untuk mengelompokkan elemen-elemen UI agar menyerupai referensi desain.
     """
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         """Menginisialisasi CardWidget dengan styling QSS dasar."""
         super().__init__(parent)
         self.setStyleSheet(
@@ -47,7 +56,7 @@ class TransactionHeader(QWidget):
     Menampilkan judul halaman, identitas kasir, dan role akses pengguna.
     """
     
-    def __init__(self, user_name: str = "KASIR", user_role: str = "USER", parent=None):
+    def __init__(self, user_name: str = "KASIR", user_role: str = "USER", parent: Optional[QWidget] = None) -> None:
         """Menginisialisasi elemen header transaksi.
         
         Args:
@@ -129,7 +138,7 @@ class ProductSearchPanel(CardWidget):
     search_submitted = Signal(str, str)
     add_requested = Signal()
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         """Menginisialisasi form pencarian produk."""
         super().__init__(parent)
         layout = QVBoxLayout(self)
@@ -423,7 +432,7 @@ class CartPanel(CardWidget):
     item_removed = Signal(int)
     item_quantity_changed = Signal(int, int)
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         """Menginisialisasi tabel keranjang belanja dan status antarmuka kosong."""
         super().__init__(parent)
         self._cart_items: List[Dict[str, Any]] = []
@@ -579,7 +588,7 @@ class CartPanel(CardWidget):
             type_item.setFlags(type_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
 
             price_val = item.get("price", 0)
-            price_text = f"Rp {int(price_val):,}".replace(",", ".")
+            price_text = format_rupiah(int(price_val))
             price_item = QTableWidgetItem(price_text)
             price_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             price_item.setFlags(price_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -592,7 +601,7 @@ class CartPanel(CardWidget):
             self._qty_inputs.append(qty_control.qty_spin)
 
             subtotal_val = item.get("subtotal", price_val * qty_val)
-            subtotal_text = f"Rp {int(subtotal_val):,}".replace(",", ".")
+            subtotal_text = format_rupiah(int(subtotal_val))
             subtotal_item = QTableWidgetItem(subtotal_text)
             subtotal_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             subtotal_item.setFlags(subtotal_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
@@ -671,7 +680,7 @@ class TransactionSummaryPanel(CardWidget):
     Menampilkan rincian angka seperti subtotal, diskon, dan total tagihan akhir.
     """
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         """Menginisialisasi layout ringkasan angka transaksi."""
         super().__init__(parent)
         layout = QVBoxLayout(self)
@@ -728,14 +737,14 @@ class TransactionSummaryPanel(CardWidget):
             total: Nilai akhir total tagihan.
         """
         if "Subtotal" in self.value_labels:
-            self.value_labels["Subtotal"].setText(f"Rp {int(subtotal):,}".replace(",", "."))
+            self.value_labels["Subtotal"].setText(format_rupiah(int(subtotal)))
         if "Diskon" in self.value_labels:
-            self.value_labels["Diskon"].setText(f"Rp {int(diskon):,}".replace(",", "."))
+            self.value_labels["Diskon"].setText(format_rupiah(int(diskon)))
         if "Pembulatan" in self.value_labels:
-            self.value_labels["Pembulatan"].setText(f"Rp {int(pembulatan):,}".replace(",", "."))
+            self.value_labels["Pembulatan"].setText(format_rupiah(int(pembulatan)))
         if "Tip / Bonus" in self.value_labels:
-            self.value_labels["Tip / Bonus"].setText(f"Rp {int(tip):,}".replace(",", "."))
-        self.total_val.setText(f"Rp {int(total):,}".replace(",", "."))
+            self.value_labels["Tip / Bonus"].setText(format_rupiah(int(tip)))
+        self.total_val.setText(format_rupiah(int(total)))
 
     def reset_summary(self) -> None:
         """Mengembalikan seluruh tampilan ringkasan nominal ke nilai awal nol."""
@@ -755,7 +764,7 @@ class PaymentPanel(CardWidget):
     amount_changed = Signal(str)
     customer_changed = Signal(str)
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         """Menginisialisasi form pembayaran."""
         super().__init__(parent)
         layout = QVBoxLayout(self)
@@ -975,7 +984,7 @@ class PaymentPanel(CardWidget):
         Args:
             amount: Nilai kembalian yang harus diberikan ke customer.
         """
-        formatted = f"Rp {int(amount):,}".replace(",", ".")
+        formatted = format_rupiah(int(amount))
         self.change_lbl.setText(f"Kembalian: {formatted}")
 
     def clear_form(self) -> None:
@@ -1018,7 +1027,7 @@ class TransactionActionPanel(CardWidget):
     tip_clicked = Signal()
     pay_clicked = Signal()
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         """Menginisialisasi grid tombol aksi."""
         super().__init__(parent)
         layout = QGridLayout(self)
@@ -1119,7 +1128,7 @@ class DashboardPOS(QWidget):
     payment_amount_changed = Signal(str)
     payment_method_changed = Signal(str)
     
-    def __init__(self, user_name: str = "KASIR", user_role: str = "USER", parent=None):
+    def __init__(self, user_name: str = "KASIR", user_role: str = "USER", parent: Optional[QWidget] = None) -> None:
         """Menginisialisasi dan merakit seluruh sub-komponen dashboard.
         
         Args:

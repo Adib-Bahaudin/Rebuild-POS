@@ -7,6 +7,7 @@ aset statis dan data dinamis aplikasi berbasis PyQt/PySide6.
 
 from __future__ import annotations
 
+import importlib
 import os
 import sys
 from pathlib import Path
@@ -48,9 +49,9 @@ def detect_production_mode() -> bool:
         return True
 
     try:
-        import cython  # type: ignore[import-not-found]
+        cython_mod = importlib.import_module("cython")
 
-        if cython.compiled:
+        if getattr(cython_mod, "compiled", False):
             return True
     except (ImportError, AttributeError):
         pass

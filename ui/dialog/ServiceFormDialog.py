@@ -35,6 +35,11 @@ from core.manajemen_produk_backend import (
     ServiceMaterialPayload,
 )
 from util.customdialog import CustomDialog
+from util.helper.dialog_form_helper import (
+    build_footer_actions,
+    make_field_label,
+    show_inline_error,
+)
 
 
 @dataclass(frozen=True)
@@ -274,20 +279,7 @@ class ServiceFormDialog(CustomDialog):
         Returns:
             QHBoxLayout berisi tombol aksi sejajar kanan.
         """
-        footer = QHBoxLayout()
-        footer.setContentsMargins(0, 2, 0, 0)
-        footer.setSpacing(8)
-
-        self._cancel_btn.setObjectName("CancelBtn")
-        self._cancel_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        self._save_btn.setObjectName("SaveBtn")
-        self._save_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        footer.addStretch(1)
-        footer.addWidget(self._cancel_btn)
-        footer.addWidget(self._save_btn)
-        return footer
+        return build_footer_actions(self._cancel_btn, self._save_btn)
 
     def _make_field_label(self, text: str) -> QLabel:
         """Membuat label teks ringkas untuk judul kolom masukan.
@@ -298,9 +290,7 @@ class ServiceFormDialog(CustomDialog):
         Returns:
             Widget QLabel bergaya seragam.
         """
-        label = QLabel(text, self)
-        label.setObjectName("FieldLabel")
-        return label
+        return make_field_label(self, text)
 
     def _apply_styles(self) -> None:
         """Menerapkan lembar gaya QSS gelap serasi dengan CustomDialog."""
@@ -590,8 +580,7 @@ class ServiceFormDialog(CustomDialog):
         Args:
             message: Teks pesan kesalahan yang harus diperbaiki pengguna.
         """
-        self._error_label.setText(message)
-        self._error_label.show()
+        show_inline_error(self._error_label, message)
 
     def _build_validated_payload(self) -> ServiceFormPayload | None:
         """Memvalidasi seluruh isian formulir dan menyusun ServiceFormPayload.

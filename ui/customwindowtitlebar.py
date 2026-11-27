@@ -1,3 +1,7 @@
+"""Modul custom title bar dan jendela utama tanpa bingkai (frameless) untuk PySide6."""
+
+from __future__ import annotations
+
 from dataclasses import dataclass
 import ctypes
 import ctypes.wintypes
@@ -744,6 +748,8 @@ class FramelessMainWindow(QMainWindow):
         """
         try:
             class APPBARDATA(ctypes.Structure):
+                """Struktur data Windows API untuk membaca posisi dan ukuran taskbar."""
+
                 _fields_ = [
                     ("cbSize", ctypes.wintypes.DWORD),
                     ("hWnd", ctypes.wintypes.HWND),
@@ -818,6 +824,7 @@ class FramelessMainWindow(QMainWindow):
         super().closeEvent(event)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        """Memantau pergerakan kursor global untuk mengatur bentuk kursor resize tepi jendela."""
         if not self.isVisible():
             return super().eventFilter(watched, event)
         if (

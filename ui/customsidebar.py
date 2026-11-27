@@ -9,6 +9,7 @@ from config import get_asset_path
 from PySide6.QtCore import (
     Property,
     QEasingCurve,
+    QEvent,
     QPropertyAnimation,
     QRect,
     QSize,
@@ -148,7 +149,7 @@ class SidebarButton(QPushButton):
             self.setCursor(Qt.CursorShape.PointingHandCursor)
         super().enterEvent(event)
 
-    def leaveEvent(self, event) -> None:
+    def leaveEvent(self, event: QEvent) -> None:
         """Menangani pergerakan kursor mouse meninggalkan area tombol."""
         if not self.is_active:
             self._animation.stop()
@@ -237,7 +238,7 @@ class Sidebar(QFrame):
         validated_icons = validate_sidebar_icons(SIDEBAR_ICONS_CONFIG)
         self.nav_buttons: Dict[str, SidebarButton] = {}
 
-        for i, (key, paths) in enumerate(SIDEBAR_ICONS_CONFIG.items()):
+        for i, key in enumerate(SIDEBAR_ICONS_CONFIG):
             icon_paths = validated_icons[i]
             is_active = (i == 0)
 

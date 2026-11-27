@@ -12,7 +12,6 @@ Fasilitas yang disediakan meliputi:
 from __future__ import annotations
 
 import logging
-import sqlite3
 from pathlib import Path
 from typing import Callable, Optional
 
@@ -27,14 +26,8 @@ from core.transaksi_backend import (
 )
 from ui.dashboard_ui import DashboardPOS
 from util.custominputdialog import CustomInputDialog
-
-try:
-    from pyqttoast import Toast, ToastPreset
-    _HAS_TOAST = True
-except ImportError:
-    Toast = None
-    ToastPreset = None
-    _HAS_TOAST = False
+from util.helper.formatrupiah import format_rupiah
+from util.helper.toast_helper import show_toast as display_toast
 
 logger = logging.getLogger(__name__)
 
@@ -223,7 +216,7 @@ class DashboardTransaksiHelper(QObject):
         if self.enable_notifications:
             self.show_toast(
                 title="Transaksi Berhasil",
-                message=f"Faktur {result.invoice_number} berhasil dicatat (Total: Rp {result.total:,})".replace(",", "."),
+                message=f"Faktur {result.invoice_number} berhasil dicatat (Total: {format_rupiah(result.total)})",
                 is_success=True,
             )
 
@@ -275,45 +268,24 @@ class DashboardTransaksiHelper(QObject):
             message: Isi teks ringkas pesan.
             is_success: True untuk status sukses (hijau), False untuk status gagal (merah).
         """
-        if not _HAS_TOAST or Toast is None or ToastPreset is None:
-            return
-
-        try:
-            target_parent: QWidget = self.dashboard.window() or self.dashboard
-            toast = Toast(target_parent)
-            toast.setDuration(3500)
-            toast.setBorderRadius(6)
-            toast.setTitle(title)
-            toast.setText(message)
-            preset = ToastPreset.SUCCESS if is_success else ToastPreset.ERROR
-            toast.applyPreset(preset)
-            toast.show()
-        except Exception:
-            logger.debug("Gagal memunculkan widget Toast pada antarmuka")
+        target_parent: QWidget = self.dashboard.window() or self.dashboard
+        display_toast(
+            parent=target_parent,
+            title=title,
+            message=message,
+            is_success=is_success,
+            duration_ms=3500,
+            border_radius=6,
+        )
 
     def load_categories(self) -> list[str]:
-        """Membaca daftar kategori aktif dari database dan menerapkannya ke dropdown pencarian.
+        """Membaca daftar kategori aktif dari repository dan menerapkannya ke dropdown pencarian.
 
         Returns:
             Daftar lengkap nama kategori yang disetel pada dropdown pencarian.
         """
         standard_categories = ["Semua Produk", "Produk Satuan", "Produk Paket", "Jasa"]
-        db_categories: list[str] = []
-
-        if self.db_path.exists():
-            try:
-                with sqlite3.connect(self.db_path) as conn:
-                    cursor = conn.execute(
-                        """
-                        SELECT name
-                        FROM categories
-                        WHERE is_active = 1
-                        ORDER BY name COLLATE NOCASE ASC;
-                        """
-                    )
-                    db_categories = [row[0] for row in cursor.fetchall() if row[0]]
-            except sqlite3.Error:
-                logger.debug("Tabel categories belum tersedia atau gagal dibaca pada %s", self.db_path)
+        db_categories = self.repository.fetch_active_categories()
 
         all_categories = list(standard_categories)
         for cat in db_categories:

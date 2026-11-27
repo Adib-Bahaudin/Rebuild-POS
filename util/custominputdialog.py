@@ -1,5 +1,12 @@
+"""Modul dialog input kustom berbasis QDialog dengan title bar frameless."""
+
+from __future__ import annotations
+
+from collections.abc import Sequence
+from typing import Any
+
 from PySide6.QtCore import QSize, Qt
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QIcon, QMouseEvent, QPixmap, QShowEvent
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -13,6 +20,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QStyle,
     QVBoxLayout,
+    QWidget,
 )
 
 from config import get_asset_path
@@ -35,7 +43,8 @@ class _CustomTitleBar(QFrame):
         close_symbol: str | None = None,
         close_icon_paths: ButtonIconPaths | None = None,
         bottom_border_color: str = "#313244",
-    ):
+    ) -> None:
+        """Menginisialisasi title bar kustom untuk CustomInputDialog."""
         super().__init__(dialog)
         self._dialog = dialog
         self._drag_offset = None
@@ -113,10 +122,12 @@ class _CustomTitleBar(QFrame):
             """
         )
 
-    def set_title(self, title: str):
+    def set_title(self, title: str) -> None:
+        """Menetapkan teks judul pada label title bar."""
         self._title_label.setText(title)
 
-    def set_icon(self, icon: QIcon):
+    def set_icon(self, icon: QIcon) -> None:
+        """Menetapkan ikon aplikasi pada title bar."""
         if not icon.isNull():
             pixmap = icon.pixmap(16, 16)
             if not pixmap.isNull():
@@ -126,7 +137,8 @@ class _CustomTitleBar(QFrame):
         self._icon_label.clear()
         self._icon_label.hide()
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        """Memulai proses geser jendela saat tombol kiri mouse ditekan pada title bar."""
         if event.button() == Qt.MouseButton.LeftButton:
             self._drag_offset = (
                 event.globalPosition().toPoint() - self._dialog.frameGeometry().topLeft()
@@ -135,7 +147,8 @@ class _CustomTitleBar(QFrame):
             return
         super().mousePressEvent(event)
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        """Memindahkan posisi dialog mengikuti pergerakan kursor saat digeser."""
         if self._drag_offset is not None and (
             event.buttons() & Qt.MouseButton.LeftButton
         ):
@@ -144,7 +157,8 @@ class _CustomTitleBar(QFrame):
             return
         super().mouseMoveEvent(event)
 
-    def mouseReleaseEvent(self, event):
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        """Mengakhiri proses geser jendela saat tombol mouse dilepas."""
         self._drag_offset = None
         super().mouseReleaseEvent(event)
 
@@ -169,7 +183,7 @@ class CustomInputDialog(QDialog):
 
     def __init__(
         self,
-        parent=None,
+        parent: QWidget | None = None,
         flags: Qt.WindowType | None = None,
         *,
         titlebar_color: str | None = None,
@@ -182,7 +196,8 @@ class CustomInputDialog(QDialog):
         titlebar_height: int | None = None,
         close_symbol: str | None = None,
         close_icon_paths: ButtonIconPaths | None = None,
-    ):
+    ) -> None:
+        """Menginisialisasi dialog input kustom beserta title bar dan QInputDialog internal."""
         base_flags = Qt.WindowType.Dialog | Qt.WindowType.FramelessWindowHint
         if flags is not None:
             base_flags |= flags
@@ -383,7 +398,8 @@ class CustomInputDialog(QDialog):
 
         return self.style().standardIcon(QStyle.StandardPixmap.SP_TitleBarMenuButton)
 
-    def _update_titlebar_icon(self):
+    def _update_titlebar_icon(self) -> None:
+        """Memperbarui ikon pada title bar sesuai ikon jendela yang aktif."""
         self._title_bar.set_icon(self._resolve_native_icon())
 
     def _style_dialog_buttons(self) -> None:
@@ -393,21 +409,25 @@ class CustomInputDialog(QDialog):
             for btn in button_box.buttons():
                 btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
-    def setWindowTitle(self, title: str):
+    def setWindowTitle(self, title: str) -> None:
+        """Menetapkan judul jendela pada dialog dan title bar kustom."""
         super().setWindowTitle(title)
         self._title_bar.set_title(title)
         self._input_dialog.setWindowTitle(title)
 
     def setWindowIcon(self, icon: QIcon | QPixmap) -> None:
+        """Menetapkan ikon jendela dan menyinkronkannya ke title bar."""
         super().setWindowIcon(icon)
         self._update_titlebar_icon()
 
-    def showEvent(self, event):
+    def showEvent(self, event: QShowEvent) -> None:
+        """Memperbarui ikon serta gaya tombol saat dialog ditampilkan."""
         self._update_titlebar_icon()
         self._style_dialog_buttons()
         super().showEvent(event)
 
-    def __getattr__(self, name: str):
+    def __getattr__(self, name: str) -> Any:
+        """Meneruskan akses atribut yang tidak ditemukan ke QInputDialog internal."""
         input_dialog = self.__dict__.get("_input_dialog")
         if input_dialog is not None:
             return getattr(input_dialog, name)
@@ -415,14 +435,10 @@ class CustomInputDialog(QDialog):
             f"'{type(self).__name__}' object has no attribute '{name}'"
         )
 
-    # =========================================================================
-    # Static Methods (Identik dengan PySide6 QInputDialog)
-    # =========================================================================
-
     @classmethod
     def getText(
         cls,
-        parent,
+        parent: QWidget | None,
         title: str,
         label: str,
         echo: QLineEdit.EchoMode = QLineEdit.EchoMode.Normal,
@@ -430,6 +446,7 @@ class CustomInputDialog(QDialog):
         flags: Qt.WindowType | None = None,
         inputMethodHints: Qt.InputMethodHint = Qt.InputMethodHint.ImhNone,
     ) -> tuple[str, bool]:
+        """Menampilkan dialog input teks satu baris dan mengembalikan nilai beserta status konfirmasi."""
         dialog = cls(parent, flags)
         dialog.setWindowTitle(title)
         dialog.setInputMode(QInputDialog.InputMode.TextInput)
@@ -444,13 +461,14 @@ class CustomInputDialog(QDialog):
     @classmethod
     def getMultiLineText(
         cls,
-        parent,
+        parent: QWidget | None,
         title: str,
         label: str,
         text: str = "",
         flags: Qt.WindowType | None = None,
         inputMethodHints: Qt.InputMethodHint = Qt.InputMethodHint.ImhNone,
     ) -> tuple[str, bool]:
+        """Menampilkan dialog input teks multi-baris dan mengembalikan nilai beserta status konfirmasi."""
         dialog = cls(parent, flags)
         dialog.setWindowTitle(title)
         dialog.setInputMode(QInputDialog.InputMode.TextInput)
@@ -467,7 +485,7 @@ class CustomInputDialog(QDialog):
     @classmethod
     def getInt(
         cls,
-        parent,
+        parent: QWidget | None,
         title: str,
         label: str,
         value: int = 0,
@@ -476,6 +494,7 @@ class CustomInputDialog(QDialog):
         step: int = 1,
         flags: Qt.WindowType | None = None,
     ) -> tuple[int, bool]:
+        """Menampilkan dialog input bilangan bulat dan mengembalikan nilai beserta status konfirmasi."""
         dialog = cls(parent, flags)
         dialog.setWindowTitle(title)
         dialog.setInputMode(QInputDialog.InputMode.IntInput)
@@ -490,7 +509,7 @@ class CustomInputDialog(QDialog):
     @classmethod
     def getDouble(
         cls,
-        parent,
+        parent: QWidget | None,
         title: str,
         label: str,
         value: float = 0.0,
@@ -500,6 +519,7 @@ class CustomInputDialog(QDialog):
         flags: Qt.WindowType | None = None,
         step: float = 1.0,
     ) -> tuple[float, bool]:
+        """Menampilkan dialog input bilangan desimal dan mengembalikan nilai beserta status konfirmasi."""
         dialog = cls(parent, flags)
         dialog.setWindowTitle(title)
         dialog.setInputMode(QInputDialog.InputMode.DoubleInput)
@@ -515,15 +535,16 @@ class CustomInputDialog(QDialog):
     @classmethod
     def getItem(
         cls,
-        parent,
+        parent: QWidget | None,
         title: str,
         label: str,
-        items,
+        items: Sequence[str],
         current: int = 0,
         editable: bool = True,
         flags: Qt.WindowType | None = None,
         inputMethodHints: Qt.InputMethodHint = Qt.InputMethodHint.ImhNone,
     ) -> tuple[str, bool]:
+        """Menampilkan dialog pilihan item dropdown dan mengembalikan item terpilih beserta status konfirmasi."""
         items_list = list(items)
         dialog = cls(parent, flags)
         dialog.setWindowTitle(title)

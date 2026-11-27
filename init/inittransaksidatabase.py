@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from config import DEFAULT_DB_PATH
+from util.helper.db_connection import create_sqlite_connection
 
 logger = logging.getLogger(__name__)
 
@@ -510,9 +511,19 @@ class TransaksiDatabaseInitializer:
     ]
 
     def __init__(self, db_path: Optional[str | Path] = None) -> None:
+        """Menginisialisasi instance TransaksiDatabaseInitializer.
+
+        Args:
+            db_path: Path file database SQLite. Default menggunakan DEFAULT_DB_PATH.
+        """
         self.db_path: Path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
 
     def check_database_exists(self) -> bool:
+        """Memeriksa apakah file database sudah tersedia pada path target.
+
+        Returns:
+            True jika file database sudah ada, False jika belum.
+        """
         exists = self.db_path.exists() and self.db_path.is_file()
         if exists:
             logger.debug("Database ditemukan di: %s", self.db_path)
@@ -521,12 +532,28 @@ class TransaksiDatabaseInitializer:
         return exists
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("PRAGMA foreign_keys = ON;")
-        conn.execute("PRAGMA journal_mode = WAL;")
-        return conn
+        """Membuka koneksi SQLite dengan dukungan foreign keys dan mode WAL.
+
+        Returns:
+            Objek koneksi sqlite3.Connection siap pakai.
+        """
+        return create_sqlite_connection(
+            self.db_path,
+            require_exists=False,
+            row_factory=False,
+            foreign_keys=True,
+            wal_mode=True,
+        )
 
     def get_existing_tables(self, conn: sqlite3.Connection) -> set[str]:
+        """Mengambil seluruh nama tabel pengguna yang sudah ada di database.
+
+        Args:
+            conn: Koneksi sqlite3 aktif.
+
+        Returns:
+            Himpunan nama tabel yang tersedia.
+        """
         cursor = conn.execute(
             """
             SELECT name
@@ -537,6 +564,14 @@ class TransaksiDatabaseInitializer:
         return {row[0] for row in cursor.fetchall()}
 
     def verify_tables(self, conn: sqlite3.Connection) -> dict[str, list[str]]:
+        """Membandingkan tabel yang ada dengan daftar tabel skema yang diharapkan.
+
+        Args:
+            conn: Koneksi sqlite3 aktif.
+
+        Returns:
+            Dictionary berisi daftar tabel 'existing' dan 'missing'.
+        """
         existing_set = self.get_existing_tables(conn)
         expected_order = list(self.TABLE_SCHEMAS.keys())
 
@@ -695,5 +730,13 @@ class TransaksiDatabaseInitializer:
 def init_transaksi_database(
     db_path: Optional[str | Path] = None,
 ) -> dict[str, Any]:
+    """Menjalankan inisialisasi dan verifikasi skema database transaksi.
+
+    Args:
+        db_path: Path file database SQLite opsional.
+
+    Returns:
+        Dictionary ringkasan hasil inisialisasi dan verifikasi tabel.
+    """
     initializer = TransaksiDatabaseInitializer(db_path=db_path)
     return initializer.initialize()

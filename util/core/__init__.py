@@ -1,3 +1,7 @@
+"""Paket bridge/binder penghubung antara antarmuka UI dan modul backend."""
+
+from __future__ import annotations
+
 from util.core.dashboard_transaksi_helper import (
     DashboardTransaksiHelper,
     bind_dashboard_to_backend,

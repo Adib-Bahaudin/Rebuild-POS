@@ -32,7 +32,8 @@ from ui.riwayat_transaksi import (
     TransactionRowData,
     TrendStatus,
 )
-from util.helper.formatrupiah import format_rupiah
+from util.helper.db_connection import create_sqlite_connection
+from util.helper.formatrupiah import format_ribuan, format_rupiah
 
 logger = logging.getLogger(__name__)
 
@@ -272,7 +273,7 @@ def format_integer(value: int) -> str:
     Returns:
         String angka dengan pemisah ribuan titik, misalnya '1.250'.
     """
-    return f"{value:,}".replace(",", ".")
+    return format_ribuan(value)
 
 
 def format_display_datetime(raw_value: str) -> str:
@@ -505,14 +506,7 @@ class RiwayatRepository:
         Raises:
             FileNotFoundError: Apabila file database belum ditemukan pada disk.
         """
-        if not self.db_path.exists() or not self.db_path.is_file():
-            raise FileNotFoundError(
-                f"File database tidak ditemukan di: {self.db_path}"
-            )
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON;")
-        return conn
+        return create_sqlite_connection(self.db_path)
 
     def is_ready(self) -> bool:
         """Memeriksa apakah file database dan tabel sales telah tersedia.

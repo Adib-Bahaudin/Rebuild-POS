@@ -36,7 +36,6 @@ from PySide6.QtWidgets import (
 
 from ui.customwindowtitlebar import (
     FramelessMainWindow,
-    ICON_PATHS,
     TitleBarIconConfig,
 )
 
@@ -258,12 +257,15 @@ class ProductFilterState:
 
 
 class _FullRowGradientDelegate(QStyledItemDelegate):
+    """Delegate tabel kustom untuk menggambar latar gradien penuh pada baris terpilih."""
+
     def paint(
         self,
         painter: QPainter,
         option: QStyleOptionViewItem,
         index: QModelIndex | QPersistentModelIndex,
     ) -> None:
+        """Menggambar sel tabel beserta efek gradien baris saat item sedang dipilih."""
         if option.state & QStyle.StateFlag.State_Selected:
             view = option.widget
             viewport = (
@@ -1399,6 +1401,7 @@ class ManajemenProdukPage(QWidget):
             viewport.installEventFilter(self)
 
     def _update_items_table_column_widths(self) -> None:
+        """Menyesuaikan proporsi lebar kolom nama dan kategori pada tabel barang."""
         viewport = self._items_table.viewport()
         if viewport is None:
             return
@@ -1414,6 +1417,7 @@ class ManajemenProdukPage(QWidget):
             self._items_table.setColumnWidth(2, cat_width)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        """Menyesuaikan ulang lebar kolom tabel saat viewport berubah ukuran atau tampil."""
         if (
             watched is self._items_table.viewport()
             and event.type() in (QEvent.Type.Resize, QEvent.Type.Show)

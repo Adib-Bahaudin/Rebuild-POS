@@ -1,3 +1,5 @@
+"""Modul autocomplete pencarian produk untuk panel kasir DashboardPOS."""
+
 from __future__ import annotations
 
 import logging
@@ -6,6 +8,8 @@ from typing import TYPE_CHECKING, Optional
 from PySide6.QtCore import QObject, QStringListModel, QTimer, Signal
 from PySide6.QtWidgets import QComboBox, QCompleter, QLineEdit
 
+from util.helper.formatrupiah import format_rupiah
+
 if TYPE_CHECKING:
     from core.transaksi_backend import CatalogProduct, TransactionRepository
 
@@ -13,7 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 class ProductSearchCompleter(QObject):
-    """Mengelola dropdown autocomplete pencarian produk berbasis database."""
+    """Mengelola dropdown autocomplete pencarian produk berbasis database.
+
+    Signals:
+        product_selected: Dipancarkan ketika pengguna memilih salah satu item saran.
+    """
 
     product_selected = Signal(object)
 
@@ -25,6 +33,15 @@ class ProductSearchCompleter(QObject):
         max_items: int = 10,
         parent: Optional[QObject] = None,
     ) -> None:
+        """Menginisialisasi completer pencarian produk dengan debounce timer.
+
+        Args:
+            search_input: Widget QLineEdit target input pencarian.
+            category_combo: Widget QComboBox filter kategori aktif.
+            repository: Repository transaksi untuk query katalog produk.
+            max_items: Jumlah maksimum saran yang ditampilkan pada dropdown.
+            parent: Objek QObject induk opsional.
+        """
         super().__init__(parent or search_input)
         self._search_input = search_input
         self._category_combo = category_combo
@@ -64,11 +81,13 @@ class ProductSearchCompleter(QObject):
         self._completer.activated.connect(self._on_item_activated)
 
     def _hide_popup(self) -> None:
+        """Menyembunyikan popup daftar saran autocomplete jika sedang terbuka."""
         popup = self._completer.popup()
         if popup is not None:
             popup.hide()
 
     def _on_text_edited(self, text: str) -> None:
+        """Memicu pencarian saran saat teks input pencarian berubah."""
         if not text.strip():
             self._label_to_product.clear()
             self._model.setStringList([])
@@ -77,10 +96,12 @@ class ProductSearchCompleter(QObject):
         self._timer.start()
 
     def _on_category_changed(self, _category: str) -> None:
+        """Memuat ulang saran autocomplete ketika kategori filter diubah."""
         if self._search_input.text().strip():
             self._timer.start()
 
     def _fetch_suggestions(self) -> None:
+        """Mengambil daftar saran produk dari repository dan memperbarui model."""
         query = self._search_input.text().strip()
         if not query:
             return
@@ -97,7 +118,7 @@ class ProductSearchCompleter(QObject):
         for product in matches[: self._max_items]:
             label = (
                 f"[{product.sku}] {product.display_name} - "
-                f"Rp {product.selling_price:,}".replace(",", ".")
+                f"{format_rupiah(product.selling_price)}"
             )
             self._label_to_product[label] = product
             labels.append(label)
@@ -110,6 +131,7 @@ class ProductSearchCompleter(QObject):
             self._hide_popup()
 
     def _on_item_activated(self, text: str) -> None:
+        """Memancarkan sinyal product_selected saat pengguna memilih item saran."""
         selected = self._label_to_product.get(text)
         if selected is not None:
             self.product_selected.emit(selected)
