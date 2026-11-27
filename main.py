@@ -40,6 +40,7 @@ from ui.loginpage import LoginPage
 from util.core.manajemen_produk_helper import create_connected_manajemen_produk_page
 from util.core.dashboard_transaksi_helper import create_connected_dashboard
 from util.core.riwayat_transaksi_helper import create_connected_riwayat_page
+from util.core.tambah_stok import create_connected_tambah_stok_page
 from util.helper.initdatabase import InitDatabase
 from util.helper.toast_helper import show_toast
 from util.ui.MainShell import MainShell, create_placeholder_page
@@ -161,7 +162,9 @@ def main() -> int:
             )
             dashboard_window.register_page(
                 "restock",
-                lambda: create_placeholder_page("Tambah Stok Toko"),
+                lambda: create_connected_tambah_stok_page(
+                    db_path=DEFAULT_DB_PATH,
+                ),
                 title="Tambah Stok Toko",
             )
             dashboard_window.register_page(

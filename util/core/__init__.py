@@ -14,6 +14,11 @@ from util.core.riwayat_transaksi_helper import (
     create_connected_riwayat_page,
     create_connected_riwayat_window,
 )
+from util.core.tambah_stok import (
+    bind_tambah_stok_backend,
+    create_connected_tambah_stok_page,
+    create_connected_tambah_stok_window,
+)
 
 __all__ = [
     "DashboardTransaksiHelper",
@@ -24,4 +29,7 @@ __all__ = [
     "bind_riwayat_to_backend",
     "create_connected_riwayat_page",
     "create_connected_riwayat_window",
+    "bind_tambah_stok_backend",
+    "create_connected_tambah_stok_page",
+    "create_connected_tambah_stok_window",
 ]
