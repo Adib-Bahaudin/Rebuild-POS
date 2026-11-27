@@ -1976,6 +1976,8 @@ class ManajemenProdukPage(QWidget):
             rows: Daftar objek ItemRowData untuk dirender pada tabel.
         """
         self._items_table.blockSignals(True)
+        self._items_table.clearSelection()
+        self._items_table.setCurrentCell(-1, -1)
         self._items_table.setRowCount(len(rows))
         mono_font = QFont("Consolas", 9)
 
@@ -2034,6 +2036,8 @@ class ManajemenProdukPage(QWidget):
             rows: Daftar objek ServiceRowData untuk dirender pada tabel.
         """
         self._services_table.blockSignals(True)
+        self._services_table.clearSelection()
+        self._services_table.setCurrentCell(-1, -1)
         self._services_table.setRowCount(len(rows))
         mono_font = QFont("Consolas", 9)
 
