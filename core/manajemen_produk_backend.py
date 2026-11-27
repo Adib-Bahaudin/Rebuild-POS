@@ -22,7 +22,11 @@ from PySide6.QtWidgets import QMessageBox
 
 from config import DEFAULT_DB_PATH
 from util.helper.db_connection import create_sqlite_connection
-from util.helper.formatrupiah import format_ribuan
+from util.helper.formatrupiah import (
+    format_qty as _format_qty,
+    format_ribuan,
+    format_rupiah as _format_rupiah,
+)
 from ui.manajemenproduk import (
     CategoryOption,
     InventoryLayerDetail,
@@ -317,9 +321,7 @@ def format_rupiah(amount: int | float) -> str:
     Returns:
         String nominal terformat seperti 'Rp 15.000'.
     """
-    rounded = int(round(amount))
-    formatted = format_integer(abs(rounded))
-    return f"-Rp {formatted}" if rounded < 0 else f"Rp {formatted}"
+    return _format_rupiah(amount)
 
 
 def format_qty(value: float, symbol: str = "") -> str:
@@ -332,13 +334,7 @@ def format_qty(value: float, symbol: str = "") -> str:
     Returns:
         String kuantitas terformat rapi tanpa nol desimal berlebih.
     """
-    if abs(value - round(value)) < 1e-6:
-        num_str = format_integer(int(round(value)))
-    else:
-        num_str = f"{value:,.2f}".rstrip("0").rstrip(".")
-        num_str = num_str.replace(",", "_").replace(".", ",").replace("_", ".")
-    clean_symbol = symbol.strip()
-    return f"{num_str} {clean_symbol}" if clean_symbol else num_str
+    return _format_qty(value, symbol)
 
 
 def format_display_date(raw_value: str, with_time: bool = False) -> str:

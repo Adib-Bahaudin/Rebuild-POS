@@ -13,7 +13,6 @@ from functools import partial
 from typing import TypedDict
 
 from PySide6.QtCore import (
-    QByteArray,
     QDate,
     QDateTime,
     QEasingCurve,
@@ -30,12 +29,9 @@ from PySide6.QtGui import (
     QIcon,
     QKeyEvent,
     QKeySequence,
-    QPainter,
-    QPixmap,
     QShortcut,
     QWheelEvent,
 )
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSpinBox,
@@ -66,6 +62,9 @@ from ui.customwindowtitlebar import (
     FramelessMainWindow,
     TitleBarIconConfig,
 )
+from util.helper.formatrupiah import format_qty as format_quantity
+from util.helper.formatrupiah import format_rupiah
+from util.helper.svg_helper import build_svg_icon
 
 
 class SupplierOption(TypedDict):
@@ -337,59 +336,6 @@ SVG_WALLET: str = (
     "<path d='M16 12h4'/>"
     "</svg>"
 )
-
-
-def format_rupiah(amount: int | float) -> str:
-    """Memformat angka nominal menjadi string mata uang Rupiah Indonesia.
-
-    Args:
-        amount: Nilai nominal angka bulat atau desimal.
-
-    Returns:
-        String terformat dalam gaya Rupiah, misalnya 'Rp 125.000'.
-    """
-    rounded = int(round(amount))
-    sign = "-" if rounded < 0 else ""
-    formatted = f"{abs(rounded):,}".replace(",", ".")
-    return f"{sign}Rp {formatted}"
-
-
-def format_quantity(value: float) -> str:
-    """Memformat angka kuantitas agar ringkas tanpa nol desimal berlebih.
-
-    Args:
-        value: Nilai kuantitas dalam tipe float.
-
-    Returns:
-        String kuantitas terformat dengan pemisah ribuan titik.
-    """
-    if abs(value - round(value)) < 1e-6:
-        return f"{int(round(value)):,}".replace(",", ".")
-    formatted = f"{value:,.2f}".rstrip("0").rstrip(".")
-    return formatted.replace(",", "_").replace(".", ",").replace("_", ".")
-
-
-def build_svg_icon(svg_markup: str, color: str, size: int = 16) -> QIcon:
-    """Merender markup SVG inline menjadi objek QIcon tajam berkualitas vektor.
-
-    Args:
-        svg_markup: Template string SVG yang mengandung placeholder '{color}'.
-        color: Kode warna heksadesimal untuk stroke atau fill ikon.
-        size: Dimensi persegi piksel untuk rendering ikon.
-
-    Returns:
-        Objek QIcon siap digunakan pada tombol atau tab.
-    """
-    rendered_svg = svg_markup.replace("{color}", color).encode("utf-8")
-    renderer = QSvgRenderer(QByteArray(rendered_svg))
-    pixmap = QPixmap(QSize(size * 2, size * 2))
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
-    renderer.render(painter)
-    painter.end()
-    pixmap.setDevicePixelRatio(2.0)
-    return QIcon(pixmap)
 
 
 class StatusBannerWidget(QFrame):
