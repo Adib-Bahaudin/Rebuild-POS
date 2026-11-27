@@ -15,9 +15,7 @@ from typing import TypedDict
 from PySide6.QtCore import (
     QDate,
     QDateTime,
-    QEasingCurve,
     QLocale,
-    QPropertyAnimation,
     QSize,
     QStringListModel,
     Qt,
@@ -41,7 +39,6 @@ from PySide6.QtWidgets import (
     QDateTimeEdit,
     QDoubleSpinBox,
     QFrame,
-    QGraphicsOpacityEffect,
     QGridLayout,
     QHBoxLayout,
     QHeaderView,
@@ -62,9 +59,11 @@ from ui.customwindowtitlebar import (
     FramelessMainWindow,
     TitleBarIconConfig,
 )
+from util.customtooltip import TooltipPosition, attach_tooltip
 from util.helper.formatrupiah import format_qty as format_quantity
 from util.helper.formatrupiah import format_rupiah
 from util.helper.svg_helper import build_svg_icon
+from util.helper.toast_helper import show_toast
 
 
 class SupplierOption(TypedDict):
@@ -336,112 +335,6 @@ SVG_WALLET: str = (
     "<path d='M16 12h4'/>"
     "</svg>"
 )
-
-
-class StatusBannerWidget(QFrame):
-    """Banner notifikasi inline dengan animasi fade-in dan tombol tutup.
-
-    Attributes:
-        dismissed: Sinyal yang dipancarkan saat banner ditutup pengguna.
-    """
-
-    dismissed = Signal()
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        """Menginisialisasi StatusBannerWidget dalam keadaan tersembunyi.
-
-        Args:
-            parent: Widget induk opsional.
-        """
-        super().__init__(parent)
-        self.setObjectName("statusBanner")
-        self._opacity_effect = QGraphicsOpacityEffect(self)
-        self.setGraphicsEffect(self._opacity_effect)
-        self._fade_anim = QPropertyAnimation(self._opacity_effect, b"opacity", self)
-        self._fade_anim.setDuration(180)
-        self._fade_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-        self._auto_hide_timer = QTimer(self)
-        self._auto_hide_timer.setSingleShot(True)
-        self._auto_hide_timer.timeout.connect(self.hide_banner)
-
-        self._message_label = QLabel("", self)
-        self._message_label.setWordWrap(True)
-        self._close_button = QPushButton("Tutup", self)
-        self._close_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self._close_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._close_button.clicked.connect(self.hide_banner)
-
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(12, 8, 12, 8)
-        layout.setSpacing(10)
-        layout.addWidget(self._message_label, 1)
-        layout.addWidget(self._close_button, 0)
-
-        self.setVisible(False)
-
-    def show_message(
-        self,
-        message: str,
-        level: str = "info",
-        duration_ms: int = 4500,
-    ) -> None:
-        """Menampilkan pesan notifikasi dengan warna sesuai tingkat kepentingan.
-
-        Args:
-            message: Teks pesan yang akan ditampilkan.
-            level: Tingkat status berupa 'info', 'success', 'warning', atau 'error'.
-            duration_ms: Lama tampil otomatis dalam milidetik; 0 agar tidak hilang otomatis.
-        """
-        palettes: dict[str, tuple[str, str, str]] = {
-            "info": ("#1E2A3A", "#89B4FA", "#DBEAFE"),
-            "success": ("#17322A", "#10B981", "#D1FAE5"),
-            "warning": ("#362B18", "#F59E0B", "#FEF3C7"),
-            "error": ("#3A1D28", "#F38BA8", "#FFE4E6"),
-        }
-        bg_color, border_color, text_color = palettes.get(level, palettes["info"])
-        self.setStyleSheet(
-            f"""
-            QFrame#statusBanner {{
-                background-color: {bg_color};
-                border: 1px solid {border_color};
-                border-radius: 8px;
-            }}
-            QFrame#statusBanner QLabel {{
-                color: {text_color};
-                font-size: 12px;
-                font-weight: 600;
-                background: transparent;
-            }}
-            QFrame#statusBanner QPushButton {{
-                background: transparent;
-                color: {text_color};
-                border: 1px solid {border_color};
-                border-radius: 5px;
-                padding: 2px 10px;
-                font-size: 11px;
-                font-weight: 600;
-            }}
-            QFrame#statusBanner QPushButton:hover {{
-                background-color: rgba(255, 255, 255, 0.08);
-            }}
-            """
-        )
-        self._message_label.setText(message)
-        self.setVisible(True)
-        self._fade_anim.stop()
-        self._fade_anim.setStartValue(0.0)
-        self._fade_anim.setEndValue(1.0)
-        self._fade_anim.start()
-
-        self._auto_hide_timer.stop()
-        if duration_ms > 0:
-            self._auto_hide_timer.start(duration_ms)
-
-    def hide_banner(self) -> None:
-        """Menyembunyikan banner notifikasi dan memancarkan sinyal dismissed."""
-        self._auto_hide_timer.stop()
-        self.setVisible(False)
-        self.dismissed.emit()
 
 
 class QuickSearchLineEdit(QLineEdit):
@@ -803,7 +696,11 @@ class RowActionCellWidget(QWidget):
         price_button.setIcon(build_svg_icon(SVG_TAG, "#89B4FA", 15))
         price_button.setIconSize(QSize(15, 15))
         price_button.setFixedSize(28, 28)
-        price_button.setToolTip("Cek / Ubah Harga Jual Barang")
+        attach_tooltip(
+            price_button,
+            "Cek / Ubah Harga Jual Barang",
+            position=TooltipPosition.TOP,
+        )
         price_button.setCursor(Qt.CursorShape.PointingHandCursor)
         price_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         price_button.clicked.connect(self.edit_price_clicked.emit)
@@ -813,7 +710,11 @@ class RowActionCellWidget(QWidget):
         delete_button.setIcon(build_svg_icon(SVG_TRASH, "#F38BA8", 15))
         delete_button.setIconSize(QSize(15, 15))
         delete_button.setFixedSize(28, 28)
-        delete_button.setToolTip("Hapus Baris (Ctrl+Del)")
+        attach_tooltip(
+            delete_button,
+            "Hapus Baris (Ctrl+Del)",
+            position=TooltipPosition.TOP,
+        )
         delete_button.setCursor(Qt.CursorShape.PointingHandCursor)
         delete_button.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         delete_button.clicked.connect(self.delete_clicked.emit)
@@ -874,7 +775,11 @@ class HistoryActionCellWidget(QWidget):
         repeat_btn.setObjectName("tablePillAccent")
         repeat_btn.setIcon(build_svg_icon(SVG_REPEAT, "#89B4FA", 13))
         repeat_btn.setIconSize(QSize(13, 13))
-        repeat_btn.setToolTip("Salin daftar barang nota ini ke keranjang")
+        attach_tooltip(
+            repeat_btn,
+            "Salin daftar barang nota ini ke keranjang",
+            position=TooltipPosition.TOP,
+        )
         repeat_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         repeat_btn.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         repeat_btn.clicked.connect(self.duplicate_clicked.emit)
@@ -966,13 +871,10 @@ class TambahStokPage(QWidget):
         self._recalculate_totals()
 
     def _setup_ui(self) -> None:
-        """Menyusun tata letak utama halaman berupa banner status dan tab kerja."""
+        """Menyusun tata letak utama halaman berupa tab kerja."""
         root_layout = QVBoxLayout(self)
         root_layout.setContentsMargins(14, 12, 14, 12)
         root_layout.setSpacing(8)
-
-        self.status_banner = StatusBannerWidget(self)
-        root_layout.addWidget(self.status_banner)
 
         self.tab_widget = QTabWidget(self)
         self.tab_widget.setObjectName("mainTabs")
@@ -1056,7 +958,11 @@ class TambahStokPage(QWidget):
         self.add_supplier_btn.setIcon(build_svg_icon(SVG_PLUS, "#89B4FA", 14))
         self.add_supplier_btn.setIconSize(QSize(14, 14))
         self.add_supplier_btn.setFixedSize(32, 32)
-        self.add_supplier_btn.setToolTip("Tambah Supplier Baru")
+        attach_tooltip(
+            self.add_supplier_btn,
+            "Tambah Supplier Baru",
+            position=TooltipPosition.TOP,
+        )
         self.add_supplier_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         supplier_row.addWidget(self.supplier_combo, 1)
@@ -1076,7 +982,11 @@ class TambahStokPage(QWidget):
         self.auto_invoice_btn.setIcon(build_svg_icon(SVG_SPARKLE, "#94E2D5", 13))
         self.auto_invoice_btn.setIconSize(QSize(13, 13))
         self.auto_invoice_btn.setFixedHeight(32)
-        self.auto_invoice_btn.setToolTip("Buat Nomor Nota Otomatis")
+        attach_tooltip(
+            self.auto_invoice_btn,
+            "Buat Nomor Nota Otomatis",
+            position=TooltipPosition.TOP,
+        )
         self.auto_invoice_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         invoice_row.addWidget(self.invoice_input, 1)
@@ -2182,14 +2092,28 @@ class TambahStokPage(QWidget):
         level: str = "info",
         duration_ms: int = 4500,
     ) -> None:
-        """Menampilkan notifikasi banner inline tanpa menghalangi alur ketik pengguna.
+        """Menampilkan notifikasi Toast tanpa menghalangi alur ketik pengguna.
 
         Args:
             message: Pesan informasi, keberhasilan, peringatan, atau galat.
             level: Tingkat pesan berupa 'info', 'success', 'warning', atau 'error'.
             duration_ms: Durasi tampil otomatis dalam milidetik.
         """
-        self.status_banner.show_message(message, level=level, duration_ms=duration_ms)
+        title_map: dict[str, tuple[str, bool]] = {
+            "success": ("Berhasil", True),
+            "info": ("Informasi", True),
+            "warning": ("Peringatan", False),
+            "error": ("Kesalahan", False),
+        }
+        title, is_success = title_map.get(level, ("Informasi", True))
+        resolved_duration = duration_ms if duration_ms > 0 else 4500
+        show_toast(
+            parent=self,
+            title=title,
+            message=message,
+            is_success=is_success,
+            duration_ms=resolved_duration,
+        )
 
     def _resolve_catalog_item(self, query: str) -> CatalogItemData | None:
         """Mencari kecocokan barang dari teks SKU, label autocomplete, atau potongan nama.
