@@ -48,6 +48,7 @@ class SidebarIconPaths:
 SIDEBAR_ICONS_CONFIG: Dict[str, Dict[str, str]] = {
     "dashboard": {"normal": "assets/icons/Dash_Normal.png", "hover": "assets/icons/Dash_Hover.png"},
     "history": {"normal": "assets/icons/hist_normal.png", "hover": "assets/icons/hist_hover.png"},
+    "restock": {"normal": "assets/icons/restock_normal.png", "hover": "assets/icons/restock_hover.png"},
     "product": {"normal": "assets/icons/prod_normal.png", "hover": "assets/icons/prod_hover.png"},
     "report": {"normal": "assets/icons/trx_normal.png", "hover": "assets/icons/trx_hover.png"},
     "people": {"normal": "assets/icons/cust_normal.png", "hover": "assets/icons/cust_hover.png"},
@@ -57,6 +58,7 @@ SIDEBAR_ICONS_CONFIG: Dict[str, Dict[str, str]] = {
 SIDEBAR_TOOLTIPS: dict[str, str] = {
     "dashboard": "Dashboard",
     "history": "Riwayat Transaksi",
+    "restock": "Tambah Stok",
     "product": "Manajemen Produk",
     "report": "Laporan Penjualan",
     "people": "Data Pelanggan",

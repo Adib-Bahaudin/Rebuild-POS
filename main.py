@@ -160,6 +160,11 @@ def main() -> int:
                 title="Riwayat Transaksi",
             )
             dashboard_window.register_page(
+                "restock",
+                lambda: create_placeholder_page("Tambah Stok Toko"),
+                title="Tambah Stok Toko",
+            )
+            dashboard_window.register_page(
                 "product",
                 lambda: create_connected_manajemen_produk_page(
                     db_path=DEFAULT_DB_PATH,
