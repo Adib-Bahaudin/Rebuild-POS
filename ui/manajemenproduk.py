@@ -484,7 +484,7 @@ class ProductDetailPanel(QFrame):
         """
         super().__init__(parent)
         self.setObjectName("DetailPanel")
-        self.setMinimumWidth(290)
+        self.setFixedWidth(300)
         self._current_item_id: int | None = None
         self._current_service_id: int | None = None
 
