@@ -39,8 +39,8 @@ from core.manajemen_produk_backend import (
 )
 from ui.customwindowtitlebar import ICON_PATHS, TitleBarIconConfig
 from ui.dialog.dialogtambahedititem import ItemFormDialog
-from ui.dialog.ServiceFormDialog import MaterialItemOption, ServiceFormDialog
-from ui.dialog.StockCardDialog import StockCardDialog, StockCardItemInfo
+from ui.dialog.dialogtambaheditjasa import MaterialItemOption, ServiceFormDialog
+from ui.dialog.dialogkartustok import StockCardDialog, StockCardItemInfo
 from ui.dialog.dialogeditkategoriunit import MasterCategoryUnitDialog
 from ui.manajemenproduk import (
     CategoryOption,
