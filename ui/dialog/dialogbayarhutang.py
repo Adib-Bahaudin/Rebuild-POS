@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from PySide6.QtCore import QByteArray, QEvent, QRectF, QSize, Qt
+from PySide6.QtCore import QEvent, QRectF, QSize, Qt
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -20,7 +20,6 @@ from PySide6.QtGui import (
     QPaintEvent,
     QPixmap,
 )
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QButtonGroup,
@@ -41,6 +40,7 @@ from PySide6.QtWidgets import (
 
 from core.riwayat_backend import TransactionFullDetail, format_rupiah
 from util.customdialog import CustomDialog
+from util.helper.svg_helper import build_svg_icon, render_svg_pixmap
 
 PAYMENT_METHOD_CHOICES: tuple[str, ...] = ("Tunai", "QRIS", "Transfer")
 
@@ -159,16 +159,7 @@ def _svg_pixmap(name: str, size: int, color: str, stroke: float = 2.0) -> QPixma
         QPixmap transparan berisi ikon.
     """
     markup = _SVG_TEMPLATE.format(color=color, stroke=stroke, body=_ICONS[name])
-    renderer = QSvgRenderer(QByteArray(markup.encode("utf-8")))
-    dpr = 2.0
-    pixmap = QPixmap(int(size * dpr), int(size * dpr))
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    renderer.render(painter, QRectF(0, 0, size * dpr, size * dpr))
-    painter.end()
-    pixmap.setDevicePixelRatio(dpr)
-    return pixmap
+    return render_svg_pixmap(markup, size=size)
 
 
 def _svg_icon(name: str, color: str, size: int = 16) -> QIcon:
@@ -182,7 +173,8 @@ def _svg_icon(name: str, color: str, size: int = 16) -> QIcon:
     Returns:
         Objek QIcon siap pakai.
     """
-    return QIcon(_svg_pixmap(name, size, color))
+    markup = _SVG_TEMPLATE.format(color=color, stroke=2.0, body=_ICONS[name])
+    return build_svg_icon(markup, size=size)
 
 
 class _HoverIconButton(QPushButton):

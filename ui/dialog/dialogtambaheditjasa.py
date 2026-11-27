@@ -17,7 +17,6 @@ from html import escape
 from pathlib import Path
 
 from PySide6.QtCore import (
-    QByteArray,
     QEasingCurve,
     QEvent,
     QLocale,
@@ -28,7 +27,6 @@ from PySide6.QtCore import (
     QVariantAnimation,
 )
 from PySide6.QtGui import QColor, QIcon, QPainter, QPaintEvent, QPixmap
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -57,6 +55,7 @@ from core.manajemen_produk_backend import (
 )
 from util.customdialog import CustomDialog
 from util.helper.dialog_form_helper import show_inline_error
+from util.helper.svg_helper import build_svg_icon, render_svg_pixmap
 
 
 # ---------------------------------------------------------------------------
@@ -198,16 +197,7 @@ def _svg_pixmap(name: str, size: int, color: str, stroke: float = 2.0) -> QPixma
     Returns:
         QPixmap transparan berisi ikon.
     """
-    renderer = QSvgRenderer(QByteArray(_svg_markup(name, color, stroke).encode("utf-8")))
-    dpr = 2.0
-    pixmap = QPixmap(int(size * dpr), int(size * dpr))
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    renderer.render(painter, QRectF(0, 0, size * dpr, size * dpr))
-    painter.end()
-    pixmap.setDevicePixelRatio(dpr)
-    return pixmap
+    return render_svg_pixmap(_svg_markup(name, color, stroke), size=size)
 
 
 def _svg_icon(
@@ -228,11 +218,14 @@ def _svg_icon(
     Returns:
         Objek QIcon siap pakai.
     """
-    icon = QIcon()
-    icon.addPixmap(_svg_pixmap(name, size, color), QIcon.Mode.Normal)
-    if disabled_color is not None:
-        icon.addPixmap(_svg_pixmap(name, size, disabled_color), QIcon.Mode.Disabled)
-    return icon
+    disabled_markup = (
+        _svg_markup(name, disabled_color) if disabled_color is not None else None
+    )
+    return build_svg_icon(
+        _svg_markup(name, color),
+        size=size,
+        disabled_markup=disabled_markup,
+    )
 
 
 def _svg_file(name: str, color: str) -> str | None:

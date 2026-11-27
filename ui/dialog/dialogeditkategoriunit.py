@@ -7,7 +7,7 @@ rapi. Logika backend, sinyal, dan nilai kembalian tidak berubah.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QByteArray, QRectF, QSize, Qt
+from PySide6.QtCore import QSize, Qt
 from PySide6.QtGui import (
     QColor,
     QFont,
@@ -16,7 +16,6 @@ from PySide6.QtGui import (
     QPaintEvent,
     QPixmap,
 )
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -42,6 +41,7 @@ from core.manajemen_produk_backend import (
     UnitRecord,
 )
 from util.customdialog import CustomDialog
+from util.helper.svg_helper import render_svg_pixmap
 
 
 # ---------------------------------------------------------------------------
@@ -157,13 +157,7 @@ def _svg_pixmap(
     """
     body = _ICONS.get(icon_key, "")
     svg_str = _SVG_TEMPLATE.format(color=color, stroke=stroke, body=body)
-    renderer = QSvgRenderer(QByteArray(svg_str.encode()))
-    px = QPixmap(size * 2, size * 2)
-    px.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(px)
-    renderer.render(painter, QRectF(0, 0, size * 2, size * 2))
-    painter.end()
-    return px.scaled(size, size, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+    return render_svg_pixmap(svg_str, size=size)
 
 
 def _make_icon_badge(

@@ -10,9 +10,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QByteArray, QPoint, QRectF, QSize, Qt
+from PySide6.QtCore import QPoint, QRectF, QSize, Qt
 from PySide6.QtGui import QColor, QFont, QIcon, QPainter, QPaintEvent, QPixmap
-from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QComboBox,
@@ -34,6 +33,11 @@ from PySide6.QtWidgets import (
 
 from core.manajemen_produk_backend import StockMovementRecord, format_qty
 from util.customdialog import CustomDialog
+from util.helper.svg_helper import (
+    build_svg_icon,
+    paint_centered_svg,
+    render_svg_pixmap,
+)
 
 MOVEMENT_TYPE_LABELS: dict[str, str] = {
     "PURCHASE": "Pembelian",
@@ -212,14 +216,7 @@ def _render_svg_pixmap(icon_key: str, color: str, size: int) -> QPixmap:
     Returns:
         Objek QPixmap hasil rendering SVG.
     """
-    svg_bytes = QByteArray(_svg_template(icon_key, color).encode("utf-8"))
-    renderer = QSvgRenderer(svg_bytes)
-    pixmap = QPixmap(size, size)
-    pixmap.fill(Qt.GlobalColor.transparent)
-    painter = QPainter(pixmap)
-    renderer.render(painter)
-    painter.end()
-    return pixmap
+    return render_svg_pixmap(_svg_template(icon_key, color), size=size, dpr=1.0)
 
 
 def _render_svg_icon(icon_key: str, color: str, size: int = 16) -> QIcon:
@@ -233,7 +230,7 @@ def _render_svg_icon(icon_key: str, color: str, size: int = 16) -> QIcon:
     Returns:
         Objek QIcon yang siap dipasang pada tombol atau widget Qt.
     """
-    return QIcon(_render_svg_pixmap(icon_key, color, size))
+    return build_svg_icon(_svg_template(icon_key, color), size=size, dpr=1.0)
 
 
 def _paint_centered_svg(
@@ -252,11 +249,7 @@ def _paint_centered_svg(
         color: Warna stroke ikon dalam format CSS/hex.
         icon_size: Lebar dan tinggi ikon dalam piksel.
     """
-    svg_bytes = QByteArray(_svg_template(icon_key, color).encode("utf-8"))
-    renderer = QSvgRenderer(svg_bytes)
-    x_pos = rect.x() + (rect.width() - icon_size) / 2.0
-    y_pos = rect.y() + (rect.height() - icon_size) / 2.0
-    renderer.render(painter, QRectF(x_pos, y_pos, icon_size, icon_size))
+    paint_centered_svg(painter, rect, _svg_template(icon_key, color), icon_size)
 
 
 class _StyledComboBox(QComboBox):
