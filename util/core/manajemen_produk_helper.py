@@ -38,7 +38,7 @@ from core.manajemen_produk_backend import (
     UnitRecord,
 )
 from ui.customwindowtitlebar import ICON_PATHS, TitleBarIconConfig
-from ui.dialog.ItemFormDialog import ItemFormDialog
+from ui.dialog.dialogtambahedititem import ItemFormDialog
 from ui.dialog.ServiceFormDialog import MaterialItemOption, ServiceFormDialog
 from ui.dialog.StockCardDialog import StockCardDialog, StockCardItemInfo
 from ui.dialog.MasterCategoryUnitDialog import MasterCategoryUnitDialog
@@ -48,7 +48,7 @@ from ui.manajemenproduk import (
     ManajemenProdukWindow,
     ProductFilterState,
 )
-from ui.dialog.StockAdjustmentDialog import (
+from ui.dialog.dialogopname import (
     StockAdjustmentDialog,
     StockItemOption,
 )
