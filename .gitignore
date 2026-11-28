@@ -37,8 +37,16 @@ dist/
 # 5. File Rahasia
 # ==============================
 .env
-barokah_database.db
 dev.py
+util/helper/database/db_vault.pyx
+util/helper/database/db_vault.c
+util/helper/database/*.pyd
+util/helper/database/*.so
+build/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
 
 # ==============================
 # 6. File Hasil Compile PySide6 (Opsional)
