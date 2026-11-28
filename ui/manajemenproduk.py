@@ -2059,7 +2059,6 @@ class ManajemenProdukPage(QWidget):
 
         self._items_table.blockSignals(False)
         self._update_items_table_column_widths()
-        logger.debug("Tabel barang UI diperbarui: %d baris dimuat", len(rows))
 
     def set_services(self, rows: list[ServiceRowData]) -> None:
         """Mengisi tabel layanan jasa dengan data terbaru dari backend.
@@ -2101,7 +2100,6 @@ class ManajemenProdukPage(QWidget):
             )
 
         self._services_table.blockSignals(False)
-        logger.debug("Tabel jasa UI diperbarui: %d baris dimuat", len(rows))
 
     def set_item_detail(self, detail: ItemFullDetail) -> None:
         """Meneruskan detail lengkap barang ke panel samping kanan.
