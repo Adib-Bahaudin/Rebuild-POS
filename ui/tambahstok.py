@@ -1108,6 +1108,7 @@ class TambahStokPage(QWidget):
         history_detail_requested: Sinyal permintaan melihat rincian nota pembelian.
         history_payment_requested: Sinyal permintaan membuka pelunasan hutang nota.
         history_duplicate_requested: Sinyal permintaan menyalin nota lama ke keranjang.
+        page_entered: Sinyal saat halaman Tambah Stok aktif dibuka melalui navigasi MainShell.
     """
 
     submit_purchase_requested = Signal(dict)
@@ -1124,6 +1125,7 @@ class TambahStokPage(QWidget):
     history_detail_requested = Signal(int)
     history_payment_requested = Signal(int)
     history_duplicate_requested = Signal(int)
+    page_entered = Signal()
 
     COL_NO: int = 0
     COL_ITEM: int = 1
@@ -2759,6 +2761,10 @@ class TambahStokPage(QWidget):
         self._stack.setCurrentIndex(0)
         self.quick_search_input.setFocus()
         self.quick_search_input.selectAll()
+
+    def on_page_entered(self) -> None:
+        """Hook siklus hidup yang dipanggil otomatis oleh MainShell saat halaman dibuka."""
+        self.page_entered.emit()
 
     def focus_cart_grid(self) -> None:
         """Memindahkan fokus ke kolom Qty baris pertama pada tabel keranjang."""

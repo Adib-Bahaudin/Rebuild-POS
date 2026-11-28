@@ -252,6 +252,7 @@ class TambahStokService:
         except Exception:
             if conn.in_transaction:
                 conn.execute("ROLLBACK;")
+                logger.warning("Transaksi write database di-rollback karena terjadi galat")
             raise
         finally:
             conn.close()
@@ -325,6 +326,12 @@ class TambahStokService:
             if supplier_id is None:
                 raise RuntimeError("Gagal memperoleh ID supplier baru dari database.")
 
+        logger.info(
+            "DB INSERT suppliers: id=%s, name='%s', phone='%s'",
+            int(supplier_id),
+            clean_name,
+            clean_phone,
+        )
         return {
             "id": int(supplier_id),
             "name": clean_name,
@@ -899,7 +906,7 @@ class TambahStokService:
             if final_row is None:
                 raise RuntimeError("Nota pembelian gagal diverifikasi setelah disimpan.")
 
-            return {
+            result: PurchaseSaveResult = {
                 "purchase_id": int(final_row["id"]),
                 "invoice_number": str(final_row["invoice_number"]),
                 "status": str(final_row["status"]),
@@ -909,6 +916,21 @@ class TambahStokService:
                 "payment_status": str(final_row["payment_status"]),
                 "layers_created": layers_created,
             }
+
+        logger.info(
+            "DB %s purchases (RECEIVED): id=%s, invoice='%s', supplier_id=%s, "
+            "total=%s, paid=%s, remaining=%s, status='%s', layers=%s",
+            "UPDATE" if draft_purchase_id is not None else "INSERT",
+            result["purchase_id"],
+            result["invoice_number"],
+            payload["supplier_id"],
+            result["total"],
+            result["amount_paid"],
+            result["remaining_amount"],
+            result["payment_status"],
+            result["layers_created"],
+        )
+        return result
 
     def save_purchase_draft(
         self,
@@ -1054,6 +1076,15 @@ class TambahStokService:
                     ),
                 )
 
+        logger.info(
+            "DB %s purchases (DRAFT): id=%s, invoice='%s', supplier_id=%s, total=%s, items=%s",
+            "UPDATE" if draft_purchase_id is not None else "INSERT",
+            purchase_id,
+            invoice_number,
+            payload["supplier_id"],
+            total_int,
+            len(lines),
+        )
         return {
             "purchase_id": purchase_id,
             "invoice_number": invoice_number,
@@ -1181,7 +1212,7 @@ class TambahStokService:
             if updated_row is None:
                 raise RuntimeError("Gagal membaca status nota setelah pelunasan.")
 
-            return {
+            payment_result: PaymentRecordResult = {
                 "payment_id": int(payment_id),
                 "purchase_id": purchase_id,
                 "invoice_number": str(updated_row["invoice_number"]),
@@ -1190,6 +1221,19 @@ class TambahStokService:
                 "remaining_amount": int(updated_row["remaining_amount"]),
                 "payment_status": str(updated_row["payment_status"]),
             }
+
+        logger.info(
+            "DB INSERT purchase_payments: payment_id=%s, purchase_id=%s, invoice='%s', "
+            "paid=%s, remaining=%s, status='%s', method='%s'",
+            payment_result["payment_id"],
+            payment_result["purchase_id"],
+            payment_result["invoice_number"],
+            payment_result["paid_this_time"],
+            payment_result["remaining_amount"],
+            payment_result["payment_status"],
+            clean_method,
+        )
+        return payment_result
 
     def get_purchase_history(
         self,
@@ -1559,6 +1603,11 @@ class TambahStokService:
                     (int(price), int(unit_id)),
                 )
                 updated_count += cursor.rowcount
+        logger.info(
+            "DB UPDATE item_units (selling_price): %s baris diperbarui (%s)",
+            updated_count,
+            price_updates,
+        )
         return updated_count
 
     def parse_csv_purchase_file(
@@ -1712,6 +1761,21 @@ class TambahStokController(QObject):
         self.page.history_payment_requested.connect(self._handle_history_payment)
         self.page.history_duplicate_requested.connect(self._handle_history_duplicate)
         self.page.reset_form_btn.clicked.connect(self._clear_active_draft)
+        self.page.page_entered.connect(self._handle_page_entered)
+
+    def _handle_page_entered(self) -> None:
+        """Menyegarkan katalog barang dan supplier saat halaman Tambah Stok dibuka."""
+        try:
+            current_supplier_id = self.page.supplier_combo.currentData()
+            selected_id = (
+                int(current_supplier_id)
+                if isinstance(current_supplier_id, int)
+                else None
+            )
+            self.refresh_catalog()
+            self.refresh_suppliers(selected_id=selected_id)
+        except Exception:
+            logger.exception("Gagal menyegarkan data Tambah Stok saat halaman dibuka")
 
     def _clear_active_draft(self) -> None:
         """Menghapus penanda ID draft aktif saat formulir direset pengguna."""
