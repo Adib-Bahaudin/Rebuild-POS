@@ -58,7 +58,7 @@ from PySide6.QtWidgets import (
     QSpinBox,
     QTableWidget,
     QTableWidgetItem,
-    QTabWidget,
+    QStackedWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -890,8 +890,8 @@ class ItemInfoCellWidget(QWidget):
         super().__init__(parent)
         self.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(8, 5, 8, 5)
-        layout.setSpacing(3)
+        layout.setContentsMargins(6, 2, 6, 2)
+        layout.setSpacing(1)
 
         name_label = QLabel(name, self)
         name_label.setObjectName("cellItemName")
@@ -934,8 +934,8 @@ class SubtotalCellWidget(QWidget):
         super().__init__(parent)
         self.setStyleSheet("background: transparent;")
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(4, 4, 4, 4)
-        layout.setSpacing(2)
+        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setSpacing(1)
 
         self.subtotal_spin = KeyboardDoubleSpinBox(
             decimals=0,
@@ -945,7 +945,7 @@ class SubtotalCellWidget(QWidget):
             parent=self,
         )
         self.subtotal_spin.setObjectName("gridSpinBox")
-        self.subtotal_spin.setFixedHeight(28)
+        self.subtotal_spin.setFixedHeight(24)
 
         self.hpp_label = QLabel("HPP: Rp 0 / unit", self)
         self.hpp_label.setObjectName("cellHppPreview")
@@ -986,15 +986,15 @@ class RowActionCellWidget(QWidget):
         super().__init__(parent)
         self.setStyleSheet("background: transparent;")
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(4, 2, 4, 2)
+        layout.setContentsMargins(4, 1, 4, 1)
         layout.setSpacing(6)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         price_button = QPushButton(self)
         price_button.setObjectName("iconActionNeutral")
-        price_button.setIcon(build_svg_icon(SVG_TAG, "#38BDF8", 15))
-        price_button.setIconSize(QSize(15, 15))
-        price_button.setFixedSize(30, 30)
+        price_button.setIcon(build_svg_icon(SVG_TAG, "#38BDF8", 14))
+        price_button.setIconSize(QSize(14, 14))
+        price_button.setFixedSize(26, 26)
         attach_tooltip(
             price_button,
             "Cek / Ubah Harga Jual Barang",
@@ -1006,9 +1006,9 @@ class RowActionCellWidget(QWidget):
 
         delete_button = QPushButton(self)
         delete_button.setObjectName("iconActionDanger")
-        delete_button.setIcon(build_svg_icon(SVG_TRASH, "#FB7185", 15))
-        delete_button.setIconSize(QSize(15, 15))
-        delete_button.setFixedSize(30, 30)
+        delete_button.setIcon(build_svg_icon(SVG_TRASH, "#FB7185", 14))
+        delete_button.setIconSize(QSize(14, 14))
+        delete_button.setFixedSize(26, 26)
         attach_tooltip(
             delete_button,
             "Hapus Baris (Ctrl+Del)",
@@ -1172,41 +1172,26 @@ class TambahStokPage(QWidget):
         self._recalculate_totals()
 
     def _setup_ui(self) -> None:
-        """Menyusun tata letak utama halaman berupa tab kerja."""
+        """Menyusun tata letak utama halaman berupa dua panel berlapis (stacked)."""
         root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(14, 12, 14, 12)
+        root_layout.setContentsMargins(14, 0, 14, 12)
         root_layout.setSpacing(10)
 
-        self.tab_widget = QTabWidget(self)
-        self.tab_widget.setObjectName("mainTabs")
-        self.tab_widget.setDocumentMode(False)
-        self.tab_widget.setIconSize(QSize(16, 16))
+        self._stack = QStackedWidget(self)
 
-        tab_bar = self.tab_widget.tabBar()
-        if tab_bar is not None:
-            tab_bar.setDrawBase(False)
-            tab_bar.setCursor(Qt.CursorShape.PointingHandCursor)
-
-        self._purchase_tab = QWidget(self.tab_widget)
+        self._purchase_tab = QWidget(self._stack)
         self._purchase_tab.setObjectName("tabContentContainer")
-        self._history_tab = QWidget(self.tab_widget)
+        self._history_tab = QWidget(self._stack)
         self._history_tab.setObjectName("tabContentContainer")
 
         self._build_purchase_tab()
         self._build_history_tab()
 
-        self.tab_widget.addTab(
-            self._purchase_tab,
-            build_svg_icon(SVG_LAYERS, "#FFFFFF", 16),
-            "Belanja / Kulakan (Grid Cepat)",
-        )
-        self.tab_widget.addTab(
-            self._history_tab,
-            build_svg_icon(SVG_WALLET, "#34D399", 16),
-            "Riwayat && Hutang Supplier",
-        )
+        self._stack.addWidget(self._purchase_tab)
+        self._stack.addWidget(self._history_tab)
+        self._stack.setCurrentIndex(0)
 
-        root_layout.addWidget(self.tab_widget, 1)
+        root_layout.addWidget(self._stack, 1)
 
         completer_popup = self._search_completer.popup()
         if completer_popup is not None:
@@ -1237,15 +1222,7 @@ class TambahStokPage(QWidget):
             )
 
     def _update_tab_icons(self, active_index: int) -> None:
-        """Menyesuaikan warna ikon tab agar tetap kontras saat aktif maupun pasif.
-
-        Args:
-            active_index: Indeks tab yang sedang aktif.
-        """
-        purchase_color = "#FFFFFF" if active_index == 0 else "#38BDF8"
-        history_color = "#FFFFFF" if active_index == 1 else "#34D399"
-        self.tab_widget.setTabIcon(0, build_svg_icon(SVG_LAYERS, purchase_color, 16))
-        self.tab_widget.setTabIcon(1, build_svg_icon(SVG_WALLET, history_color, 16))
+        """Tidak diperlukan lagi — ikon pada QStackedWidget tidak ada. Dipertahankan untuk kompatibilitas sinyal."""
 
     @staticmethod
     def _apply_glow_effect(
@@ -1541,7 +1518,7 @@ class TambahStokPage(QWidget):
         v_header = self.cart_table.verticalHeader()
         if v_header is not None:
             v_header.setVisible(False)
-            v_header.setDefaultSectionSize(56)
+            v_header.setDefaultSectionSize(44)
 
         cart_header.setSectionResizeMode(self.COL_NO, QHeaderView.ResizeMode.Fixed)
         cart_header.setSectionResizeMode(self.COL_ITEM, QHeaderView.ResizeMode.Stretch)
@@ -1570,19 +1547,19 @@ class TambahStokPage(QWidget):
         footer = QFrame(self._purchase_tab)
         footer.setObjectName("sectionCard")
         outer = QVBoxLayout(footer)
-        outer.setContentsMargins(14, 12, 14, 12)
-        outer.setSpacing(12)
+        outer.setContentsMargins(12, 8, 12, 8)
+        outer.setSpacing(8)
 
         content_row = QHBoxLayout()
         content_row.setContentsMargins(0, 0, 0, 0)
-        content_row.setSpacing(14)
+        content_row.setSpacing(12)
 
         summary_card = QFrame(footer)
         summary_card.setObjectName("grandTotalCard")
         summary_grid = QGridLayout(summary_card)
-        summary_grid.setContentsMargins(16, 12, 16, 12)
-        summary_grid.setHorizontalSpacing(12)
-        summary_grid.setVerticalSpacing(8)
+        summary_grid.setContentsMargins(12, 8, 12, 8)
+        summary_grid.setHorizontalSpacing(10)
+        summary_grid.setVerticalSpacing(4)
 
         self.item_count_label = QLabel("0 Jenis Barang  •  0 Total Qty Beli", summary_card)
         self.item_count_label.setObjectName("summaryMetaLabel")
@@ -1597,7 +1574,7 @@ class TambahStokPage(QWidget):
         discount_title.setObjectName("summaryFieldLabel")
         self.discount_spin = CurrencySpinBox(parent=summary_card)
         self.discount_spin.setObjectName("summarySpinBox")
-        self.discount_spin.setFixedHeight(32)
+        self.discount_spin.setFixedHeight(27)
 
         grand_title = QLabel("GRAND TOTAL", summary_card)
         grand_title.setObjectName("grandTotalTitle")
@@ -1619,16 +1596,16 @@ class TambahStokPage(QWidget):
         payment_card = QFrame(footer)
         payment_card.setObjectName("paymentCard")
         pay_grid = QGridLayout(payment_card)
-        pay_grid.setContentsMargins(16, 12, 16, 12)
-        pay_grid.setHorizontalSpacing(14)
-        pay_grid.setVerticalSpacing(7)
+        pay_grid.setContentsMargins(12, 8, 12, 8)
+        pay_grid.setHorizontalSpacing(12)
+        pay_grid.setVerticalSpacing(4)
 
         method_label = QLabel("Metode Pembayaran", payment_card)
         method_label.setObjectName("fieldLabel")
         self.payment_method_combo = StyledComboBox(payment_card)
         self.payment_method_combo.setObjectName("headerCombo")
         self.payment_method_combo.addItems(list(self.PAYMENT_METHODS))
-        self.payment_method_combo.setFixedHeight(32)
+        self.payment_method_combo.setFixedHeight(27)
 
         quick_pay_row = QHBoxLayout()
         quick_pay_row.setContentsMargins(0, 0, 0, 0)
@@ -1636,17 +1613,17 @@ class TambahStokPage(QWidget):
 
         self.btn_pay_full = QPushButton("Lunas (F8)", payment_card)
         self.btn_pay_full.setObjectName("quickPaySuccess")
-        self.btn_pay_full.setFixedHeight(30)
+        self.btn_pay_full.setFixedHeight(24)
         self.btn_pay_full.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.btn_pay_partial = QPushButton("DP / Cicil", payment_card)
         self.btn_pay_partial.setObjectName("quickPayWarning")
-        self.btn_pay_partial.setFixedHeight(30)
+        self.btn_pay_partial.setFixedHeight(24)
         self.btn_pay_partial.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.btn_pay_unpaid = QPushButton("Tempo", payment_card)
         self.btn_pay_unpaid.setObjectName("quickPayDanger")
-        self.btn_pay_unpaid.setFixedHeight(30)
+        self.btn_pay_unpaid.setFixedHeight(24)
         self.btn_pay_unpaid.setCursor(Qt.CursorShape.PointingHandCursor)
 
         quick_pay_row.addWidget(self.btn_pay_full)
@@ -1657,7 +1634,7 @@ class TambahStokPage(QWidget):
         paid_label.setObjectName("fieldLabel")
         self.amount_paid_spin = CurrencySpinBox(parent=payment_card)
         self.amount_paid_spin.setObjectName("footerSpinBox")
-        self.amount_paid_spin.setFixedHeight(32)
+        self.amount_paid_spin.setFixedHeight(27)
 
         remaining_label = QLabel("Sisa Hutang / Status", payment_card)
         remaining_label.setObjectName("fieldLabel")
@@ -1678,13 +1655,13 @@ class TambahStokPage(QWidget):
         self.due_date_edit = StyledDateEdit(QDate.currentDate().addDays(14), payment_card)
         self.due_date_edit.setObjectName("headerDate")
         self.due_date_edit.setDisplayFormat("yyyy-MM-dd")
-        self.due_date_edit.setFixedHeight(32)
+        self.due_date_edit.setFixedHeight(27)
 
         ref_label = QLabel("No. Referensi", payment_card)
         ref_label.setObjectName("fieldLabel")
         self.reference_input = QLineEdit(payment_card)
         self.reference_input.setObjectName("headerInput")
-        self.reference_input.setFixedHeight(32)
+        self.reference_input.setFixedHeight(27)
         self.reference_input.setPlaceholderText("No. bukti transfer / QRIS...")
 
         pay_grid.addWidget(method_label, 0, 0)
@@ -1713,30 +1690,44 @@ class TambahStokPage(QWidget):
         action_row.setContentsMargins(0, 0, 0, 0)
         action_row.setSpacing(10)
 
-        self.reset_form_btn = QPushButton("Reset Form (Ctrl+R)", footer)
+        self.reset_form_btn = QPushButton(footer)
         self.reset_form_btn.setObjectName("resetFormButton")
         self.reset_form_btn.setIcon(build_svg_icon(SVG_REFRESH, "#FB7185", 15))
         self.reset_form_btn.setIconSize(QSize(15, 15))
-        self.reset_form_btn.setFixedHeight(40)
+        self.reset_form_btn.setFixedHeight(34)
         self.reset_form_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        attach_tooltip(
+            self.reset_form_btn, 
+            "Reset Form (Ctrl+R", 
+            position=TooltipPosition.TOP 
+            )
 
         self.save_draft_btn = QPushButton("Simpan Draft (F9)", footer)
         self.save_draft_btn.setObjectName("secondaryActionButton")
         self.save_draft_btn.setIcon(build_svg_icon(SVG_SAVE, "#E0E7FF", 15))
         self.save_draft_btn.setIconSize(QSize(15, 15))
-        self.save_draft_btn.setFixedHeight(40)
+        self.save_draft_btn.setFixedHeight(34)
         self.save_draft_btn.setCursor(Qt.CursorShape.PointingHandCursor)
 
         self.submit_btn = QPushButton("Simpan & Tambah Stok (F10)", footer)
         self.submit_btn.setObjectName("primaryActionButton")
         self.submit_btn.setIcon(build_svg_icon(SVG_CHECK, "#022C22", 17))
         self.submit_btn.setIconSize(QSize(17, 17))
-        self.submit_btn.setFixedHeight(40)
+        self.submit_btn.setFixedHeight(34)
         self.submit_btn.setMinimumWidth(245)
         self.submit_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         self._apply_glow_effect(self.submit_btn, "#10B981", alpha=95, blur_radius=18.0, offset_y=2.0)
 
+        self.btn_goto_history = QPushButton("Riwayat && Hutang Supplier", footer)
+        self.btn_goto_history.setObjectName("secondaryActionButton")
+        self.btn_goto_history.setIcon(build_svg_icon(SVG_WALLET, "#34D399", 15))
+        self.btn_goto_history.setIconSize(QSize(15, 15))
+        self.btn_goto_history.setFixedHeight(34)
+        self.btn_goto_history.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_goto_history.clicked.connect(lambda: self._stack.setCurrentIndex(1))
+
         action_row.addWidget(self.reset_form_btn)
+        action_row.addWidget(self.btn_goto_history)
         action_row.addStretch(1)
         action_row.addWidget(self.save_draft_btn)
         action_row.addWidget(self.submit_btn)
@@ -1912,6 +1903,24 @@ class TambahStokPage(QWidget):
 
         layout.addWidget(self.history_table, 1)
 
+        back_footer = QFrame(self._history_tab)
+        back_footer.setObjectName("sectionCard")
+        back_footer_layout = QHBoxLayout(back_footer)
+        back_footer_layout.setContentsMargins(14, 8, 14, 8)
+        back_footer_layout.setSpacing(8)
+
+        self.btn_back_to_purchase = QPushButton("Kembali ke Belanja", back_footer)
+        self.btn_back_to_purchase.setObjectName("secondaryActionButton")
+        self.btn_back_to_purchase.setIcon(build_svg_icon(SVG_LAYERS, "#38BDF8", 15))
+        self.btn_back_to_purchase.setIconSize(QSize(15, 15))
+        self.btn_back_to_purchase.setFixedHeight(38)
+        self.btn_back_to_purchase.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_back_to_purchase.clicked.connect(lambda: self._stack.setCurrentIndex(0))
+
+        back_footer_layout.addWidget(self.btn_back_to_purchase)
+        back_footer_layout.addStretch(1)
+        layout.addWidget(back_footer)
+
     def _create_kpi_card(
         self,
         parent_layout: QHBoxLayout,
@@ -2004,45 +2013,6 @@ class TambahStokPage(QWidget):
             QWidget#tabContentContainer {
                 background: transparent;
             }
-            QTabWidget#mainTabs::pane {
-                border: none;
-                background: transparent;
-                top: 0px;
-            }
-            QTabWidget#mainTabs::tab-bar {
-                alignment: left;
-                border: none;
-            }
-            QTabWidget#mainTabs QTabBar {
-                background: transparent;
-                border: none;
-            }
-            QTabWidget#mainTabs QTabBar::tab {
-                background-color: #14182B;
-                color: #94A3B8;
-                border: 1px solid #263052;
-                border-bottom: none;
-                border-top-left-radius: 9px;
-                border-top-right-radius: 9px;
-                padding: 9px 20px;
-                margin-right: 6px;
-                font-size: 13px;
-                font-weight: 700;
-            }
-            QTabWidget#mainTabs QTabBar::tab:selected {
-                background: qlineargradient(
-                    x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #06B6D4, stop:1 #2563EB
-                );
-                color: #FFFFFF;
-                border: 1px solid #38BDF8;
-                border-bottom: 3px solid #67E8F9;
-            }
-            QTabWidget#mainTabs QTabBar::tab:hover:!selected {
-                background-color: #1B2340;
-                color: #E2E8F0;
-                border-color: #3B4C7A;
-            }
             QFrame#sectionCard {
                 background-color: #14192D;
                 border: 1px solid #263052;
@@ -2097,32 +2067,32 @@ class TambahStokPage(QWidget):
             }
             QLabel#summaryMetaLabel {
                 color: #5EEAD4;
-                font-size: 12px;
+                font-size: 11px;
                 font-weight: 700;
                 background: transparent;
             }
             QLabel#summaryValueLabel {
                 color: #F8FAFC;
-                font-size: 15px;
+                font-size: 13px;
                 font-weight: 700;
                 background: transparent;
             }
             QLabel#grandTotalTitle {
                 color: #FFFFFF;
-                font-size: 13px;
+                font-size: 12px;
                 font-weight: 800;
                 letter-spacing: 0.5px;
                 background: transparent;
             }
             QLabel#grandTotalValue {
                 color: #34D399;
-                font-size: 24px;
+                font-size: 19px;
                 font-weight: 800;
                 background: transparent;
             }
             QLabel#remainingValueLabel {
                 color: #FBBF24;
-                font-size: 16px;
+                font-size: 14px;
                 font-weight: 800;
                 background: transparent;
             }
@@ -2133,9 +2103,9 @@ class TambahStokPage(QWidget):
                 );
                 color: #052E16;
                 border: 1px solid #86EFAC;
-                border-radius: 11px;
-                padding: 4px 12px;
-                font-size: 11px;
+                border-radius: 9px;
+                padding: 2px 10px;
+                font-size: 10px;
                 font-weight: 800;
             }
             QLabel#statusBadgePartial {
@@ -2145,9 +2115,9 @@ class TambahStokPage(QWidget):
                 );
                 color: #451A03;
                 border: 1px solid #FDE68A;
-                border-radius: 11px;
-                padding: 4px 12px;
-                font-size: 11px;
+                border-radius: 9px;
+                padding: 2px 10px;
+                font-size: 10px;
                 font-weight: 800;
             }
             QLabel#statusBadgeUnpaid {
@@ -2157,9 +2127,9 @@ class TambahStokPage(QWidget):
                 );
                 color: #FFFFFF;
                 border: 1px solid #FDA4AF;
-                border-radius: 11px;
-                padding: 4px 12px;
-                font-size: 11px;
+                border-radius: 9px;
+                padding: 2px 10px;
+                font-size: 10px;
                 font-weight: 800;
             }
             QLabel#cellItemName {
@@ -2202,8 +2172,8 @@ class TambahStokPage(QWidget):
                 background-color: #0D1224;
                 color: #F1F5F9;
                 border: 1.5px solid #263254;
-                border-radius: 8px;
-                padding: 4px 10px;
+                border-radius: 7px;
+                padding: 2px 10px;
                 font-size: 12px;
                 font-weight: 500;
                 selection-background-color: #0EA5E9;
@@ -2329,8 +2299,8 @@ class TambahStokPage(QWidget):
                 background-color: #0D1326;
                 color: #F8FAFC;
                 border: 1.5px solid #263254;
-                border-radius: 7px;
-                padding: 2px 8px;
+                border-radius: 6px;
+                padding: 1px 8px;
                 font-size: 12px;
                 font-weight: 700;
                 selection-background-color: #0EA5E9;
@@ -2706,7 +2676,6 @@ class TambahStokPage(QWidget):
 
     def _connect_signals(self) -> None:
         """Menghubungkan seluruh sinyal interaksi UI ke handler internal dan sinyal keluar."""
-        self.tab_widget.currentChanged.connect(self._update_tab_icons)
 
         self.add_supplier_btn.clicked.connect(self.add_supplier_requested.emit)
         self.auto_invoice_btn.clicked.connect(self._handle_auto_invoice_click)
@@ -2786,8 +2755,8 @@ class TambahStokPage(QWidget):
         self.reset_form(keep_supplier=False)
 
     def focus_quick_search(self) -> None:
-        """Memindahkan fokus kursor ke kotak pencarian cepat pada Tab 1."""
-        self.tab_widget.setCurrentIndex(0)
+        """Memindahkan fokus kursor ke kotak pencarian cepat pada panel belanja."""
+        self._stack.setCurrentIndex(0)
         self.quick_search_input.setFocus()
         self.quick_search_input.selectAll()
 
@@ -3061,7 +3030,7 @@ class TambahStokPage(QWidget):
 
         unit_combo = KeyboardUnitComboBox(self.cart_table)
         unit_combo.setObjectName("gridCombo")
-        unit_combo.setFixedHeight(34)
+        unit_combo.setFixedHeight(28)
         selected_unit_index = 0
         for idx, unit in enumerate(units):
             conv_text = format_quantity(unit["conversion_qty"])
@@ -3079,7 +3048,7 @@ class TambahStokPage(QWidget):
             parent=self.cart_table,
         )
         qty_spin.setObjectName("gridSpinBox")
-        qty_spin.setFixedHeight(34)
+        qty_spin.setFixedHeight(28)
         qty_spin.setValue(max(0.01, quantity))
         self.cart_table.setCellWidget(row, self.COL_QTY, qty_spin)
 
@@ -3106,7 +3075,7 @@ class TambahStokPage(QWidget):
             parent=self.cart_table,
         )
         cost_spin.setObjectName("gridSpinBox")
-        cost_spin.setFixedHeight(34)
+        cost_spin.setFixedHeight(28)
         cost_spin.setValue(max(0.0, initial_cost))
         self.cart_table.setCellWidget(row, self.COL_UNIT_COST, cost_spin)
 
@@ -3233,7 +3202,7 @@ class TambahStokPage(QWidget):
         source_catalog = catalog_map if catalog_map is not None else self._catalog_by_id
         self.clear_cart()
 
-        self.tab_widget.setCurrentIndex(0)
+        self._stack.setCurrentIndex(0)
         if payload["invoice_number"]:
             self.invoice_input.setText(payload["invoice_number"])
 
