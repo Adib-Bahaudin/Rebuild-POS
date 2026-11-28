@@ -32,7 +32,7 @@ Ikuti tahap di bawah ini untuk membangun modul kunci secara lokal sebelum menjal
 > **Penting:** Simpan `RECOVERY_KEY_HEX` secara luring di tempat yang aman (misalnya pengelola sandi atau catatan cetak). Kunci ini diperlukan jika suatu saat Anda harus membuka atau memulihkan file `.db` menggunakan *DB Browser for SQLite* (mode *Raw key* `x'...'`).
 > ### B. Menyiapkan `util/helper/database/db_vault.pyx`
 > 1. Salin file templat `database/db_vault.example.py` dan ubah namanya menjadi `database/db_vault.pyx`.
-> 2. Buka `database/db_vault.pyx`, lalu ganti nilai `_MASK`, `_PART_A`, `_PART_B`, dan `_SALT_MASKED` dengan hasil dari Tahap 3.
+> 2. Buka `database/db_vault.pyx`, lalu ganti nilai `_MASK`, `_PART_A`, `_PART_B`, dan `_SALT_MASKED` dengan hasil dari Tahap A.
 > 3. Ubah definisi fungsi perakit kunci agar menjadi fungsi internal C (`cdef`) sehingga tidak dapat dipanggil dari luar modul Python:
 > ```cython
 > cdef str _assemble_raw_hex_key():
@@ -62,4 +62,9 @@ Jika semua langkah berhasil, file biner seperti `database/db_vault.cp312-win_amd
 **Pembersihan Artefak Build:**
 Hapus file antara `database/db_vault.c` dan folder `build/` setelah kompilasi selesai agar kode C hasil generasi Cython tidak tertinggal di direktori kerja.
 
-> **Catatan Git:** Jangan pernah menghapus aturan `database/db_vault.pyx`, `database/db_vault.c`, dan `database/*.pyd` dari `.gitignore` agar bahan kunci rahasia tidak ikut terunggah ke repositori.
+```bash
+Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue
+Remove-Item -Force util/helper/database/db_vault.c -ErrorAction SilentlyContinue
+```
+
+**Catatan Git:** Jangan pernah menghapus aturan `database/db_vault.pyx`, `database/db_vault.c`, dan `database/*.pyd` dari `.gitignore` agar bahan kunci rahasia tidak ikut terunggah ke repositori.
