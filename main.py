@@ -40,6 +40,7 @@ from ui.loginpage import LoginPage
 from util.core.manajemen_produk_helper import create_connected_manajemen_produk_page
 from util.core.dashboard_transaksi_helper import create_connected_dashboard
 from util.core.riwayat_transaksi_helper import create_connected_riwayat_page
+from util.core.relasi_helper import create_connected_relasi_page
 from util.core.tambah_stok import create_connected_tambah_stok_page
 from util.helper.database.initdatabase import InitDatabase
 from util.helper.toast_helper import show_toast
@@ -181,8 +182,11 @@ def main() -> int:
             )
             dashboard_window.register_page(
                 "people",
-                lambda: create_placeholder_page("Manajemen Pelanggan"),
-                title="Manajemen Pelanggan",
+                lambda: create_connected_relasi_page(
+                    db_path=DEFAULT_DB_PATH,
+                    cashier_name=user_name,
+                ),
+                title="Pelanggan & Supplier",
             )
             dashboard_window.register_page(
                 "settings",

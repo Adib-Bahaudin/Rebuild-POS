@@ -7,6 +7,12 @@ from util.core.dashboard_transaksi_helper import (
     bind_dashboard_to_backend,
     create_connected_dashboard,
 )
+from util.core.relasi_helper import (
+    RelasiHelper,
+    bind_relasi_to_backend,
+    create_connected_relasi_page,
+    create_connected_relasi_window,
+)
 from util.core.riwayat_transaksi_helper import (
     RiwayatTransaksiHelper,
     TransactionDetailDialog,
@@ -24,6 +30,10 @@ __all__ = [
     "DashboardTransaksiHelper",
     "bind_dashboard_to_backend",
     "create_connected_dashboard",
+    "RelasiHelper",
+    "bind_relasi_to_backend",
+    "create_connected_relasi_page",
+    "create_connected_relasi_window",
     "RiwayatTransaksiHelper",
     "TransactionDetailDialog",
     "bind_riwayat_to_backend",

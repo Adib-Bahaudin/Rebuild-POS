@@ -1060,6 +1060,7 @@ class RelationManagementPage(QWidget):
     filter_changed = Signal(str, object)
     refresh_requested = Signal(str)
     phone_copied = Signal(str, str)
+    page_entered = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """Menginisialisasi halaman RelationManagementPage lengkap dengan shortcut.
@@ -1283,6 +1284,10 @@ class RelationManagementPage(QWidget):
             "supplier" if self._active_mode == "customer" else "customer"
         )
         self.set_active_mode(next_mode, emit_signal=True)
+
+    def on_page_entered(self) -> None:
+        """Hook siklus hidup yang dipanggil otomatis oleh MainShell saat halaman dibuka."""
+        self.page_entered.emit()
 
     def set_active_mode(
         self,
