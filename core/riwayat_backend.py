@@ -32,7 +32,7 @@ from ui.riwayat_transaksi import (
     TransactionRowData,
     TrendStatus,
 )
-from util.helper.db_connection import create_sqlite_connection
+from util.helper.database.db_connection import create_sqlite_connection
 from util.helper.formatrupiah import format_ribuan, format_rupiah
 
 logger = logging.getLogger(__name__)

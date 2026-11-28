@@ -37,7 +37,7 @@ from ui.tambahstok import (
     SupplierOption,
     TambahStokPage,
 )
-from util.helper.db_connection import create_sqlite_connection
+from util.helper.database.db_connection import create_sqlite_connection
 from util.helper.formatrupiah import (
     format_qty as format_quantity,
     format_rupiah,

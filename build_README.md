@@ -1,55 +1,28 @@
-# Setup Enkripsi Database (SQLCipher & Cython Vault)
-
-Repositori ini menggunakan **SQLCipher (AES-256)** untuk mengenkripsi database SQLite lokal. Demi keamanan, file kunci asli (`database/db_vault.pyx`) dan hasil kompilasi binernya (`.pyd`) tidak disertakan di dalam repositori Git.
-
-Ikuti 5 tahap di bawah ini untuk membangun modul kunci secara lokal sebelum menjalankan aplikasi.
-
----
+# Build App Milikmu Sendiri
 
 ## 1. Prasyarat dan Instalasi Library
 
 Pastikan Anda menggunakan **Python 3.12+** di dalam *virtual environment* proyek, lalu instal dependensi berikut:
 
 ```bash
-pip install sqlcipher3-binary cython setuptools
+pip install -r requirements.txt
 ```
-
 
 **Khusus Pengguna Windows:**
 Kompilasi Cython membutuhkan kompilator C/C++. Pasang **Build Tools for Visual Studio** dan centang beban kerja **Desktop development with C++** sebelum melanjutkan ke tahap kompilasi.
 
----
 
-## 2. Struktur Folder Modul Keamanan
+## 2. Setup Enkripsi Database (SQLCipher & Cython Vault)
 
-Setelah seluruh tahap selesai, struktur file terkait enkripsi pada proyek akan terlihat seperti berikut:
+Repositori ini menggunakan **SQLCipher (AES-256)** untuk mengenkripsi database SQLite lokal. Demi keamanan, file kunci asli (`database/db_vault.pyx`) dan hasil kompilasi binernya (`.pyd`) tidak disertakan di dalam repositori Git.
 
-```text
-proyek_aplikasi/
-├── .gitignore
-├── setup_vault.py
-├── tools/
-│   └── generate_vault_bytes.py
-└── database/
-    ├── __init__.py
-    ├── db_connection.py
-    ├── db_vault.example.py    # Templat aman (ada di Git)
-    ├── db_vault.pyi           # Type stub untuk IDE/Pyright (ada di Git)
-    ├── db_vault.pyx           # File kunci asli (dibuat lokal, diabaikan Git)
-    └── db_vault.*.pyd         # Hasil kompilasi biner (dibuat lokal, diabaikan Git)
+Ikuti tahap di bawah ini untuk membangun modul kunci secara lokal sebelum menjalankan aplikasi.
 
-```
-
----
-
-## 3. Membangkitkan Bahan Kunci & Recovery Key
-
-Jalankan skrip utilitas berikut satu kali untuk menghasilkan byte kunci ter-XOR acak beserta *Recovery Key*:
-
-```bash
-python tools/generate_vault_bytes.py
-
-```
+> ### A. Membangkitkan Bahan Kunci & Recovery Key
+> Jalankan skrip utilitas berikut satu kali untuk menghasilkan byte kunci ter-XOR acak beserta *Recovery Key*:
+> ```bash
+> python util/helper/generate_vault_bytes.py
+>```
 
 Skrip akan mencetak:
 
@@ -60,12 +33,8 @@ Skrip akan mencetak:
 * `RECOVERY_KEY_HEX` (64 karakter heksadesimal)
 
 > **Penting:** Simpan `RECOVERY_KEY_HEX` secara luring di tempat yang aman (misalnya pengelola sandi atau catatan cetak). Kunci ini diperlukan jika suatu saat Anda harus membuka atau memulihkan file `.db` menggunakan *DB Browser for SQLite* (mode *Raw key* `x'...'`).
-
----
-
-## 4. Menyiapkan `database/db_vault.pyx`
-
-1. Salin file templat `database/db_vault.example.py` dan ubah namanya menjadi `database/db_vault.pyx`.
+> ### B. Menyiapkan `database/db_vault.pyx`
+> 1. Salin file templat `database/db_vault.example.py` dan ubah namanya menjadi `database/db_vault.pyx`.
 2. Buka `database/db_vault.pyx`, lalu ganti nilai `_MASK`, `_PART_A`, `_PART_B`, dan `_SALT_MASKED` dengan hasil dari Tahap 3.
 3. Ubah definisi fungsi perakit kunci agar menjadi fungsi internal C (`cdef`) sehingga tidak dapat dipanggil dari luar modul Python:
 

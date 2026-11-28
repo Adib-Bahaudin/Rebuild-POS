@@ -15,9 +15,9 @@ from pathlib import Path
 from typing import Optional
 
 from config import DEFAULT_DB_PATH
-from init.inituserdatabase import DatabaseInitializer
-from init.initsuperuser import run_superuser_in_cmd
-from init.inittransaksidatabase import init_transaksi_database
+from util.helper.database.init.inituserdatabase import DatabaseInitializer
+from util.helper.database.init.initsuperuser import run_superuser_in_cmd
+from util.helper.database.init.inittransaksidatabase import init_transaksi_database
 
 logger = logging.getLogger(__name__)
 

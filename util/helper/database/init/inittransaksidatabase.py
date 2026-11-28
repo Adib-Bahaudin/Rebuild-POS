@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from config import DEFAULT_DB_PATH
-from util.helper.db_connection import create_sqlite_connection
+from util.helper.database.db_connection import create_sqlite_connection
 
 logger = logging.getLogger(__name__)
 

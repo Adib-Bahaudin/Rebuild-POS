@@ -2,3 +2,6 @@
 
 PySide6==6.12.0
 pyqt-toast-notification
+sqlcipher3-wheels
+cython 
+setuptools

@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from config import DEFAULT_DB_PATH
-from init.inittransaksidatabase import TransaksiDatabaseInitializer
-from util.helper.db_connection import create_sqlite_connection
+from util.helper.database.init.inittransaksidatabase import TransaksiDatabaseInitializer
+from util.helper.database.db_connection import create_sqlite_connection
 
 
 CATEGORIES_DATA: list[str] = [
