@@ -68,3 +68,9 @@ Remove-Item -Force util/helper/database/db_vault.c -ErrorAction SilentlyContinue
 ```
 
 **Catatan Git:** Jangan pernah menghapus aturan `database/db_vault.pyx`, `database/db_vault.c`, dan `database/*.pyd` dari `.gitignore` agar bahan kunci rahasia tidak ikut terunggah ke repositori.
+
+## 3. App Siap
+```bash
+python main.py
+```
+> Build sesuka hati dengan tetap menghormati [lisensi GPL.3-0](https://github.com/Adib-Bahaudin/Rebuild-POS#GPL-3.0-1-ov-file) 
