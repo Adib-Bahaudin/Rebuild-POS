@@ -248,6 +248,38 @@ class TransactionRepository:
             logger.debug("Tabel categories belum tersedia atau gagal dibaca pada %s", self.db_path)
             return []
 
+    def fetch_active_customers(self) -> list[dict[str, Any]]:
+        """Membaca daftar pelanggan aktif dari database secara urut alfabet.
+
+        Returns:
+            Daftar dictionary berisi id, name, dan phone pelanggan aktif.
+        """
+        if not self.db_path.exists() or not self.db_path.is_file():
+            return []
+
+        try:
+            with self._connect() as conn:
+                cursor = conn.execute(
+                    """
+                    SELECT id, name, COALESCE(phone, '') AS phone
+                    FROM customers
+                    WHERE is_active = 1
+                    ORDER BY name COLLATE NOCASE ASC;
+                    """
+                )
+                return [
+                    {
+                        "id": int(row["id"]),
+                        "name": str(row["name"]),
+                        "phone": str(row["phone"] or ""),
+                    }
+                    for row in cursor.fetchall()
+                    if row["name"]
+                ]
+        except sqlite3.Error:
+            logger.debug("Tabel customers belum tersedia atau gagal dibaca pada %s", self.db_path)
+            return []
+
     def _require_lastrowid(self, cursor: sqlite3.Cursor, table_name: str) -> int:
         """Memastikan nilai lastrowid dari cursor INSERT bertipe integer valid.
 

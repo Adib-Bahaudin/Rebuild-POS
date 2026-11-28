@@ -15,11 +15,11 @@ from PySide6.QtGui import (
 from PySide6.QtSvgWidgets import QSvgWidget
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QLineEdit, QPushButton, QComboBox, QTableWidget,
+    QLabel, QLineEdit, QPushButton, QComboBox, QCompleter, QTableWidget,
     QHeaderView, QTextEdit, QCheckBox, QStackedWidget, QFrame,
     QTableWidgetItem, QSpinBox
 )
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional, Sequence, Union
 
 from config import get_asset_path
 from ui.customsidebar import (
@@ -188,6 +188,12 @@ class ProductSearchPanel(CardWidget):
                 image: url({icon_down_path});
                 width: 12px;
                 height: 12px;
+            }}
+            QComboBox QLineEdit {{
+                border: none;
+                padding: 0px;
+                background: transparent;
+                color: #CDD6F4;
             }}
             QComboBox QAbstractItemView {{
                 background-color: #11111B;
@@ -794,6 +800,12 @@ class PaymentPanel(CardWidget):
                 width: 10px;
                 height: 10px;
             }}
+            QComboBox QLineEdit {{
+                border: none;
+                padding: 0px;
+                background: transparent;
+                color: #CDD6F4;
+            }}
             QComboBox QAbstractItemView {{
                 background-color: #11111B;
                 color: white;
@@ -828,12 +840,40 @@ class PaymentPanel(CardWidget):
         cust_lbl = QLabel("Nama Customer")
         cust_lbl.setFixedWidth(100)
         cust_lbl.setStyleSheet("color: #CDD6F4; font-size: 12px; background-color: transparent;")
-        self.cust_input = QLineEdit()
+        self.cust_combo = QComboBox()
+        self.cust_combo.setEditable(True)
+        self.cust_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
+        self.cust_combo.setStyleSheet(common_input_style)
+        cust_completer = self.cust_combo.completer()
+        if cust_completer is not None:
+            cust_completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
+            cust_completer.setFilterMode(Qt.MatchFlag.MatchContains)
+            cust_completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
+            popup = cust_completer.popup()
+            if popup is not None:
+                popup.setStyleSheet(
+                    """
+                    QAbstractItemView {
+                        background-color: #11111B;
+                        color: #CDD6F4;
+                        border: 1px solid #313244;
+                        selection-background-color: #0078D7;
+                        selection-color: #FFFFFF;
+                        padding: 2px;
+                    }
+                    """
+                )
+        cust_line = self.cust_combo.lineEdit()
+        if cust_line is None:
+            cust_line = QLineEdit(self.cust_combo)
+            self.cust_combo.setLineEdit(cust_line)
+        self.cust_input: QLineEdit = cust_line
         self.cust_input.setPlaceholderText("Opsional, misal: Pelanggan ...")
-        self.cust_input.setStyleSheet(common_input_style)
         self.cust_input.textChanged.connect(self.customer_changed.emit)
+        self.cust_combo.setCurrentIndex(-1)
+        self.cust_combo.clearEditText()
         cust_layout.addWidget(cust_lbl)
-        cust_layout.addWidget(self.cust_input)
+        cust_layout.addWidget(self.cust_combo)
         
         note_layout = QVBoxLayout()
         note_lbl = QLabel("Catatan Kasir")
@@ -992,11 +1032,61 @@ class PaymentPanel(CardWidget):
         self.method_combo.setCurrentIndex(0)
         self.amount_input.clear()
         self.amount_input.setPlaceholderText("Rp. ")
-        self.cust_input.clear()
+        self.cust_combo.blockSignals(True)
+        self.cust_combo.setCurrentIndex(-1)
+        self.cust_combo.clearEditText()
+        self.cust_combo.blockSignals(False)
         self.cust_input.setPlaceholderText("Opsional, misal: Pelanggan ...")
         self.note_input.clear()
         self.change_lbl.setText("Kembalian: Rp 0")
         self.print_check.setChecked(False)
+
+    def set_customers(self, customers: Sequence[Union[str, Dict[str, Any]]]) -> None:
+        """Mengisi daftar pelanggan pada dropdown auto-completer tanpa menimpa ketikan aktif.
+
+        Args:
+            customers: Daftar nama string atau dictionary pelanggan (id, name, phone).
+        """
+        current_text = self.cust_input.text()
+        self.cust_combo.blockSignals(True)
+        self.cust_input.blockSignals(True)
+        self.cust_combo.clear()
+
+        for customer in customers:
+            if isinstance(customer, dict):
+                name = str(customer.get("name", "")).strip()
+                cust_id = customer.get("id")
+                phone = str(customer.get("phone", "")).strip()
+            else:
+                name = str(customer).strip()
+                cust_id = None
+                phone = ""
+
+            if not name:
+                continue
+
+            self.cust_combo.addItem(name, cust_id)
+            if phone:
+                idx = self.cust_combo.count() - 1
+                self.cust_combo.setItemData(
+                    idx,
+                    f"{name} ({phone})",
+                    Qt.ItemDataRole.ToolTipRole,
+                )
+
+        if current_text:
+            matched_idx = self.cust_combo.findText(
+                current_text,
+                Qt.MatchFlag.MatchFixedString,
+            )
+            self.cust_combo.setCurrentIndex(matched_idx)
+            self.cust_combo.setEditText(current_text)
+        else:
+            self.cust_combo.setCurrentIndex(-1)
+            self.cust_combo.clearEditText()
+
+        self.cust_input.blockSignals(False)
+        self.cust_combo.blockSignals(False)
 
     def set_payment_amount(self, amount: Union[int, float, str]) -> None:
         """Memperbarui teks pada input nominal pembayaran.
@@ -1127,6 +1217,7 @@ class DashboardPOS(QWidget):
     checkout_requested = Signal()
     payment_amount_changed = Signal(str)
     payment_method_changed = Signal(str)
+    page_entered = Signal()
     
     def __init__(self, user_name: str = "KASIR", user_role: str = "USER", parent: Optional[QWidget] = None) -> None:
         """Menginisialisasi dan merakit seluruh sub-komponen dashboard.
@@ -1290,6 +1381,18 @@ class DashboardPOS(QWidget):
             amount: Nilai nominal yang akan diisikan.
         """
         self.payment_panel.set_payment_amount(amount)
+
+    def set_customers(self, customers: Sequence[Union[str, Dict[str, Any]]]) -> None:
+        """Memperbarui daftar pelanggan pada dropdown auto-completer pembayaran.
+
+        Args:
+            customers: Daftar nama string atau dictionary pelanggan dari database.
+        """
+        self.payment_panel.set_customers(customers)
+
+    def on_page_entered(self) -> None:
+        """Hook siklus hidup yang dipanggil otomatis oleh MainShell saat halaman dibuka."""
+        self.page_entered.emit()
 
     def _on_shortcut_pay(self) -> None:
         """Memicu klik tombol Bayar saat shortcut Ctrl+B ditekan."""

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QWidget
@@ -86,6 +86,7 @@ class DashboardTransaksiHelper(QObject):
         self._attach_references()
         self._setup_connections()
         self.load_categories()
+        self.load_customers()
 
         logger.info(
             "DashboardTransaksiHelper berhasil diinisialisasi untuk kasir '%s' (DB: %s)",
@@ -118,6 +119,13 @@ class DashboardTransaksiHelper(QObject):
         self.controller.transaction_failed.connect(self._handle_transaction_failed)
         self.dashboard.navigation_requested.connect(self._handle_navigation)
         self.dashboard.checkout_requested.connect(self._handle_checkout_requested)
+        if hasattr(self.dashboard, "page_entered"):
+            self.dashboard.page_entered.connect(self._handle_page_entered)
+
+    def _handle_page_entered(self) -> None:
+        """Menyegarkan kategori pencarian dan daftar pelanggan saat halaman dibuka."""
+        self.load_categories()
+        self.load_customers()
 
     def _get_dialog_parent(self) -> QWidget:
         """Mengembalikan widget induk yang aman untuk menampilkan modal dialog.
@@ -221,6 +229,7 @@ class DashboardTransaksiHelper(QObject):
             )
 
         self.sale_succeeded.emit(result)
+        self.load_customers()
 
         for callback in self._on_completed_callbacks:
             try:
@@ -295,6 +304,17 @@ class DashboardTransaksiHelper(QObject):
         self.dashboard.search_panel.set_categories(all_categories)
         logger.debug("Kategori pencarian berhasil diselaraskan: %s", all_categories)
         return all_categories
+
+    def load_customers(self) -> list[dict[str, Any]]:
+        """Membaca daftar pelanggan aktif dari repository dan menerapkannya ke form kasir.
+
+        Returns:
+            Daftar dictionary pelanggan (id, name, phone) yang dimuat ke dropdown.
+        """
+        customers = self.repository.fetch_active_customers()
+        self.dashboard.set_customers(customers)
+        logger.debug("Daftar pelanggan kasir berhasil diselaraskan (%d data)", len(customers))
+        return customers
 
     def update_cashier(self, cashier_name: str, user_role: Optional[str] = None) -> None:
         """Memperbarui nama kasir dan hak akses pada controller dan header visual.
