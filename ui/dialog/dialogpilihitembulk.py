@@ -1206,6 +1206,10 @@ class BulkItemPickerDialog(CustomDialog):
         )
         self.table = QTableWidget(0, 5, self.content_widget)
         self.count_label = QLabel("0 barang dipilih", self.content_widget)
+        self._select_visible_btn = QPushButton(
+            "Centang Semua Tampil",
+            self.content_widget,
+        )
 
         self._setup_ui()
         self._render_table()
@@ -1372,17 +1376,17 @@ class BulkItemPickerDialog(CustomDialog):
 
         self.low_stock_check.toggled.connect(self._apply_filter)
 
-        select_visible_btn = QPushButton("Centang Semua Tampil", filter_card)
-        select_visible_btn.setObjectName("selectAllBtn")
-        select_visible_btn.setIcon(build_svg_icon(_SVG_CHECK_ALL, size=15))
-        select_visible_btn.setIconSize(QSize(15, 15))
-        select_visible_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        select_visible_btn.clicked.connect(self._select_all_visible)
+        self._select_visible_btn.setParent(filter_card)
+        self._select_visible_btn.setObjectName("selectAllBtn")
+        self._select_visible_btn.setIcon(build_svg_icon(_SVG_CHECK_ALL, size=15))
+        self._select_visible_btn.setIconSize(QSize(15, 15))
+        self._select_visible_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self._select_visible_btn.clicked.connect(self._select_all_visible)
 
         filter_row.addWidget(self.search_input, 1)
         filter_row.addWidget(self.category_combo)
         filter_row.addWidget(self.low_stock_check)
-        filter_row.addWidget(select_visible_btn)
+        filter_row.addWidget(self._select_visible_btn)
         return filter_card
 
     def _build_table_container(self) -> QFrame:
@@ -1570,16 +1574,26 @@ class BulkItemPickerDialog(CustomDialog):
         self._update_selected_count()
 
     def _select_all_visible(self) -> None:
-        """Mencentang seluruh barang yang sedang tampil setelah filter."""
-        for entry in self._filtered_items:
-            self._selected_ids.add(entry["catalog_item"]["item_id"])
+        """Mencentang seluruh item tampil jika kosong, atau menghapus semua centang."""
+        if self._selected_ids:
+            self._selected_ids.clear()
+        else:
+            for entry in self._filtered_items:
+                self._selected_ids.add(entry["catalog_item"]["item_id"])
         self._render_table()
 
     def _update_selected_count(self) -> None:
-        """Memperbarui teks jumlah barang terpilih dan indikator visual footer."""
+        """Memperbarui teks jumlah barang terpilih, tombol pilih semua, dan footer."""
         count = len(self._selected_ids)
         self.count_label.setText(f"{count} barang dipilih")
         self._selected_stat_label.setText(str(count))
+
+        if count > 0:
+            self._select_visible_btn.setText("Hapus Semua Centang")
+            self._select_visible_btn.setIcon(build_svg_icon(_SVG_CANCEL, size=15))
+        else:
+            self._select_visible_btn.setText("Centang Semua Tampil")
+            self._select_visible_btn.setIcon(build_svg_icon(_SVG_CHECK_ALL, size=15))
 
         state = "active" if count > 0 else "empty"
         self._count_pill.setProperty("selectedState", state)
