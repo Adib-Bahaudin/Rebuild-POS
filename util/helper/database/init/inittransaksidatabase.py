@@ -9,9 +9,10 @@ struktur tabel, indeks, dan trigger yang diperlukan untuk operasional transaksi
 from __future__ import annotations
 
 import logging
-import sqlite3
 from pathlib import Path
 from typing import Any, Optional
+
+from sqlcipher3 import dbapi2 as sqlite3
 
 from config import DEFAULT_DB_PATH
 from util.helper.database.db_connection import create_sqlite_connection

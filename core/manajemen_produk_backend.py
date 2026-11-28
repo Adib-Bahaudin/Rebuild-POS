@@ -14,7 +14,7 @@ from datetime import datetime
 import logging
 import math
 from pathlib import Path
-import sqlite3
+from sqlcipher3 import dbapi2 as sqlite3
 from typing import Any, Literal
 
 from PySide6.QtCore import QObject, QTimer, Signal

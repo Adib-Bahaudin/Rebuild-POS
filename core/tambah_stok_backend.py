@@ -14,7 +14,7 @@ import csv
 from datetime import datetime
 import logging
 from pathlib import Path
-import sqlite3
+from sqlcipher3 import dbapi2 as sqlite3
 from typing import Any, TypedDict
 
 from PySide6.QtCore import QDate, QObject

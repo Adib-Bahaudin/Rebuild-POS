@@ -8,7 +8,7 @@ stok awal pada tabel inventory_layers dan stock_movements untuk pengujian FIFO.
 
 from __future__ import annotations
 
-import sqlite3
+from sqlcipher3 import dbapi2 as sqlite3
 import sys
 from pathlib import Path
 from typing import Any, Optional

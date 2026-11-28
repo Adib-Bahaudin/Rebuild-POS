@@ -4,12 +4,15 @@ Modul ini bertanggung jawab untuk membuat dan memverifikasi eksistensi
 database serta tabel-tabel yang diperlukan untuk sistem autentikasi.
 """
 
-import sqlite3
+from contextlib import closing
 import logging
 from pathlib import Path
 from typing import Optional
 
+from sqlcipher3 import dbapi2 as sqlite3
+
 from config import DEFAULT_DB_PATH
+from util.helper.database.db_connection import create_sqlite_connection
 
 logger = logging.getLogger(__name__)
 
@@ -184,8 +187,14 @@ class DatabaseInitializer:
         self._check_db_exists()
         
         try:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.execute("PRAGMA foreign_keys = ON")
+            with closing(
+                create_sqlite_connection(
+                    self.db_path,
+                    require_exists=False,
+                    row_factory=False,
+                    foreign_keys=True,
+                )
+            ) as conn:
                 
                 if not self._tables_exist(conn):
                     self._create_tables(conn)

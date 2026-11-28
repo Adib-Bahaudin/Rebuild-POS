@@ -13,7 +13,7 @@ import html
 import importlib
 import logging
 import math
-import sqlite3
+from sqlcipher3 import dbapi2 as sqlite3
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta

@@ -4,7 +4,6 @@ Modul ini menangani logika validasi kunci, pencatatan riwayat login,
 serta implementasi hukuman penguncian sistem global secara bertingkat.
 """
 
-import sqlite3
 import time
 import hashlib
 import logging
@@ -12,7 +11,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+from sqlcipher3 import dbapi2 as sqlite3
+
 from config import DEFAULT_DB_PATH
+from util.helper.database.db_connection import create_sqlite_connection
 
 logger = logging.getLogger(__name__)
 
@@ -49,15 +51,17 @@ class LoginAuthService:
         self.db_path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Membuat dan mengembalikan koneksi ke database SQLite.
+        """Membuat dan mengembalikan koneksi ke database SQLCipher.
 
         Returns:
-            sqlite3.Connection: Objek koneksi database yang siap digunakan.
+            sqlite3.Connection: Objek koneksi database terenkripsi yang siap digunakan.
         """
-        conn = sqlite3.connect(self.db_path)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON")
-        return conn
+        return create_sqlite_connection(
+            self.db_path,
+            require_exists=True,
+            row_factory=True,
+            foreign_keys=True,
+        )
 
     def _get_settings(self, conn: sqlite3.Connection) -> Dict[str, int]:
         """Mengambil konfigurasi sistem dari tabel settings.

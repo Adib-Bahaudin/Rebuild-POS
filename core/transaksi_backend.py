@@ -8,7 +8,7 @@ skema transaksi dan inventaris FIFO pada inittransaksidatabase.
 from __future__ import annotations
 
 import logging
-import sqlite3
+from sqlcipher3 import dbapi2 as sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path

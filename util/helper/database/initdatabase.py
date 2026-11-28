@@ -9,12 +9,15 @@ database terlebih dahulu sebelum menjalankan setiap langkah.
 
 from __future__ import annotations
 
-import sqlite3
+from contextlib import closing
 import logging
 from pathlib import Path
 from typing import Optional
 
+from sqlcipher3 import dbapi2 as sqlite3
+
 from config import DEFAULT_DB_PATH
+from util.helper.database.db_connection import create_sqlite_connection
 from util.helper.database.init.inituserdatabase import DatabaseInitializer
 from util.helper.database.init.initsuperuser import run_superuser_in_cmd
 from util.helper.database.init.inittransaksidatabase import init_transaksi_database
@@ -61,7 +64,14 @@ class InitDatabase:
         """
         required_tables = {"users", "system_lockout", "login_logs", "settings"}
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with closing(
+                create_sqlite_connection(
+                    self.db_path,
+                    require_exists=True,
+                    row_factory=False,
+                    foreign_keys=False,
+                )
+            ) as conn:
                 cursor = conn.cursor()
                 cursor.execute(
                     "SELECT name FROM sqlite_master WHERE type='table'"
@@ -78,7 +88,14 @@ class InitDatabase:
             bool: True jika sudah ada minimal satu pengguna, False jika kosong.
         """
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with closing(
+                create_sqlite_connection(
+                    self.db_path,
+                    require_exists=True,
+                    row_factory=False,
+                    foreign_keys=False,
+                )
+            ) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT COUNT(*) FROM users")
                 count = cursor.fetchone()[0]

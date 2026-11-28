@@ -5,7 +5,7 @@ pada saat pengaturan awal sistem. Skrip akan menolak eksekusi
 jika sudah terdapat pengguna di dalam basis data.
 """
 
-import sqlite3
+from contextlib import closing
 import hashlib
 import getpass
 import logging
@@ -15,11 +15,14 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Tuple
 
-project_root = Path(__file__).resolve().parent.parent
+from sqlcipher3 import dbapi2 as sqlite3
+
+project_root = Path(__file__).resolve().parents[4]
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
 from config import DEFAULT_DB_PATH
+from util.helper.database.db_connection import create_sqlite_connection
 
 logger = logging.getLogger(__name__)
 
@@ -85,7 +88,14 @@ class SuperUserInitializer:
             sys.exit(1)
 
         try:
-            with sqlite3.connect(self.db_path) as conn:
+            with closing(
+                create_sqlite_connection(
+                    self.db_path,
+                    require_exists=True,
+                    row_factory=False,
+                    foreign_keys=True,
+                )
+            ) as conn:
                 if not self._is_database_empty(conn):
                     logger.warning("Tindakan ditolak. Basis data sudah memiliki pengguna (Tidak kosong).")
                     sys.exit(1)
@@ -140,7 +150,7 @@ def run_superuser_in_cmd(db_path: Optional[str | Path] = None) -> None:
     resolved_db_path = Path(db_path) if db_path is not None else DEFAULT_DB_PATH
     try:
         script_path = Path(__file__).resolve()
-        proj_root = script_path.parent.parent
+        proj_root = script_path.parents[4]
         logger.info("Membuka jendela CMD untuk inisialisasi Super User")
         
         env = os.environ.copy()
