@@ -61,7 +61,7 @@ SIDEBAR_TOOLTIPS: dict[str, str] = {
     "restock": "Tambah Stok",
     "product": "Manajemen Produk",
     "report": "Laporan Penjualan",
-    "people": "Data Pelanggan",
+    "people": "Daftar Hubungan",
     "settings": "Pengaturan",
 }
 
